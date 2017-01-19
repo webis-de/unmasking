@@ -1,9 +1,16 @@
-from nltk.tokenize.api import TokenizerI
-from nltk import FreqDist
+from nltk.tokenize import TreebankWordTokenizer
+
+import nltk
+import xxhash
 
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Callable
+from typing import List
 from enum import Enum, unique
+
+
+_punctuation = [".", ",", ";", ":", "!", "?", "+", "-", "*", "/", "^", "°", "=", "~",  "$", "%",
+                "(", ")", "[", "]", "{", "}", "<", ">",
+                "`", "``", "'", "''", "--", "---"]
 
 
 class SamplePair(object):
@@ -12,168 +19,115 @@ class SamplePair(object):
     """
     
     @unique
-    class SampleClass(Enum):
+    class Class(Enum):
         UNSPECIFIED = -1
         DIFFERENT_AUTHORS = 0
         SAME_AUTHOR = 1
     
-    def __init__(self, text1: str, texts2: List[str], cls: SampleClass, tokenizer: TokenizerI):
+    __sentence_tokenizers = {}
+    __chunked_files = []
+    
+    def __init__(self, a: str, b: List[str], cls: Class, chunk_size: int,
+                 language: str="english", cache_size: int=400):
         """
-        :param text1: text to identify
-        :param texts2: list of texts to compare with
+        Initialize pair of sample texts. Expects one main text ``a`` and one or more texts ``b``
+        to compare with. Both ``a`` and ``b`` will be split into sets of sequential chunks
+        according to ``chunk_size``. If ``chunk_size`` is smaller than the text length,
+        only a single chunk will be produced. Chunks will always contain full sentences according
+        to the NLTK Punkt tokenizer for the given ``language``.
+        Texts in ``b`` will be chunked individually before adding them sequentially to the chunk list.
+        
+        :param a: text to verify
+        :param b: list of other texts to compare with
         :param cls: class of the pair
-        :param tokenizer: tokenizer for separating tokens
+        :param chunk_size: minimum chunk size per text in words
+        :param language: language for sentence tokenization during chunk generation
+        :param cache_size: how many chunked texts to cache in memory
         """
-        self.text1 = text1
-        self.texts2 = texts2
-        self.cls = cls
-        self.tokenizer = tokenizer
+        self._cls = cls
+        self._language = language
+        self._cache_size = cache_size
         
-        # cache variables
-        self._tokens_text1 = None
-        self._filter_func1 = None
-        self._top_n_text1 = 0
-        self._top_tokens_text1 = None
-        self._tokens_texts2 = None
-        self._filter_func2 = None
-        self._top_n_texts2 = 0
-        self._top_tokens_texts2 = None
+        self._chunks_a = self._chunk_text(a, chunk_size)
+        self._chunks_b = []
+        for t in b:
+            self._chunks_b.extend(self._chunk_text(t, chunk_size))
     
-    def get_tokens_text1(self, filter_func: Callable[[str], bool]=None) -> List[str]:
-        """
-        Get tokens from text1 according to ``tokenizer``.
-        
-        :param filter_func: optional filter function to remove tokens such as
-                            punctuation from the token list
-        :return: tokenized text
-        """
-        if self._filter_func1 == filter_func and self._tokens_text1 is not None:
-            return self._tokens_text1
-        
-        tokens = self.tokenizer.tokenize(self.text1)
-        
-        if filter_func is not None:
-            tokens = [t for t in tokens if filter_func(t)]
-        
-        self._tokens_text1 = tokens
-        self._filter_func1 = filter_func
-        return tokens
-
-    def get_tokens_texts2(self, filter_func: Callable[[str], bool] = None) -> List[List[str]]:
-        """
-        Get tokens according to ``tokenizer`` from each text in the *texts2* set.
-
-        :param filter_func: optional filter function to remove tokens such as
-                            punctuation from the token lists
-        :return: tokenized texts
-        """
-        if self._filter_func2 == filter_func and self._tokens_texts2 is not None:
-            return self._tokens_texts2
-        
-        token_lists = []
-
-        for text in self.texts2:
-            tokens = self.tokenizer.tokenize(text)
-            
-            if filter_func is not None:
-                tokens = [t for t in tokens if filter_func(t)]
-            
-            token_lists.append(tokens)
-        
-        self._tokens_texts2 = token_lists
-        self._filter_func2 = filter_func
-        return token_lists
+    @property
+    def cls(self) -> Class:
+        """Class (same author|different authors|unspecified)"""
+        return self._cls
     
-    def get_top_tokens_text1(self, n: int, filter_func: Callable[[str], bool] = None) -> List[Tuple[str, int]]:
-        """
-        Get top n-most frequent tokens from text1.
+    @property
+    def chunks_a(self) -> List[str]:
+        """Chunks of first text (text to verify)"""
+        return self._chunks_a
+    
+    @property
+    def chunks_b(self) -> List[str]:
+        """Chunks of texts to compare the first text (a) with"""
+        return self._chunks_b
+    
+    @property
+    def language(self) -> str:
+        """Language of the sample texts a and b"""
+        return self._language
+    
+    def _chunk_text(self, text: str, chunk_size: int) -> List[str]:
+        text_hash = None
+        if self._cache_size > 0:
+            xxh = xxhash.xxh64()
+            xxh.update(text)
+            text_hash = xxh.digest()
+            for f in self.__chunked_files:
+                if f[0] == text_hash and f[1] == chunk_size:
+                    return f[2]
         
-        :param n: number of top tokens
-        :param filter_func: optional filter function to remove tokens such as
-                            punctuation from the token lists before counting tokens
-        :return: the n most-frequent tokens or less if there are not enough tokens
-        """
-        if self._top_n_text1 == n and self._filter_func1 == filter_func and self._top_tokens_text1 is not None:
-            return self._top_tokens_text1
-
-        self._top_tokens_text1 = FreqDist(self.get_tokens_text1(filter_func)).most_common(n)
-        return self._top_tokens_text1
-    
-    def get_top_tokens_texts2(self, n: int, filter_func: Callable[[str], bool] = None) -> List[Tuple[str, int]]:
-        """
-        Get average top n-most frequent tokens from the *texts2* set.
+        word_tokenizer = TreebankWordTokenizer()
+        total_words = len([t for t in word_tokenizer.tokenize(text) if t not in _punctuation])
+        num_chunks = total_words // chunk_size
+        ideal_chunk_size = max(total_words // max(num_chunks, 1), chunk_size)
         
-        :param n: number of top tokens
-        :param filter_func: optional filter function to remove tokens such as
-                            punctuation from the token lists before counting tokens
-        :return: the n on average most-frequent tokens or less if there are not enough tokens
-        """
-        if self._top_n_texts2 == n and self._filter_func1 == filter_func and self._top_tokens_texts2 is not None:
-            return self._top_tokens_texts2
+        if self.language not in self.__sentence_tokenizers:
+            self.__sentence_tokenizers[self.language] = \
+                nltk.data.load('tokenizers/punkt/{}.pickle'.format(self.language))
         
-        freq_dist = FreqDist()
-        token_lists = self.get_tokens_texts2(filter_func)
-        for tokens in token_lists:
-            freq_dist.update(tokens)
-
-        self._top_tokens_texts2 = freq_dist.most_common(n)
-        return self._top_tokens_texts2
-
-    
-class ChunkedPair(object):
-    """
-    Chunked text representation of text pairs
-    """
-    
-    def __init__(self, pair: SamplePair):
-        """
-        :param pair: text pair to be chunked
-        """
-        self.pair = pair
-    
-    @staticmethod
-    def _get_chunks(tokens: List[str], chunk_size: int) -> List[List[str]]:
+        sentences = self.__sentence_tokenizers[self.language].tokenize(text)
+        
         chunks = []
-        num_tokens = len(tokens)
-        num_chunks = num_tokens // chunk_size
-        actual_chunk_size = num_tokens // num_chunks
-    
-        for i in range(0, num_chunks):
-            if i < num_chunks - 1:
-                chunks.append(tokens[i * actual_chunk_size:i * actual_chunk_size + actual_chunk_size])
-            else:
-                chunks.append(tokens[i * actual_chunk_size:])
-    
-        return chunks
-    
-    def get_chunks_text1(self, chunk_size: int, filter_func: Callable[[str], bool]=None) -> List[List[str]]:
-        """
-        Get a chunked version of the first text from the given pair.
-        Tokens ignored by the filter will not count to the minimum chunk size.
-
-        :param chunk_size: minimum chunk size
-        :param filter_func: optional filter function to remove tokens such as
-                            punctuation from the token list
-        :return: chunks of tokenized texts
-        """
-        tokens = self.pair.get_tokens_text1(filter_func)
-        return self._get_chunks(tokens, chunk_size)
-
-    def get_chunks_texts2(self, chunk_size: int, filter_func: Callable[[str], bool] = None) -> List[List[str]]:
-        """
-        Get a chunked version of the *texts2* set from the given pair.
-        Tokens ignored by the filter will not count to the minimum chunk size.
-        All texts of the *texts2* set will be flattened into a single list of chunks.
-
-        :param chunk_size: minimum chunk size
-        :param filter_func: optional filter function to remove tokens such as
-                            punctuation from the token list
-        :return: chunks of tokenized texts
-        """
-        chunks = []
-        token_lists = self.pair.get_tokens_texts2(filter_func)
-        for tokens in token_lists:
-            chunks.extend(self._get_chunks(tokens, chunk_size))
+        current_chunk = ""
+        current_chunk_size = 0
+        for s in sentences:
+            num_words = len([t for t in word_tokenizer.tokenize(s) if t not in _punctuation])
+            current_chunk_size += num_words
+            
+            if current_chunk_size >= ideal_chunk_size:
+                chunks.append(current_chunk)
+                current_chunk = ""
+                current_chunk_size = num_words
+            
+            if "" != current_chunk:
+                current_chunk += " "
+            current_chunk += s
+        
+        if 0 == len(chunks):
+            # if minimum chunk size smaller than actual text, insert the only chunk we have
+            chunks.append(current_chunk)
+        else:
+            # otherwise add left-over sentences to last chunk
+            chunks[-1] += " " + current_chunk
+            
+            # combine last two chunks if the last chunk is too small
+            if len(chunks) >= 2:
+                last_chunk_len = len([t for t in word_tokenizer.tokenize(chunks[-1]) if t not in _punctuation])
+                if last_chunk_len < chunk_size:
+                    chunks[-2] += " " + chunks[-1]
+                    del chunks[-1]
+        
+        if self._cache_size > 0:
+            if len(self.__chunked_files) >= self._cache_size:
+                del self.__chunked_files[0]
+            self.__chunked_files.append((text_hash, chunk_size, chunks))
         
         return chunks
     
@@ -189,15 +143,26 @@ class CorpusParser(ABC):
         """
 
         def __init__(self, parser):
+            """
+            :type parser: CorpusParser.CorpusParserIterator
+            """
             self.parser = parser
 
         @abstractmethod
         def __next__(self) -> SamplePair:
             pass
 
-    def __init__(self, corpus_path: str, tokenizer: TokenizerI):
+    def __init__(self, corpus_path: str, chunk_size: int, language: str="english", cache_size: int=400):
+        """
+        :param corpus_path: path to the corpus directory
+        :param chunk_size: minimum chunk size per text in words
+        :param language: language of the corpus
+        :param cache_size: number of chunked texts to cache in memory
+        """
         self.corpus_path = corpus_path
-        self.tokenizer = tokenizer
+        self.chunk_size = chunk_size
+        self.language = language
+        self.cache_size = cache_size
 
     @abstractmethod
     def __iter__(self) -> CorpusParserIterator:

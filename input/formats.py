@@ -35,6 +35,9 @@ class BookSampleParser(CorpusParser):
             self._iterator2 = None
             self._next2 = None
             
+            # de-duplication of single-text pairs
+            self._single_text_pairs = []
+            
             # read in all directory and file names and build
             # file -> author and author -> files maps
             dirs = os.listdir(self.parser.corpus_path)
@@ -70,6 +73,7 @@ class BookSampleParser(CorpusParser):
                 return self.__next__()
             
             compare_texts = []
+            last_filename = None
             for file_name in self._authors[self._next2]:
                 if file_name == self._next1:
                     # don't compare a text with itself
@@ -77,16 +81,25 @@ class BookSampleParser(CorpusParser):
                 
                 with open(file_name, "r") as handle:
                     compare_texts.append(handle.read())
+                    last_filename = file_name
             
-            # if there is only one text of this author, we can't build a pair
-            if len(compare_texts) == 0:
+            num_comp_texts = len(compare_texts)
+            if num_comp_texts == 0:
+                # if there is only one text of this author, we can't build a pair
                 return self.__next__()
-
-            cls = SamplePair.SampleClass.DIFFERENT_AUTHORS
-            if self._files[self._next1] == self._next2:
-                cls = SamplePair.SampleClass.SAME_AUTHOR
+            elif num_comp_texts == 1:
+                # make sure we don't have the same pair of single texts twice
+                pair_set = {self._next1, last_filename}
+                if pair_set in self._single_text_pairs:
+                    return self.__next__()
+                self._single_text_pairs.append(pair_set)
             
-            return SamplePair(self._current_file_contents, compare_texts, cls, self.parser.tokenizer)
+            cls = SamplePair.Class.DIFFERENT_AUTHORS
+            if self._files[self._next1] == self._next2:
+                cls = SamplePair.Class.SAME_AUTHOR
+            
+            return SamplePair(self._current_file_contents, compare_texts, cls,
+                              self.parser.chunk_size, self.parser.language, self.parser.cache_size)
     
     def __iter__(self) -> BookSampleParserIterator:
         return self.BookSampleParserIterator(self)
