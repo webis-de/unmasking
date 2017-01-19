@@ -25,7 +25,8 @@ class SamplePair:
         SAME_AUTHOR = 1
     
     __sentence_tokenizers = {}
-    __chunked_files = []
+    __chunked_files = {}
+    __chunked_file_hashes = []
     
     def __init__(self, a: str, b: List[str], cls: Class, chunk_size: int,
                  language: str = "english", cache_size: int = 400):
@@ -78,10 +79,9 @@ class SamplePair:
         if self._cache_size > 0:
             xxh = xxhash.xxh64()
             xxh.update(text)
-            text_hash = xxh.digest()
-            for f in self.__chunked_files:
-                if f[0] == text_hash and f[1] == chunk_size:
-                    return f[2]
+            text_hash = xxh.hexdigest() + str(chunk_size)
+            if text_hash in self.__chunked_files:
+                return self.__chunked_files[text_hash]
         
         word_tokenizer = TreebankWordTokenizer()
         total_words = len([t for t in word_tokenizer.tokenize(text) if t not in _punctuation])
@@ -125,9 +125,13 @@ class SamplePair:
                     del chunks[-1]
         
         if self._cache_size > 0:
-            if len(self.__chunked_files) >= self._cache_size:
-                del self.__chunked_files[0]
-            self.__chunked_files.append((text_hash, chunk_size, chunks))
+            if len(self.__chunked_file_hashes) >= self._cache_size:
+                # delete oldest cache entry by regenerating the dict (faster than del)
+                self.__chunked_files = {k: v for (k, v) in self.__chunked_files.items()
+                                        if k != self.__chunked_file_hashes[0]}
+                del self.__chunked_file_hashes[0]
+            self.__chunked_files[text_hash] = chunks
+            self.__chunked_file_hashes.append(text_hash)
         
         return chunks
 
