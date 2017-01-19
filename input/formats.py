@@ -1,4 +1,4 @@
-from input.corpus_tools import CorpusParser, SamplePair
+from input.interfaces import CorpusParser, SamplePair
 
 import os
 

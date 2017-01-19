@@ -3,17 +3,17 @@ from nltk.tokenize import TreebankWordTokenizer
 import nltk
 import xxhash
 
+import random
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Iterable, Tuple
 from enum import Enum, unique
 
-
-_punctuation = [".", ",", ";", ":", "!", "?", "+", "-", "*", "/", "^", "°", "=", "~",  "$", "%",
+_punctuation = [".", ",", ";", ":", "!", "?", "+", "-", "*", "/", "^", "°", "=", "~", "$", "%",
                 "(", ")", "[", "]", "{", "}", "<", ">",
                 "`", "``", "'", "''", "--", "---"]
 
 
-class SamplePair(object):
+class SamplePair:
     """
     Pair of sample text sets.
     """
@@ -28,7 +28,7 @@ class SamplePair(object):
     __chunked_files = []
     
     def __init__(self, a: str, b: List[str], cls: Class, chunk_size: int,
-                 language: str="english", cache_size: int=400):
+                 language: str = "english", cache_size: int = 400):
         """
         Initialize pair of sample texts. Expects one main text ``a`` and one or more texts ``b``
         to compare with. Both ``a`` and ``b`` will be split into sets of sequential chunks
@@ -36,7 +36,7 @@ class SamplePair(object):
         only a single chunk will be produced. Chunks will always contain full sentences according
         to the NLTK Punkt tokenizer for the given ``language``.
         Texts in ``b`` will be chunked individually before adding them sequentially to the chunk list.
-        
+
         :param a: text to verify
         :param b: list of other texts to compare with
         :param cls: class of the pair
@@ -130,57 +130,39 @@ class SamplePair(object):
             self.__chunked_files.append((text_hash, chunk_size, chunks))
         
         return chunks
+
+
+class ChunkSampler(ABC):
+    """
+    Base class for chunk samplers used for generating pairs of chunks from :class:`SamplePair`s.
+    """
     
-
-class CorpusParser(ABC):
-    """
-    Base class for corpus parsers.
-    """
-
-    class CorpusParserIterator(ABC):
-        """
-        Iterator class for :class:`CorpusParser`.
-        """
-
-        def __init__(self, parser):
-            """
-            :type parser: CorpusParser.CorpusParserIterator
-            """
-            self.parser = parser
-
-        @abstractmethod
-        def __next__(self) -> SamplePair:
-            pass
-
-    def __init__(self, corpus_path: str, chunk_size: int, language: str="english", cache_size: int=400):
-        """
-        :param corpus_path: path to the corpus directory
-        :param chunk_size: minimum chunk size per text in words
-        :param language: language of the corpus
-        :param cache_size: number of chunked texts to cache in memory
-        """
-        self.corpus_path = corpus_path
-        self.chunk_size = chunk_size
-        self.language = language
-        self.cache_size = cache_size
-
     @abstractmethod
-    def __iter__(self) -> CorpusParserIterator:
+    def generate_chunk_pairs(self, pair: SamplePair) -> Iterable[Tuple[str, str]]:
         """
-        Iterator returning author pairs. This method is abstract and needs
-        to be implemented by all concrete CorpusParsers.
+        Generate pairs of chunks from the given :class:`SamplePair.
 
-        The returned iterator should be of type :class:`CorpusParser.CorpusParserIterator`
-
-        :return: iterator object
+        :param pair: text pair to create chunk pairs from
+        :return: generator or other iterable producing the chunk pairs
         """
         pass
 
-    def get_all_pairs(self) -> List[SamplePair]:
-        """
-        :return: list of all pairs in the current corpus
-        """
-        pairs = []
-        for p in self:
-            pairs.append(p)
-        return pairs
+
+class RandomOversampler(ChunkSampler):
+    """
+    ChunkSampler for generating chunk pairs by random oversampling.
+    If both sets a and b have the same amount of chunks, they will be matched 1:1 in order.
+    """
+    
+    def generate_chunk_pairs(self, pair: SamplePair) -> Iterable[Tuple[str, str]]:
+        len_a = len(pair.chunks_a)
+        len_b = len(pair.chunks_b)
+        if len_b > len_a:
+            for b in pair.chunks_b:
+                yield (pair.chunks_a[random.randint(0, len_a - 1)], b)
+        elif len_a > len_b:
+            for a in pair.chunks_a:
+                yield (a, pair.chunks_b[random.randint(0, len_b - 1)])
+        else:
+            for i in range(0, len_a):
+                yield (pair.chunks_a[i], pair.chunks_b[i])
