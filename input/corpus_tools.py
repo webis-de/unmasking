@@ -17,16 +17,16 @@ class SamplePair(object):
         DIFFERENT_AUTHORS = 0
         SAME_AUTHOR = 1
     
-    def __init__(self, text1: str, texts2: List[str], sample_class: SampleClass, tokenizer: TokenizerI):
+    def __init__(self, text1: str, texts2: List[str], cls: SampleClass, tokenizer: TokenizerI):
         """
         :param text1: text to identify
         :param texts2: list of texts to compare with
-        :param sample_class: class of the pair
+        :param cls: class of the pair
         :param tokenizer: tokenizer for separating tokens
         """
         self.text1 = text1
         self.texts2 = texts2
-        self.sample_class = sample_class
+        self.cls = cls
         self.tokenizer = tokenizer
         
         # cache variables
@@ -44,7 +44,7 @@ class SamplePair(object):
         Get tokens from text1 according to ``tokenizer``.
         
         :param filter_func: optional filter function to remove tokens such as
-                             punctuation from the token list
+                            punctuation from the token list
         :return: tokenized text
         """
         if self._filter_func1 == filter_func and self._tokens_text1 is not None:
@@ -64,7 +64,7 @@ class SamplePair(object):
         Get tokens according to ``tokenizer`` from each text in the *texts2* set.
 
         :param filter_func: optional filter function to remove tokens such as
-                             punctuation from the token lists
+                            punctuation from the token lists
         :return: tokenized texts
         """
         if self._filter_func2 == filter_func and self._tokens_texts2 is not None:
@@ -90,7 +90,7 @@ class SamplePair(object):
         
         :param n: number of top tokens
         :param filter_func: optional filter function to remove tokens such as
-                             punctuation from the token lists before counting tokens
+                            punctuation from the token lists before counting tokens
         :return: the n most-frequent tokens or less if there are not enough tokens
         """
         if self._top_n_text1 == n and self._filter_func1 == filter_func and self._top_tokens_text1 is not None:
@@ -105,7 +105,7 @@ class SamplePair(object):
         
         :param n: number of top tokens
         :param filter_func: optional filter function to remove tokens such as
-                             punctuation from the token lists before counting tokens
+                            punctuation from the token lists before counting tokens
         :return: the n on average most-frequent tokens or less if there are not enough tokens
         """
         if self._top_n_texts2 == n and self._filter_func1 == filter_func and self._top_tokens_texts2 is not None:
@@ -153,7 +153,7 @@ class ChunkedPair(object):
 
         :param chunk_size: minimum chunk size
         :param filter_func: optional filter function to remove tokens such as
-                             punctuation from the token list
+                            punctuation from the token list
         :return: chunks of tokenized texts
         """
         tokens = self.pair.get_tokens_text1(filter_func)
@@ -167,7 +167,7 @@ class ChunkedPair(object):
 
         :param chunk_size: minimum chunk size
         :param filter_func: optional filter function to remove tokens such as
-                             punctuation from the token list
+                            punctuation from the token list
         :return: chunks of tokenized texts
         """
         chunks = []
@@ -182,12 +182,40 @@ class CorpusParser(ABC):
     """
     Base class for corpus parsers.
     """
-    def __init__(self, corpus_path):
-        self.corpus_path = corpus_path
 
-    def __iter__(self):
-        return self
+    class CorpusParserIterator(ABC):
+        """
+        Iterator class for :class:`CorpusParser`.
+        """
+
+        def __init__(self, parser):
+            self.parser = parser
+
+        @abstractmethod
+        def __next__(self) -> SamplePair:
+            pass
+
+    def __init__(self, corpus_path: str, tokenizer: TokenizerI):
+        self.corpus_path = corpus_path
+        self.tokenizer = tokenizer
 
     @abstractmethod
-    def __next(self):
+    def __iter__(self) -> CorpusParserIterator:
+        """
+        Iterator returning author pairs. This method is abstract and needs
+        to be implemented by all concrete CorpusParsers.
+
+        The returned iterator should be of type :class:`CorpusParser.CorpusParserIterator`
+
+        :return: iterator object
+        """
         pass
+
+    def get_all_pairs(self) -> List[SamplePair]:
+        """
+        :return: list of all pairs in the current corpus
+        """
+        pairs = []
+        for p in self:
+            pairs.append(p)
+        return pairs
