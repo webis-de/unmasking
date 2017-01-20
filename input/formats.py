@@ -1,5 +1,6 @@
-from input.interfaces import CorpusParser, SamplePair
+from event import EventBroadcaster, ProgressEvent
 
+from input.interfaces import CorpusParser, SamplePair
 import os
 
 
@@ -56,12 +57,17 @@ class BookSampleParser(CorpusParser):
                     self._authors[d].append(file_path)
             
             self._iterator1 = iter(self._files)
+            
+            # progress publisher
+            self._progress_event = ProgressEvent("progress", len(self._files))
         
         def __next__(self) -> SamplePair:
             # next text
             if self._next2 is None:
+                EventBroadcaster.publish(self._progress_event, self.parser.__class__)
                 self._next1 = next(self._iterator1)
                 self._iterator2 = iter(self._authors)
+                self._progress_event.increment()
                 with open(self._next1, "r") as handle:
                     self._current_file_contents = handle.read()
             

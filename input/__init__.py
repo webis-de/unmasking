@@ -1,2 +1,2 @@
-from input.interfaces import *
-from input.formats import *
+from input.interfaces import CorpusParser
+from input.formats import BookSampleParser

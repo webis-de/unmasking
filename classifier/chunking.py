@@ -1,3 +1,4 @@
+from event import EventBroadcaster, ProgressEvent
 from util.map import BoundedHashMap
 
 import nltk
@@ -51,10 +52,18 @@ class SamplePair:
         self._language = language
         self._cache_size = cache_size
         
+        self._progress_event = ProgressEvent("progress", len(b) + 1)
+        EventBroadcaster.publish(self._progress_event, self.__class__)
+        
         self._chunks_a = self._chunk_text(a, chunk_size)
+        self._progress_event.increment()
+        EventBroadcaster.publish(self._progress_event, self.__class__)
+        
         self._chunks_b = []
         for t in b:
             self._chunks_b.extend(self._chunk_text(t, chunk_size))
+            self._progress_event.increment()
+            EventBroadcaster.publish(self._progress_event, self.__class__)
     
     @property
     def cls(self) -> Class:
