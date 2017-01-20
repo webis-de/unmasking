@@ -1,7 +1,7 @@
-from nltk.tokenize import TreebankWordTokenizer
+from util.map import BoundedHashMap
 
 import nltk
-import xxhash
+from nltk.tokenize import TreebankWordTokenizer
 
 import random
 from abc import ABC, abstractmethod
@@ -24,9 +24,9 @@ class SamplePair:
         DIFFERENT_AUTHORS = 0
         SAME_AUTHOR = 1
     
+    # cache variables
     __sentence_tokenizers = {}
-    __chunked_files = {}
-    __chunked_file_hashes = []
+    __chunked_files = BoundedHashMap()
     
     def __init__(self, a: str, b: List[str], cls: Class, chunk_size: int,
                  language: str = "english", cache_size: int = 400):
@@ -45,6 +45,8 @@ class SamplePair:
         :param language: language for sentence tokenization during chunk generation
         :param cache_size: how many chunked texts to cache in memory
         """
+        self.__chunked_files.maxlen = cache_size
+        
         self._cls = cls
         self._language = language
         self._cache_size = cache_size
@@ -75,13 +77,8 @@ class SamplePair:
         return self._language
     
     def _chunk_text(self, text: str, chunk_size: int) -> List[str]:
-        text_hash = None
-        if self._cache_size > 0:
-            xxh = xxhash.xxh64()
-            xxh.update(text)
-            text_hash = xxh.hexdigest() + str(chunk_size)
-            if text_hash in self.__chunked_files:
-                return self.__chunked_files[text_hash]
+        if text in self.__chunked_files:
+            return self.__chunked_files[text]
         
         word_tokenizer = TreebankWordTokenizer()
         total_words = len([t for t in word_tokenizer.tokenize(text) if t not in _punctuation])
@@ -124,14 +121,8 @@ class SamplePair:
                     chunks[-2] += " " + chunks[-1]
                     del chunks[-1]
         
-        if self._cache_size > 0:
-            if len(self.__chunked_file_hashes) >= self._cache_size:
-                # delete oldest cache entry by regenerating the dict (faster than del)
-                self.__chunked_files = {k: v for (k, v) in self.__chunked_files.items()
-                                        if k != self.__chunked_file_hashes[0]}
-                del self.__chunked_file_hashes[0]
-            self.__chunked_files[text_hash] = chunks
-            self.__chunked_file_hashes.append(text_hash)
+        # cache chunked files
+        self.__chunked_files[text] = chunks
         
         return chunks
 
