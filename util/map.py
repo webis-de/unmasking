@@ -28,16 +28,12 @@ class BoundedHashMap:
     
     @maxlen.setter
     def maxlen(self, maxlen: int):
-        """Set maximum number of entries after which older entries are removed."""
+        """Set maximum number of entries this hash map will hold before deleting the oldest items."""
         if maxlen < 0:
             raise ValueError
         self._maxlen = maxlen
     
     def __getitem__(self, item):
-        """
-        :param item: pre-computed hash value
-        :return: stored value
-        """
         return self._elements[item]
     
     def __contains__(self, item):
