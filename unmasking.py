@@ -14,19 +14,19 @@ class PrintProgress(EventHandler):
 
 
 def main():
-    chunking_progress = PrintProgress("Chunking progress")
-    EventBroadcaster.subscribe("progress", chunking_progress, {BookSampleParser})
+    pair_progress = PrintProgress("Pair-building progress")
+    EventBroadcaster.subscribe("progress", pair_progress, {BookSampleParser})
     
     parser = BookSampleParser("corpora", 500, "english")
     s = UniqueRandomUndersampler()
-    
-    tokenization_progress = None
+
+    chunking_progress = None
     for i, pair in enumerate(parser):
-        if tokenization_progress is not None:
-            EventBroadcaster.unsubscribe("progress", tokenization_progress, {SamplePair})
+        if chunking_progress is not None:
+            EventBroadcaster.unsubscribe("progress", chunking_progress, {SamplePair})
         
-        tokenization_progress = PrintProgress("Chunk tokenization progress for pair {}".format(i))
-        EventBroadcaster.subscribe("progress", tokenization_progress, {SamplePair})
+        chunking_progress = PrintProgress("Chunking progress for pair {}".format(i))
+        EventBroadcaster.subscribe("progress", chunking_progress, {SamplePair})
         
         fs = AvgWordFreqFeatureSet(pair, s)
         list(fs.get_features_absolute(20))

@@ -17,6 +17,10 @@ _punctuation = [".", ",", ";", ":", "!", "?", "+", "-", "*", "/", "^", "°", "="
 class SamplePair:
     """
     Pair of sample text sets.
+    
+    Events published by this class:
+    
+    * `progress`: progress of chunk generation
     """
     
     @unique

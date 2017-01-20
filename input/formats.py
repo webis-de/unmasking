@@ -19,6 +19,11 @@ class BookSampleParser(CorpusParser):
         |__ + Light_in_August.txt
 
     File and folder names can be chosen arbitrarily, but the book sample files must end in .txt.
+    
+    Events published by this class:
+    
+    * `progress`: progress of author pair generation
+    
     """
     
     class BookSampleParserIterator(CorpusParser.CorpusParserIterator):
