@@ -34,8 +34,8 @@ class EventBroadcaster:
         if event_name not in cls._subscribers:
             return
         
-        for s in cls._subscribers:
-            cls._subscribers[s] = [i for i in cls._subscribers[s] if i != (senders, handler)]
+        for e in cls._subscribers:
+            cls._subscribers[e] = [i for i in cls._subscribers[s] if i != (senders, handler)]
     
     @classmethod
     def publish(cls, event: Event, sender: type):
