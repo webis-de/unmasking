@@ -1,7 +1,9 @@
 from classifier.chunking import SamplePair, ChunkSampler
 
+import numpy
+
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Iterable
+from typing import Tuple, Iterable
 
 
 class FeatureSet(ABC):
@@ -18,21 +20,25 @@ class FeatureSet(ABC):
         self._sampler = sampler
     
     @abstractmethod
-    def get_features_absolute(self, n: int) -> Iterable[Tuple[List[float], SamplePair.Class]]:
+    def get_features_absolute(self, n: int) -> Iterable[Tuple[numpy.ndarray, SamplePair.Class]]:
         """
         Create feature vectors from the chunked text pair.
+        Each feature vector will have length ``n`` per chunk, resulting in an overall size
+        of 2``n'` for each chunk pair.
 
-        :param n: dimension of the feature vector to create
-        :return: generator or iterable of n-dimensional feature vectors and their classes
+        :param n: dimension of the feature vector to create for each chunk
+        :return: generator or iterable of tuples of 2n-dimensional feature vectors and their classes
         """
         pass
     
     @abstractmethod
-    def get_features_relative(self, n: int) -> Iterable[Tuple[List[float], SamplePair.Class]]:
+    def get_features_relative(self, n: int) -> Iterable[Tuple[numpy.ndarray, SamplePair.Class]]:
         """
         Create feature vectors from the chunked text pair with relative (normalized) feature weights.
+        Each feature vector will have length ``n`` per chunk, resulting in an overall size
+        of 2``n'` for each chunk pair.
 
-        :param n: dimension of the feature vector to create
-        :return: generator or iterable of n-dimensional feature vectors and their classes
+        :param n: dimension of the feature vector to create for each chunk
+        :return: generator or iterable of tuples of 2n-dimensional feature vectors and their classes
         """
         pass

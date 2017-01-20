@@ -1,9 +1,10 @@
 from classifier.interfaces import FeatureSet
 from classifier.chunking import SamplePair, ChunkSampler
 
+import numpy
+import xxhash
 from nltk import FreqDist
 from nltk.tokenize import TreebankWordTokenizer
-import xxhash
 
 from typing import List, Tuple, Iterable
 
@@ -50,23 +51,27 @@ class AvgWordFreqFeatureSet(FeatureSet):
         
         self._chunks = self._sampler.generate_chunk_pairs(self._pair)
 
-    def get_features_absolute(self, n: int) -> Iterable[Tuple[List[float], SamplePair.Class]]:
-        top_n_words = [w for (w, f) in self._avg_freq_dist.most_common(n)]
+    def get_features_absolute(self, n: int) -> Iterable[Tuple[numpy.ndarray, SamplePair.Class]]:
+        top_n_words = numpy.array([w for (w, f) in self._avg_freq_dist.most_common(n)])
+        num_top_words = len(top_n_words)
         for c in self._chunks:
+            vec = numpy.zeros(2 * n)
+            
             a = FreqDist(self._tokenize(c[0]))
-            a_n = a.N()
-            b = FreqDist(self._tokenize(c[1]))
-            b_n = b.N()
-            vec = [0.0] * n
             for i in range(0, n):
-                if i >= len(top_n_words):
+                if i >= num_top_words:
                     break
-                word = top_n_words[i]
-                vec[i] = (a[word] / a_n + b[word] / b_n) / 2.0
+                vec[i] = a[top_n_words[i]]
+
+            b = FreqDist(self._tokenize(c[1]))
+            for i in range(n, 2 * n):
+                if i >= num_top_words:
+                    break
+                vec[i] = b[top_n_words[i]]
             
             yield (vec, self._pair.cls)
     
-    def get_features_relative(self, n: int) -> Iterable[Tuple[List[float], SamplePair.Class]]:
+    def get_features_relative(self, n: int) -> Iterable[Tuple[numpy.ndarray, SamplePair.Class]]:
         raise NotImplementedError
     
     def _tokenize(self, text) -> List[str]:
