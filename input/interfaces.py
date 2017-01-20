@@ -8,23 +8,23 @@ class CorpusParser(ABC):
     """
     Base class for corpus parsers.
     """
-
+    
     class CorpusParserIterator(ABC):
         """
         Iterator class for :class:`CorpusParser`.
         """
-
+        
         def __init__(self, parser):
             """
             :type parser: CorpusParser.CorpusParserIterator
             """
             self.parser = parser
-
+        
         @abstractmethod
         def __next__(self) -> SamplePair:
             pass
-
-    def __init__(self, corpus_path: str, chunk_size: int, language: str="english", cache_size: int=400):
+    
+    def __init__(self, corpus_path: str, chunk_size: int, language: str = "english", cache_size: int = 400):
         """
         :param corpus_path: path to the corpus directory
         :param chunk_size: minimum chunk size per text in words
@@ -35,7 +35,7 @@ class CorpusParser(ABC):
         self.chunk_size = chunk_size
         self.language = language
         self.cache_size = cache_size
-
+    
     @abstractmethod
     def __iter__(self) -> CorpusParserIterator:
         """
@@ -47,7 +47,7 @@ class CorpusParser(ABC):
         :return: iterator object
         """
         pass
-
+    
     def get_all_pairs(self) -> List[SamplePair]:
         """
         :return: list of all pairs in the current corpus

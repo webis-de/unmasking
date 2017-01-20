@@ -19,7 +19,7 @@ class BookSampleParser(CorpusParser):
 
     File and folder names can be chosen arbitrarily, but the book sample files must end in .txt.
     """
-
+    
     class BookSampleParserIterator(CorpusParser.CorpusParserIterator):
         def __init__(self, parser):
             super().__init__(parser)
@@ -57,14 +57,14 @@ class BookSampleParser(CorpusParser):
             
             self._iterator1 = iter(self._files)
         
-        def __next__(self)-> SamplePair:
+        def __next__(self) -> SamplePair:
             # next text
             if self._next2 is None:
                 self._next1 = next(self._iterator1)
                 self._iterator2 = iter(self._authors)
                 with open(self._next1, "r") as handle:
                     self._current_file_contents = handle.read()
-
+            
             # next author
             try:
                 self._next2 = next(self._iterator2)
