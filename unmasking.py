@@ -30,6 +30,7 @@ def main():
         
         fs = AvgWordFreqFeatureSet(pair, s)
         list(fs.get_features_absolute(20))
+        print(pair.cls)
 
 if __name__ == "__main__":
     main()

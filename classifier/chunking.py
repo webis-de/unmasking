@@ -28,6 +28,12 @@ class SamplePair:
         UNSPECIFIED = -1
         DIFFERENT_AUTHORS = 0
         SAME_AUTHOR = 1
+
+        def __repr__(self):
+            return self.name
+        
+        def __str__(self):
+            return self.__repr__()
     
     # cache variables
     __sentence_tokenizers = {}
