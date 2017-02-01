@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from event import EventBroadcaster, EventHandler, ProgressEvent
+from event import EventBroadcaster, EventHandler, ProgressEvent, UnmaskingTrainCurveEvent
 from input import BookSampleParser
 from classifier import SamplePair, UniqueRandomUndersampler, AvgWordFreqFeatureSet
 from unmasking.strategies import FeatureRemoval
@@ -12,6 +12,11 @@ class PrintProgress(EventHandler):
         
     def handle(self, name: str, event: ProgressEvent, sender: type):
         print("{}: {:.2f}%".format(self._text, event.percent_done))
+
+
+class PlotUnmaskingCurve(EventHandler):
+    def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
+        pass
 
 
 def main():

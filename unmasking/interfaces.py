@@ -1,5 +1,5 @@
 from classifier import FeatureSet
-from event.events import UnmaskingTrainCurveEvent
+from event import EventBroadcaster, UnmaskingTrainCurveEvent
 
 from sklearn.model_selection import cross_val_score
 from sklearn.svm import LinearSVC
@@ -78,7 +78,10 @@ class UnmaskingStrategy(ABC):
                 coef = numpy.array(self._clf.coef_[0])
             else:
                 coef = numpy.array(self._clf.coef_)
-            X = self.transform(X, coef)
+            
+            EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
+            if i < m - 1:
+                X = self.transform(X, coef)
     
     @abstractmethod
     def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
