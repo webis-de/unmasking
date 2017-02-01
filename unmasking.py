@@ -2,6 +2,7 @@
 from event import EventBroadcaster, EventHandler, ProgressEvent
 from input import BookSampleParser
 from classifier import SamplePair, UniqueRandomUndersampler, AvgWordFreqFeatureSet
+from unmasking.strategies import FeatureRemoval
 
 
 class PrintProgress(EventHandler):
@@ -29,8 +30,8 @@ def main():
         EventBroadcaster.subscribe("progress", chunking_progress, {SamplePair})
         
         fs = AvgWordFreqFeatureSet(pair, s)
-        list(fs.get_features_absolute(20))
-        print(pair.cls)
+        strat = FeatureRemoval(10)
+        strat.run(1, 200, fs, False)
 
 if __name__ == "__main__":
     main()

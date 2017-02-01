@@ -1,7 +1,6 @@
 from unmasking.interfaces import UnmaskingStrategy
 
-
-from sklearn.feature_extraction import DictVectorizer
+from numpy import ndarray
 from sklearn.svm import LinearSVC
 
 
@@ -16,5 +15,5 @@ class FeatureRemoval(UnmaskingStrategy):
         """
         self._num_features = num_features
 
-    def transform(self, vectorizer: DictVectorizer, clf: LinearSVC) -> DictVectorizer:
+    def transform(self, clf: LinearSVC) -> ndarray:
         pass

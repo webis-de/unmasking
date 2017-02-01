@@ -51,29 +51,41 @@ class AvgWordFreqFeatureSet(FeatureSet):
             self._avg_freq_dist[b] = (freq_dist_a[b] / n_a + freq_dist_b[b] / n_b) / 2.0
         
         self._chunks = self._sampler.generate_chunk_pairs(self._pair)
+        
+        self.__freq_a = None
+        self.__freq_b = None
     
-    def get_features_absolute(self, n: int) -> Iterable[Tuple[numpy.ndarray, SamplePair.Class]]:
+    def get_features_absolute(self, n: int) -> Iterable[numpy.ndarray]:
         top_n_words = numpy.array([w for (w, f) in self._avg_freq_dist.most_common(n)])
         num_top_words = len(top_n_words)
         for c in self._chunks:
             vec = numpy.zeros(2 * n)
             
-            a = FreqDist(self._tokenize(c[0]))
+            self.__freq_a = FreqDist(self._tokenize(c[0]))
             for i in range(0, n):
                 if i >= num_top_words:
                     break
-                vec[i] = a[top_n_words[i]]
+                vec[i] = self.__freq_a[top_n_words[i]]
             
-            b = FreqDist(self._tokenize(c[1]))
+            self.__freq_b = FreqDist(self._tokenize(c[1]))
             for i in range(n, 2 * n):
-                if i >= num_top_words:
+                if i >= num_top_words + n:
                     break
-                vec[i] = b[top_n_words[i]]
+                vec[i] = self.__freq_b[top_n_words[i - n]]
             
-            yield (vec, self._pair.cls)
+            yield vec
     
-    def get_features_relative(self, n: int) -> Iterable[Tuple[numpy.ndarray, SamplePair.Class]]:
-        raise NotImplementedError
+    def get_features_relative(self, n: int) -> Iterable[numpy.ndarray]:
+        features = self.get_features_absolute(n)
+        for vec in features:
+            n_a = self.__freq_a.N()
+            for i in range(0, n):
+                vec[i] /= n_a
+            n_b = self.__freq_b.N()
+            for i in range(n, 2 * n):
+                vec[i] /= n_b
+            
+            yield vec
     
     def _tokenize(self, text) -> List[str]:
         if text in self.__tokenized_chunks:
