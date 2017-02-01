@@ -39,6 +39,8 @@ class SamplePair:
         def __eq__(self, other):
             if other is None and self.value == -1:
                 return True
+            elif isinstance(other, self.__class__):
+                return other.value == self.value
             elif isinstance(other, str):
                 return other.upper() == self.__str__()
             elif isinstance(other, int):
