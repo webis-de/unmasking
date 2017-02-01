@@ -1,7 +1,6 @@
 from unmasking.interfaces import UnmaskingStrategy
 
 import numpy
-from sklearn.svm import LinearSVC
 
 
 class FeatureRemoval(UnmaskingStrategy):
@@ -13,13 +12,11 @@ class FeatureRemoval(UnmaskingStrategy):
         """
         :param num_eliminate: number of features to eliminate per iteration.
         """
+        super().__init__()
         self._num_eliminate = num_eliminate
 
-    def transform(self, data: numpy.ndarray, clf: LinearSVC) -> numpy.ndarray:
-        if isinstance(clf.coef_, list):
-            coef = numpy.absolute(clf.coef_[0])
-        else:
-            coef = numpy.absolute(clf.coef_)
+    def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
+        coef = numpy.absolute(coef)
         
         for i in range(0, self._num_eliminate):
             if data.shape[1] == 0:

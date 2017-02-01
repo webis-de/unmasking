@@ -11,7 +11,29 @@ class UnmaskingStrategy(ABC):
     """
     Base class for unmasking strategies.
     """
-
+    
+    def __init__(self):
+        """
+        Initialize unmasking strategy. LinearSVC() is used as default estimator.
+        """
+        self._clf = LinearSVC()
+    
+    @property
+    def clf(self):
+        """Get estimator."""
+        return self._clf
+    
+    @clf.setter
+    def clf(self, clf):
+        """
+        Set estimator.
+        Must implement ``fit()`` and provide an attribute ``coef_`` after fitting data, which
+        contains the trained feature coefficients.
+        """
+        if not hasattr(clf, "fit"):
+            raise ValueError("Estimator does not implement fit()")
+        self._clf = clf
+    
     # noinspection PyPep8Naming
     def run(self, m: int, n: int, fs: FeatureSet, relative: bool = True, folds: int = 10):
         """
@@ -40,21 +62,24 @@ class UnmaskingStrategy(ABC):
         
         X = numpy.array(X)
         y = numpy.array(y)
-        clf = LinearSVC()
         print(fs.cls)
         for i in range(0, m):
-            clf.fit(X, y)
-            scores = cross_val_score(clf, X, y, cv=folds)
+            self._clf.fit(X, y)
+            scores = cross_val_score(self._clf, X, y, cv=folds)
             print(scores.mean())
-            X = self.transform(X, clf)
+            if isinstance(self._clf.coef_, list):
+                coef = numpy.array(self._clf.coef_[0])
+            else:
+                coef = numpy.array(self._clf.coef_)
+            X = self.transform(X, coef)
     
     @abstractmethod
-    def transform(self, data: numpy.ndarray, clf: LinearSVC) -> numpy.ndarray:
+    def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
         """
         Transform the input tensor according to the chosen unmasking strategy.
         
         :param data: input rank-2 feature tensor of form [n_samples, n_features]
-        :param clf: trained classifier used to discriminate the features
+        :param coef: trained feature coefficients
         :return: output feature tensor (may have contain different number of features,
                  but the number of samples must be the same)
         """
