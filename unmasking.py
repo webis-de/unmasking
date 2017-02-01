@@ -29,9 +29,9 @@ class PlotUnmaskingCurve(EventHandler):
         pylab.xlabel("rounds")
         pylab.ylabel("accuracy")
 
-        same_l      = pylab.Line2D((0, 1), (0, 0), color='#777777', marker='o')
-        different_l = pylab.Line2D((0, 1), (0, 0), color='#777777', marker='x')
-        pylab.legend(handles=(same_l, different_l), labels=("same author", "different authors"))
+        leg1 = pylab.Line2D((0, 1), (0, 0), color='#777777', marker='o')
+        leg2 = pylab.Line2D((0, 1), (0, 0), color='#777777', marker='x')
+        pylab.legend(handles=(leg1, leg2), labels=("same author", "different authors"))
     
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
         if event not in self._colors:
