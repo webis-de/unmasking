@@ -31,7 +31,7 @@ def main():
         
         fs = AvgWordFreqFeatureSet(pair, s)
         strat = FeatureRemoval(10)
-        strat.run(1, 200, fs, False)
+        strat.run(8, 200, fs, False)
 
 if __name__ == "__main__":
     main()

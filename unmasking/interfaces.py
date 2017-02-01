@@ -11,7 +11,8 @@ class UnmaskingStrategy(ABC):
     """
     Base class for unmasking strategies.
     """
-    
+
+    # noinspection PyPep8Naming
     def run(self, m: int, n: int, fs: FeatureSet, relative: bool = True):
         """
         Run ``m`` rounds of unmasking on given parameterized feature set.
@@ -21,33 +22,39 @@ class UnmaskingStrategy(ABC):
         :param fs: parameterized feature set
         :param relative: whether to use relative (normalized) of absolute feature weights
         """
-        train_matrix = []
-        class_vec    = []
+        X = []
+        y = []
         if relative:
             it = fs.get_features_relative(n)
         else:
             it = fs.get_features_absolute(n)
         for row in it:
             l = len(row)
-            train_matrix.append(row[0:l // 2])
-            train_matrix.append(row[l // 2:l])
+            X.append(row[0:l // 2])
+            X.append(row[l // 2:l])
+            
             # cls either "text 0" or "text 1" of a pair
-            class_vec.append(0)
-            class_vec.append(1)
+            y.append(0)
+            y.append(1)
         
-        train_matrix = numpy.array(train_matrix)
-        class_vec    = numpy.array(class_vec)
+        X = numpy.array(X)
+        y = numpy.array(y)
         clf = LinearSVC()
+        print(fs.cls)
         for i in range(0, m):
-            scores = cross_val_score(clf, train_matrix, class_vec, cv=10)
+            clf.fit(X, y)
+            scores = cross_val_score(clf, X, y, cv=10)
             print(scores.mean())
-        
+            X = self.transform(X, clf)
+    
     @abstractmethod
-    def transform(self, clf: LinearSVC) -> numpy.ndarray:
+    def transform(self, data: numpy.ndarray, clf: LinearSVC) -> numpy.ndarray:
         """
-        Transform the input vector according to the chosen unmasking strategy.
+        Transform the input tensor according to the chosen unmasking strategy.
         
-        :param clf: classifier used to discriminate the features
-        :return: output feature vector
+        :param data: input rank-2 feature tensor of form [n_samples, n_features]
+        :param clf: trained classifier used to discriminate the features
+        :return: output feature tensor (may have contain different number of features,
+                 but the number of samples must be the same)
         """
         pass
