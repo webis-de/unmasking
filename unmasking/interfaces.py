@@ -13,7 +13,7 @@ class UnmaskingStrategy(ABC):
     """
 
     # noinspection PyPep8Naming
-    def run(self, m: int, n: int, fs: FeatureSet, relative: bool = True):
+    def run(self, m: int, n: int, fs: FeatureSet, relative: bool = True, folds: int = 10):
         """
         Run ``m`` rounds of unmasking on given parameterized feature set.
         
@@ -21,6 +21,7 @@ class UnmaskingStrategy(ABC):
         :param n: number of features to use
         :param fs: parameterized feature set
         :param relative: whether to use relative (normalized) of absolute feature weights
+        :param folds: number of cross-validation folds
         """
         X = []
         y = []
@@ -43,7 +44,7 @@ class UnmaskingStrategy(ABC):
         print(fs.cls)
         for i in range(0, m):
             clf.fit(X, y)
-            scores = cross_val_score(clf, X, y, cv=10)
+            scores = cross_val_score(clf, X, y, cv=folds)
             print(scores.mean())
             X = self.transform(X, clf)
     
