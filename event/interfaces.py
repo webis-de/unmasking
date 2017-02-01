@@ -6,19 +6,7 @@ class Event:
     Base class for events.
     :class:`EventHandler`s can subscribe to individual events.
     """
-    
-    def __init__(self, name: str):
-        self._name = name
-    
-    @property
-    def name(self):
-        """Get event identifier string."""
-        return self._name
-    
-    @name.setter
-    def name(self, value):
-        """Set event identifier string."""
-        self._name = value
+    pass
 
 
 class EventHandler(ABC):
@@ -27,11 +15,12 @@ class EventHandler(ABC):
     """
     
     @abstractmethod
-    def handle(self, event: Event, sender: str):
+    def handle(self, name: str, event: Event, sender: type):
         """
         Handle the given event.
         
-        :param event: fired event
-        :param sender: name of the sender
+        :param name: name of the fired event
+        :param event: the fired event itself
+        :param sender: class of the sender
         """
         pass

@@ -1,16 +1,18 @@
 from event.interfaces import Event
 
+from typing import List
+
 
 class ProgressEvent(Event):
     """
     Event for indicating progress of an operation with a fixed number of steps to be performed.
     """
     
-    def __init__(self, name: str, ops_total: int = 1):
+    def __init__(self, ops_total: int = 1):
         """
         :param ops_total: total number of operations / steps that will be performed
         """
-        super().__init__(name)
+        super().__init__()
         
         if ops_total < 1:
             raise AttributeError("ops_total must be greater than 1")
@@ -53,3 +55,51 @@ class ProgressEvent(Event):
         :param steps: how many steps to increment
         """
         self._ops_done = min(self._ops_done + steps, self._ops_total)
+
+
+class UnmaskingTrainCurveEvent(Event):
+    """
+    Event for updating training curves of pairs during unmasking.
+    """
+    
+    def __init__(self, n: int = 0, cls=None):
+        """
+        :param n: predicted final number of total values (should be set to the total number of unmasking iterations)
+        :param cls: class of the training sample pair
+        """
+        super().__init__()
+        self._cls = cls
+        self._n = n
+        self._values = []
+    
+    @property
+    def cls(self):
+        """Class of the training sample."""
+        return self._cls
+    
+    @property
+    def values(self) -> List[float]:
+        """Accuracy values of curve (may be shorter than ``n``)."""
+        return self._values
+    
+    @values.setter
+    def values(self, point: float):
+        """Add point to curve and update ``n`` if necessary."""
+        self._values.append(point)
+        self._n = max(self._n, len(self._values))
+    
+    @property
+    def n(self) -> int:
+        """
+        Predicted number of data points (usually the number of unmasking iterations).
+        This is not the actual number of curve points, which would be ``len(values)``.
+        """
+        return self._n
+    
+    @n.setter
+    def n(self, n: int):
+        """
+        Update prediction of the number of final data points in the curve.
+        This should be set to the number of unmasking iterations.
+        """
+        self._n = n

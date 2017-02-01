@@ -1,4 +1,5 @@
 from classifier import FeatureSet
+from event.events import UnmaskingTrainCurveEvent
 
 from sklearn.model_selection import cross_val_score
 from sklearn.svm import LinearSVC
@@ -10,6 +11,12 @@ from abc import ABC, abstractmethod
 class UnmaskingStrategy(ABC):
     """
     Base class for unmasking strategies.
+    
+    Events published by this class:
+    
+    * `onUnmaskingRoundFinished`: [type: UnmaskingTrainCurveEvent]
+                                  fired whenever a single round of unmasking has finished
+                                  to update accuracy curves
     """
     
     def __init__(self):
@@ -62,11 +69,11 @@ class UnmaskingStrategy(ABC):
         
         X = numpy.array(X)
         y = numpy.array(y)
-        print(fs.cls)
+        event = UnmaskingTrainCurveEvent(m, fs.cls)
         for i in range(0, m):
             self._clf.fit(X, y)
             scores = cross_val_score(self._clf, X, y, cv=folds)
-            print(scores.mean())
+            event.values = scores.mean()
             if isinstance(self._clf.coef_, list):
                 coef = numpy.array(self._clf.coef_[0])
             else:

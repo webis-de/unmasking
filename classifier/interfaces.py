@@ -3,7 +3,7 @@ from classifier.chunking import SamplePair, ChunkSampler
 import numpy
 
 from abc import ABC, abstractmethod
-from typing import Tuple, Iterable
+from typing import Iterable
 
 
 class FeatureSet(ABC):
@@ -20,7 +20,7 @@ class FeatureSet(ABC):
         self._sampler = sampler
     
     @property
-    def cls(self):
+    def cls(self) -> SamplePair.Class:
         """Class of the underlying pair."""
         return self._pair.cls
     

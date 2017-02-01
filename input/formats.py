@@ -22,7 +22,8 @@ class BookSampleParser(CorpusParser):
     
     Events published by this class:
     
-    * `progress`: progress of author pair generation
+    * `onProgress`: [type: ProgressEvent]
+                    fired during author pair generation to indicate current progress
     
     """
     
@@ -64,12 +65,12 @@ class BookSampleParser(CorpusParser):
             self._iterator1 = iter(self._files)
             
             # progress publisher
-            self._progress_event = ProgressEvent("progress", len(self._files))
+            self._progress_event = ProgressEvent(len(self._files))
         
         def __next__(self) -> SamplePair:
             # next text
             if self._next2 is None:
-                EventBroadcaster.publish(self._progress_event, self.parser.__class__)
+                EventBroadcaster.publish("onProgress", self._progress_event, self.parser.__class__)
                 self._next1 = next(self._iterator1)
                 self._iterator2 = iter(self._authors)
                 self._progress_event.increment()

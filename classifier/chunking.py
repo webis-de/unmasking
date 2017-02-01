@@ -20,7 +20,8 @@ class SamplePair:
     
     Events published by this class:
     
-    * `progress`: progress of chunk generation
+    * `onProgress`: [type: ProgressEvent]
+                    fired during chunk generation to indicate current progress
     """
     
     @unique
@@ -34,6 +35,22 @@ class SamplePair:
         
         def __str__(self):
             return self.__repr__()
+        
+        def __eq__(self, other):
+            if other is None and self.value == -1:
+                return True
+            elif isinstance(other, str):
+                return other.upper() == self.__str__()
+            elif isinstance(other, int):
+                return other == self.value
+            elif isinstance(other, bool):
+                if self.value == -1:
+                    return False
+                else:
+                    return bool(self.value) == other
+        
+        def __hash__(self):
+            return self.value
     
     # cache variables
     __sentence_tokenizers = {}
@@ -62,18 +79,18 @@ class SamplePair:
         self._language = language
         self._cache_size = cache_size
         
-        self._progress_event = ProgressEvent("progress", len(b) + 1)
-        EventBroadcaster.publish(self._progress_event, self.__class__)
+        self._progress_event = ProgressEvent(len(b) + 1)
+        EventBroadcaster.publish("onProgress", self._progress_event, self.__class__)
         
         self._chunks_a = self._chunk_text(a, chunk_size)
         self._progress_event.increment()
-        EventBroadcaster.publish(self._progress_event, self.__class__)
+        EventBroadcaster.publish("onProgress", self._progress_event, self.__class__)
         
         self._chunks_b = []
         for t in b:
             self._chunks_b.extend(self._chunk_text(t, chunk_size))
             self._progress_event.increment()
-            EventBroadcaster.publish(self._progress_event, self.__class__)
+            EventBroadcaster.publish("onProgress", self._progress_event, self.__class__)
     
     @property
     def cls(self) -> Class:

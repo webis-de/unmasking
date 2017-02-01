@@ -38,16 +38,19 @@ class EventBroadcaster:
             cls._subscribers[e] = [i for i in cls._subscribers[e] if i != (senders, handler)]
     
     @classmethod
-    def publish(cls, event: Event, sender: type):
+    def publish(cls, event_name: str, event: Event, sender: type):
         """
         Publish the given event and notify all subscribed :class:`EventHandler`s.
         
+        :param event_name: name of this event (e.g. 'onProgress')
+                           The name can be freely chosen, but should start with 'on' and
+                           use camelCasing to separate words
         :param event: event to publish, which must have its :attr:`Event.name` property set
         :param sender: ``__class__`` type object of the sending class or object
         """
-        if event.name not in cls._subscribers:
+        if event_name not in cls._subscribers:
             return
         
-        for h in cls._subscribers[event.name]:
+        for h in cls._subscribers[event_name]:
             if h[0] is None or sender in h[0]:
-                h[1].handle(event, sender)
+                h[1].handle(event_name, event, sender)
