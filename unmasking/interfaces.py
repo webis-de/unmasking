@@ -69,7 +69,7 @@ class UnmaskingStrategy(ABC):
         
         X = numpy.array(X)
         y = numpy.array(y)
-        event = UnmaskingTrainCurveEvent(m, fs.cls)
+        event = UnmaskingTrainCurveEvent(m, fs.pair)
         for i in range(0, m):
             self._clf.fit(X, y)
             scores = cross_val_score(self._clf, X, y, cv=folds)

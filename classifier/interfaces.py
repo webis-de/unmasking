@@ -20,9 +20,9 @@ class FeatureSet(ABC):
         self._sampler = sampler
     
     @property
-    def cls(self) -> SamplePair.Class:
-        """Class of the underlying pair."""
-        return self._pair.cls
+    def pair(self) -> SamplePair:
+        """Pair from which this feature set has been generated."""
+        return self._pair
     
     @abstractmethod
     def get_features_absolute(self, n: int) -> Iterable[numpy.ndarray]:

@@ -62,20 +62,20 @@ class UnmaskingTrainCurveEvent(Event):
     Event for updating training curves of pairs during unmasking.
     """
     
-    def __init__(self, n: int = 0, cls=None):
+    def __init__(self, n: int = 0, pair=None):
         """
         :param n: predicted final number of total values (should be set to the total number of unmasking iterations)
-        :param cls: class of the training sample pair
+        :param pair: pair for which this curve is being calculated
         """
         super().__init__()
-        self._cls = cls
         self._n = n
         self._values = []
+        self._pair = pair
     
     @property
-    def cls(self):
-        """Class of the training sample."""
-        return self._cls
+    def pair(self):
+        """Pair for which this curve is being calculated."""
+        return self._pair
     
     @property
     def values(self) -> List[float]:
