@@ -8,6 +8,7 @@ from unmasking.strategies import FeatureRemoval
 import matplotlib.pyplot as pyplot
 
 from random import randint
+from time import time
 
 
 class PrintProgress(EventHandler):
@@ -64,6 +65,8 @@ class PlotUnmaskingCurve(EventHandler):
 
 def main():
     try:
+        start_time = time()
+        
         pair_progress = PrintProgress("Pair-building progress")
         EventBroadcaster.subscribe("onProgress", pair_progress, {BookSampleParser})
         EventBroadcaster.subscribe("onUnmaskingRoundFinished", PlotUnmaskingCurve())
@@ -83,7 +86,9 @@ def main():
             fs = AvgWordFreqFeatureSet(pair, s)
             strat = FeatureRemoval(10)
             strat.run(20, 250, fs, False)
-    
+        
+        print("Time taken: {:.03f} seconds.".format(time() - start_time))
+        
         # block, so window doesn't close automatically
         pyplot.show(block=True)
     except KeyboardInterrupt:
