@@ -27,9 +27,9 @@ class BookSampleParser(CorpusParser):
     
     """
     
-    class BookSampleParserIterator(CorpusParser.CorpusParserIterator):
+    class BookSampleParserIterator:
         def __init__(self, parser):
-            super().__init__(parser)
+            self._parser = parser
             
             # file -> author
             self._files = {}
@@ -47,9 +47,9 @@ class BookSampleParser(CorpusParser):
             
             # read in all directory and file names and build
             # file -> author and author -> files maps
-            dirs = os.listdir(self.parser.corpus_path)
+            dirs = os.listdir(self._parser.corpus_path)
             for d in dirs:
-                dir_path = os.path.join(self.parser.corpus_path, d)
+                dir_path = os.path.join(self._parser.corpus_path, d)
                 if not os.path.isdir(dir_path):
                     continue
                 
@@ -70,7 +70,7 @@ class BookSampleParser(CorpusParser):
         def __next__(self) -> SamplePair:
             # next text
             if self._next2 is None:
-                EventBroadcaster.publish("onProgress", self._progress_event, self.parser.__class__)
+                EventBroadcaster.publish("onProgress", self._progress_event, self._parser.__class__)
                 self._next1 = next(self._iterator1)
                 self._iterator2 = iter(self._authors)
                 self._progress_event.increment()
@@ -110,8 +110,7 @@ class BookSampleParser(CorpusParser):
             if self._files[self._next1] == self._next2:
                 cls = SamplePair.Class.SAME_AUTHOR
             
-            return SamplePair(self._current_file_contents, compare_texts, cls,
-                              self.parser.chunk_size, self.parser.language, self.parser.cache_size)
+            return SamplePair([self._current_file_contents], compare_texts, cls, self._parser.chunk_tokenizer)
     
     def __iter__(self) -> BookSampleParserIterator:
         return self.BookSampleParserIterator(self)

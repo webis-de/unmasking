@@ -1,9 +1,25 @@
-from classifier.chunking import SamplePair, ChunkSampler
+from input.interfaces import SamplePair
 
 import numpy
 
 from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Iterable, Tuple
+
+
+class ChunkSampler(ABC):
+    """
+    Base class for chunk samplers used for generating pairs of chunks from :class:`SamplePair`s.
+    """
+    
+    @abstractmethod
+    def generate_chunk_pairs(self, pair: SamplePair) -> Iterable[Tuple[str, str]]:
+        """
+        Generate pairs of chunks from the given :class:`SamplePair.
+
+        :param pair: text pair to create chunk pairs from
+        :return: generator or other iterable producing the chunk pairs
+        """
+        pass
 
 
 class FeatureSet(ABC):

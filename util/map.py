@@ -42,7 +42,7 @@ class BoundedHashMap:
     def __setitem__(self, key, value):
         self._elements[key] = value
         
-        if 0 < self.maxlen < len(self._elements):
+        while 0 < self.maxlen < len(self._elements):
             self._elements.popitem()
     
     def __delitem__(self, key):

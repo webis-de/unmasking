@@ -1,33 +1,33 @@
 from classifier.interfaces import FeatureSet
-from classifier.chunking import SamplePair, ChunkSampler
-from util.map import BoundedHashMap
+from classifier.sampling import SamplePair, ChunkSampler
+from input.tokenizers import WordTokenizer
+from util.cache import CacheMixin
 
 import numpy
 from nltk import FreqDist
 from nltk.tokenize import TreebankWordTokenizer
 
-from typing import List, Tuple, Iterable
-
-_punctuation = [".", ",", ";", ":", "!", "?", "+", "-", "*", "/", "^", "°", "=", "~", "$", "%",
-                "(", ")", "[", "]", "{", "}", "<", ">",
-                "`", "``", "'", "''", "--", "---"]
+from typing import List, Iterable
 
 
-class AvgWordFreqFeatureSet(FeatureSet):
+class AvgWordFreqFeatureSet(FeatureSet, CacheMixin):
     """
     Feature set using the average frequencies of the n most
     frequent words in both input chunk sets.
     
+    Tokenized chunks can be cached in memory. By default, the cache size is
+    limited to 2000 chunks.
+    
     :param cache_size: number of tokenized chunks to save in memory
     """
-    
-    # cache variables
-    __tokenized_chunks = BoundedHashMap()
     
     def __init__(self, pair: SamplePair, sampler: ChunkSampler, cache_size: int = 2000):
         super().__init__(pair, sampler)
         
-        self.__tokenized_chunks.maxlen = cache_size
+        self._cache_handle = self.resolve_cache_alias(self.__class__.__name__ + "_tokenized_chunks")
+        if -1 == self._cache_handle:
+            self._cache_handle = self.init_cache(2000)
+            self.set_cache_alias(self._cache_handle, self.__class__.__name__ + "_tokenized_chunks")
         
         self._tokenizer = TreebankWordTokenizer()
         self._cache_size = cache_size
@@ -88,12 +88,13 @@ class AvgWordFreqFeatureSet(FeatureSet):
             yield vec
     
     def _tokenize(self, text) -> List[str]:
-        if text in self.__tokenized_chunks:
-            return self.__tokenized_chunks[text]
+        cached_text = self.get_cache_item(self._cache_handle, text)
+        if cached_text is not None:
+            return cached_text
         
-        tokens = [w for w in self._tokenizer.tokenize(text) if w not in _punctuation]
+        tokens = list(WordTokenizer().tokenize(text))
         
         # cache tokenized chunks
-        self.__tokenized_chunks[text] = tokens
+        self.set_cache_item(self._cache_handle, text, tokens)
         
         return tokens

@@ -2,6 +2,7 @@
 from event import EventBroadcaster, EventHandler, ProgressEvent, UnmaskingTrainCurveEvent
 from input import BookSampleParser
 from classifier import SamplePair, UniqueRandomUndersampler, AvgWordFreqFeatureSet
+from input.tokenizers import SentenceChunkTokenizer
 from unmasking.strategies import FeatureRemoval
 
 import matplotlib.pyplot as pyplot
@@ -67,7 +68,8 @@ def main():
         EventBroadcaster.subscribe("onProgress", pair_progress, {BookSampleParser})
         EventBroadcaster.subscribe("onUnmaskingRoundFinished", PlotUnmaskingCurve())
         
-        parser = BookSampleParser("corpora", 500, "english")
+        chunk_tokenizer = SentenceChunkTokenizer(500)
+        parser = BookSampleParser("corpora", chunk_tokenizer)
         s = UniqueRandomUndersampler()
     
         chunking_progress = None
