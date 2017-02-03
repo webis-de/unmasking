@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 from event import EventBroadcaster, EventHandler, ProgressEvent, UnmaskingTrainCurveEvent
-from input import BookSampleParser
+from input import BookSampleParser, BuzzFeedXMLCorpusParser
 from classifier import SamplePair, UniqueRandomUndersampler, AvgWordFreqFeatureSet
-from input.tokenizers import SentenceChunkTokenizer
+from input.tokenizers import SentenceChunkTokenizer, PassthroughTokenizer
 from unmasking.strategies import FeatureRemoval
 
 import matplotlib.pyplot as pyplot
@@ -72,23 +72,23 @@ def main():
         EventBroadcaster.subscribe("onUnmaskingRoundFinished", PlotUnmaskingCurve())
         
         chunk_tokenizer = SentenceChunkTokenizer(500)
-        parser = BookSampleParser("corpora", chunk_tokenizer)
+        parser = BookSampleParser("corpora/gutenberg_test", chunk_tokenizer)
         s = UniqueRandomUndersampler()
-    
+
         chunking_progress = None
         for i, pair in enumerate(parser):
             if chunking_progress is not None:
                 EventBroadcaster.unsubscribe("onProgress", chunking_progress, {SamplePair})
-            
+
             chunking_progress = PrintProgress("Chunking progress for pair {}".format(i))
             EventBroadcaster.subscribe("onProgress", chunking_progress, {SamplePair})
-            
+
             fs = AvgWordFreqFeatureSet(pair, s)
             strat = FeatureRemoval(10)
             strat.run(20, 250, fs, False)
-        
+
         print("Time taken: {:.03f} seconds.".format(time() - start_time))
-        
+
         # block, so window doesn't close automatically
         pyplot.show(block=True)
     except KeyboardInterrupt:
