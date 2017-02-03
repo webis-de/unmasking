@@ -4,7 +4,7 @@ from input import BookSampleParser
 from classifier import SamplePair, UniqueRandomUndersampler, AvgWordFreqFeatureSet
 from unmasking.strategies import FeatureRemoval
 
-import pylab
+import matplotlib.pyplot as pyplot
 
 from random import randint
 
@@ -21,36 +21,44 @@ class PrintProgress(EventHandler):
 class PlotUnmaskingCurve(EventHandler):
     def __init__(self):
         super().__init__()
-        self._fig = pylab.figure()
+        self._fig = pyplot.figure()
         self._drawn = {}
         self._colors = {}
-        pylab.ion()
-        pylab.ylim(0, 1.0)
-        pylab.xlabel("rounds")
-        pylab.ylabel("discriminability")
+        pyplot.ion()
+        pyplot.ylim(0, 1.0)
+        pyplot.xlabel("rounds")
+        pyplot.ylabel("discriminability")
 
-        leg1 = pylab.Line2D((0, 1), (0, 0), color='#777777', marker='o')
-        leg2 = pylab.Line2D((0, 1), (0, 0), color='#777777', marker='x')
-        pylab.legend(handles=(leg1, leg2), labels=("same author", "different authors"))
+        leg1 = pyplot.Line2D((0, 1), (0, 0), color='#777777', marker='o')
+        leg2 = pyplot.Line2D((0, 1), (0, 0), color='#777777', marker='x')
+        pyplot.legend(handles=(leg1, leg2), labels=("same author", "different authors"))
     
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
         if event not in self._colors:
             self._colors[event] = "#{:02X}{:02X}{:02X}".format(randint(0, 255), randint(0, 255), randint(0, 255))
             self._drawn[event] = 0
-        
-        pylab.xlim(0, max(pylab.xlim()[1], event.n))
+
+        pyplot.xlim(0, max(pyplot.xlim()[1], event.n))
+        pyplot.xticks(range(0, int(pyplot.xlim()[1])))
         points_to_draw = event.values[self._drawn[event]:len(event.values)]
+        last_y = event.values[max(0, self._drawn[event] - 1)]
+        last_x = max(0, len(event.values) - 2)
         for i, v in enumerate(points_to_draw):
             if event.pair.cls == SamplePair.Class.SAME_AUTHOR:
                 marker = "o"
             else:
                 marker = "x"
             
-            pylab.plot(i + self._drawn[event], v, color=self._colors[event], linestyle='solid', marker=marker, markersize=4)
+            x = [last_x, i + self._drawn[event]]
+            y = [last_y, v]
+            last_x = x[1]
+            last_y = y[1]
+            pyplot.plot(x, y, color=self._colors[event], linestyle='solid', linewidth=1,
+                        marker=marker, markersize=4)
 
         self._drawn[event] = len(event.values)
         self._fig.canvas.draw()
-        pylab.show(block=False)
+        pyplot.show(block=False)
         
 
 def main():
@@ -70,10 +78,11 @@ def main():
         EventBroadcaster.subscribe("onProgress", chunking_progress, {SamplePair})
         
         fs = AvgWordFreqFeatureSet(pair, s)
-        strat = FeatureRemoval(8)
-        strat.run(10, 250, fs, False)
-    
-    pylab.show(block=True)
+        strat = FeatureRemoval(10)
+        strat.run(20, 250, fs, False)
+
+    # block, so window doesn't close automatically
+    pyplot.show(block=True)
 
 if __name__ == "__main__":
     main()

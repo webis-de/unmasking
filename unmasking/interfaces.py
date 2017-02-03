@@ -73,7 +73,7 @@ class UnmaskingStrategy(ABC):
         for i in range(0, m):
             self._clf.fit(X, y)
             scores = cross_val_score(self._clf, X, y, cv=folds)
-            event.values = (scores.mean() - .5) * 2
+            event.values = max(0.0, (scores.mean() - .5) * 2)
             if isinstance(self._clf.coef_, list):
                 coef = numpy.array(self._clf.coef_[0])
             else:
