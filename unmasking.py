@@ -27,7 +27,7 @@ class PlotUnmaskingCurve(EventHandler):
         pylab.ion()
         pylab.ylim(0, 1.0)
         pylab.xlabel("rounds")
-        pylab.ylabel("accuracy")
+        pylab.ylabel("discriminability")
 
         leg1 = pylab.Line2D((0, 1), (0, 0), color='#777777', marker='o')
         leg2 = pylab.Line2D((0, 1), (0, 0), color='#777777', marker='x')
