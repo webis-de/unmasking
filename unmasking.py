@@ -62,27 +62,31 @@ class PlotUnmaskingCurve(EventHandler):
         
 
 def main():
-    pair_progress = PrintProgress("Pair-building progress")
-    EventBroadcaster.subscribe("onProgress", pair_progress, {BookSampleParser})
-    EventBroadcaster.subscribe("onUnmaskingRoundFinished", PlotUnmaskingCurve())
+    try:
+        pair_progress = PrintProgress("Pair-building progress")
+        EventBroadcaster.subscribe("onProgress", pair_progress, {BookSampleParser})
+        EventBroadcaster.subscribe("onUnmaskingRoundFinished", PlotUnmaskingCurve())
+        
+        parser = BookSampleParser("corpora", 500, "english")
+        s = UniqueRandomUndersampler()
     
-    parser = BookSampleParser("corpora", 500, "english")
-    s = UniqueRandomUndersampler()
-
-    chunking_progress = None
-    for i, pair in enumerate(parser):
-        if chunking_progress is not None:
-            EventBroadcaster.unsubscribe("onProgress", chunking_progress, {SamplePair})
-        
-        chunking_progress = PrintProgress("Chunking progress for pair {}".format(i))
-        EventBroadcaster.subscribe("onProgress", chunking_progress, {SamplePair})
-        
-        fs = AvgWordFreqFeatureSet(pair, s)
-        strat = FeatureRemoval(10)
-        strat.run(20, 250, fs, False)
-
-    # block, so window doesn't close automatically
-    pyplot.show(block=True)
+        chunking_progress = None
+        for i, pair in enumerate(parser):
+            if chunking_progress is not None:
+                EventBroadcaster.unsubscribe("onProgress", chunking_progress, {SamplePair})
+            
+            chunking_progress = PrintProgress("Chunking progress for pair {}".format(i))
+            EventBroadcaster.subscribe("onProgress", chunking_progress, {SamplePair})
+            
+            fs = AvgWordFreqFeatureSet(pair, s)
+            strat = FeatureRemoval(10)
+            strat.run(20, 250, fs, False)
+    
+        # block, so window doesn't close automatically
+        pyplot.show(block=True)
+    except KeyboardInterrupt:
+        print("Exited upon user request.")
+        exit(1)
 
 if __name__ == "__main__":
     main()
