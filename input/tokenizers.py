@@ -8,7 +8,7 @@ from typing import Iterable
 
 class WordTokenizer(Tokenizer):
     """
-    Word tokenizer based on NLTK's Treebank Punkt tokenizer which discards punctuation tokens.
+    Word tokenizer based on NLTK's Treebank Word tokenizer which discards punctuation tokens.
     """
     
     punctuation = [".", ",", ";", ":", "!", "?", "+", "-", "*", "/", "^", "°", "=", "~", "$", "%",
@@ -18,6 +18,16 @@ class WordTokenizer(Tokenizer):
     def tokenize(self, text: str) -> Iterable[str]:
         word_tokenizer = nltk.tokenize.TreebankWordTokenizer()
         return (t for t in word_tokenizer.tokenize(text) if t not in self.punctuation)
+
+
+class PassthroughChunkTokenizer(Tokenizer):
+    """
+    Chunk tokenizer which returns the full input text as a single chunk.
+    Useful for larger collections of individual short texts.
+    """
+    
+    def tokenize(self, text: str) -> Iterable[str]:
+        return [text]
 
 
 class SentenceChunkTokenizer(Tokenizer, CacheMixin):

@@ -15,7 +15,7 @@ class Tokenizer(ABC):
         """
         Tokenize given input text.
 
-        :param t: input text
+        :param text: input text
         :return: iterable of tokens generated from ``t``
         """
         pass
