@@ -33,9 +33,10 @@ class SamplePair:
     
     @unique
     class Class(Enum):
-        UNSPECIFIED = -1
-        DIFFERENT_AUTHORS = 0
-        SAME_AUTHOR = 1
+        """
+        Base enumeration type for pairs. Members designating specific pair classes can be
+        defined in sub-types of this enum type.
+        """
         
         def __repr__(self):
             return self.name

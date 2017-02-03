@@ -20,10 +20,10 @@ class WordTokenizer(Tokenizer):
         return (t for t in word_tokenizer.tokenize(text) if t not in self.punctuation)
 
 
-class PassthroughChunkTokenizer(Tokenizer):
+class PassthroughTokenizer(Tokenizer):
     """
-    Chunk tokenizer which returns the full input text as a single chunk.
-    Useful for larger collections of individual short texts.
+    Tokenizer which returns the full input as a single token / chunk.
+    Useful for chunking larger collections of individual short texts.
     """
     
     def tokenize(self, text: str) -> Iterable[str]:
