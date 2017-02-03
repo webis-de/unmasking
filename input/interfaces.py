@@ -11,7 +11,7 @@ class Tokenizer(ABC):
     """
     
     @abstractmethod
-    def tokenize(self, t: str) -> Iterable[str]:
+    def tokenize(self, text: str) -> Iterable[str]:
         """
         Tokenize given input text.
 

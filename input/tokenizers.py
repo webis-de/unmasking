@@ -1,11 +1,9 @@
 from input.interfaces import Tokenizer
-from util import BoundedHashMap
+from util.cache import CacheMixin
 
 import nltk
 
 from typing import Iterable
-
-from util.cache import CacheMixin
 
 
 class WordTokenizer(Tokenizer):
@@ -13,18 +11,13 @@ class WordTokenizer(Tokenizer):
     Word tokenizer based on NLTK's Treebank Punkt tokenizer which discards punctuation tokens.
     """
     
-    def __init__(self, language: str = "english"):
-        """
-        :param language: language to use for the tokenizer
-        """
-        self._language = language
-        self._punctuation = [".", ",", ";", ":", "!", "?", "+", "-", "*", "/", "^", "°", "=", "~", "$", "%",
-                             "(", ")", "[", "]", "{", "}", "<", ">",
-                             "`", "``", "'", "''", "--", "---"]
+    punctuation = [".", ",", ";", ":", "!", "?", "+", "-", "*", "/", "^", "°", "=", "~", "$", "%",
+                   "(", ")", "[", "]", "{", "}", "<", ">",
+                   "`", "``", "'", "''", "--", "---"]
     
-    def tokenize(self, t: str) -> Iterable[str]:
+    def tokenize(self, text: str) -> Iterable[str]:
         word_tokenizer = nltk.tokenize.TreebankWordTokenizer()
-        return (t for t in word_tokenizer.tokenize(t) if t not in self._punctuation)
+        return (t for t in word_tokenizer.tokenize(text) if t not in self.punctuation)
 
 
 class SentenceChunkTokenizer(Tokenizer, CacheMixin):
@@ -55,13 +48,13 @@ class SentenceChunkTokenizer(Tokenizer, CacheMixin):
         self._chunk_size = chunk_size
         self._language = language
 
-    def tokenize(self, t: str) -> Iterable[str]:
-        cached_chunks = self.get_cache_item(self._chunks_handle, t)
+    def tokenize(self, text: str) -> Iterable[str]:
+        cached_chunks = self.get_cache_item(self._chunks_handle, text)
         if cached_chunks is not None:
             return cached_chunks
         
-        word_tokenizer = WordTokenizer(self._language)
-        total_words = len(list(word_tokenizer.tokenize(t)))
+        word_tokenizer = WordTokenizer()
+        total_words = len(list(word_tokenizer.tokenize(text)))
         num_chunks = total_words // self._chunk_size
         ideal_chunk_size = max(total_words // max(num_chunks, 1), self._chunk_size)
     
@@ -70,7 +63,7 @@ class SentenceChunkTokenizer(Tokenizer, CacheMixin):
             sent_tokenizer = nltk.data.load('tokenizers/punkt/{}.pickle'.format(self._language))
             self.set_cache_item(self._chunks_handle, self._language, sent_tokenizer)
     
-        sentences = sent_tokenizer.tokenize(t)
+        sentences = sent_tokenizer.tokenize(text)
         
         chunks = []
         current_chunk = ""
@@ -103,6 +96,6 @@ class SentenceChunkTokenizer(Tokenizer, CacheMixin):
                     del chunks[-1]
     
         # cache chunked text
-        self.set_cache_item(self._chunks_handle, t, chunks)
+        self.set_cache_item(self._chunks_handle, text, chunks)
         
         return chunks

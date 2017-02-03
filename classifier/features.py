@@ -88,13 +88,10 @@ class AvgWordFreqFeatureSet(FeatureSet, CacheMixin):
             yield vec
     
     def _tokenize(self, text) -> List[str]:
-        cached_text = self.get_cache_item(self._cache_handle, text)
-        if cached_text is not None:
-            return cached_text
+        tokens = self.get_cache_item(self._cache_handle, text)
+        if tokens is not None:
+            return tokens
         
         tokens = list(WordTokenizer().tokenize(text))
-        
-        # cache tokenized chunks
         self.set_cache_item(self._cache_handle, text, tokens)
-        
         return tokens
