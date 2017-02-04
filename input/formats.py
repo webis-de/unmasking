@@ -140,25 +140,39 @@ class BuzzFeedXMLCorpusParser(CorpusParser):
     
     class PairClass(SamplePair.Class):
         UNSPECIFIED = -1
+        
         LEFT_LEFT = 0
         RIGHT_RIGHT = 1
         MAINSTREAM_MAINSTREAM = 2
         LEFT_RIGHT = 3
         LEFT_MAINSTREAM = 4
         RIGHT_MAINSTREAM = 5
-    
+        
+        FAKE_FAKE = 10
+        REAL_REAL = 11
+        SATIRE_SATIRE = 12
+        FAKE_REAL = 13
+        FAKE_SATIRE = 14
+        SATIRE_REAL = 15
+        
     class SingleTextClass(SamplePair.Class):
         UNSPECIFIED = -1
+        
         LEFT = 0
         RIGHT = 1
         MAINSTREAM = 2
+        
+        SATIRE = 10
+        FAKE = 11
+        REAL = 12
     
     def __init__(self, corpus_path: str, chunk_tokenizer: Tokenizer, datasets: List[str],
                  class_assigner: Callable[[etree.Element], SingleTextClass]):
         """
         :param datasets: datasets within the corpus to parse
         :param class_assigner: callable object to assign proper class to a document
-                               (provided pre-defined methods: :method:`class_by_orientation()`)
+                               (provided pre-defined methods: :method:`class_by_orientation()`,
+                               :method:`class_by_veracity()`)
         """
         super().__init__(corpus_path, chunk_tokenizer)
         self._datasets = datasets
@@ -190,14 +204,46 @@ class BuzzFeedXMLCorpusParser(CorpusParser):
             return e.MAINSTREAM
         
         return e.UNSPECIFIED
+
+    @staticmethod
+    def class_by_veracity(xmlroot: etree.Element) -> SingleTextClass:
+        """
+        Assign class to pair based on orientation. Assigns classes SATIRE, FAKE or REAL.
+        Class will be UNSPECIFIED when texts don't match any of these classes.
+        Use a reference to this method as parameter for the constructor.
+
+        :param xmlroot: XML root of the text
+        :return: assigned class
+        """
+        cls = None
+    
+        for c in xmlroot:
+            if c.tag == "orientation" and c.text == "satire":
+                cls = "satire"
+                break
+            if c.tag == "veracity":
+                cls = c.text
+                break
+        
+        e = BuzzFeedXMLCorpusParser.SingleTextClass
+        if cls == "satire":
+            return e.SATIRE
+        elif cls == "mostly false" or cls == "mixture of true and false":
+            return e.FAKE
+        elif cls == "mostly true":
+            return e.REAL
+        
+        return e.UNSPECIFIED
         
     def __iter__(self) -> Iterable[SamplePair]:
         texts_by_class = {}
         for ds in self._datasets:
             ds_path = os.path.join(self.corpus_path, ds)
             files = os.listdir(ds_path)
+            
             for f in files:
                 file_path = os.path.join(ds_path, f)
+                
                 if not os.path.isfile(file_path) or not f.endswith(".xml"):
                     continue
                 
@@ -210,7 +256,9 @@ class BuzzFeedXMLCorpusParser(CorpusParser):
                     texts_by_class[cls] = []
                 texts_by_class[cls].append(xml)
         
+        # compound classes to build
         processed_comp_classes = []
+
         for cls1 in texts_by_class:
             num_texts1 = len(texts_by_class[cls1])
             
@@ -245,10 +293,10 @@ class BuzzFeedXMLCorpusParser(CorpusParser):
                             continue
                         if idx2 in drawn1 or idx2 in drawn2:
                             continue
-                    
+            
                     if idx1 in drawn1 or idx2 in drawn2:
                         continue
-                    
+            
                     for c in texts_by_class[cls1][idx1]:
                         if c.tag == "mainText":
                             chunks_a.append(str(c.text))
@@ -259,8 +307,13 @@ class BuzzFeedXMLCorpusParser(CorpusParser):
                             chunks_b.append(str(c.text))
                             break
                     drawn2.append(idx2)
-                    
+            
                     chunk_counter += 1
+                    
+                    # break earlier when we are comparing a class with itself, since
+                    # we only need half the number of iterations
+                    if cls1 == cls2 and len(drawn1) >= num_texts1 // 2:
+                        break
                 
                 try:
                     pair_class = self.PairClass[str(cls1) + "_" + str(cls2)]

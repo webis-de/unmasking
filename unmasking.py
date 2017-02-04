@@ -104,24 +104,45 @@ def main():
         corpus = "buzzfeed"
 
         if corpus == "buzzfeed":
-            labels = {
-                BuzzFeedXMLCorpusParser.PairClass.LEFT_LEFT: ("<", "left-left", "#990000"),
-                BuzzFeedXMLCorpusParser.PairClass.RIGHT_RIGHT: (">", "right-right", "#eeaa00"),
-                BuzzFeedXMLCorpusParser.PairClass.MAINSTREAM_MAINSTREAM: ("^", "mainstream-mainstream", "#009900"),
-                BuzzFeedXMLCorpusParser.PairClass.LEFT_RIGHT: ("x", "left-right", "#000099"),
-                BuzzFeedXMLCorpusParser.PairClass.LEFT_MAINSTREAM: ("v", "left-mainstream", "#009999"),
-                BuzzFeedXMLCorpusParser.PairClass.RIGHT_MAINSTREAM: ("D", "right-mainstream", "#aa6600")
-            }
-            EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter(labels, (-.3, 1.0), False))
+            experiment = "orientation"
             
             chunk_tokenizer = PassthroughTokenizer()
-            parser = BuzzFeedXMLCorpusParser("corpora/buzzfeed", chunk_tokenizer, ["articles_buzzfeed1", "articles_buzzfeed2"],
-                                             BuzzFeedXMLCorpusParser.class_by_orientation)
+            
+            if experiment == "orientation":
+                labels = {
+                    BuzzFeedXMLCorpusParser.PairClass.LEFT_LEFT: ("<", "left-left", "#990000"),
+                    BuzzFeedXMLCorpusParser.PairClass.RIGHT_RIGHT: (">", "right-right", "#eeaa00"),
+                    BuzzFeedXMLCorpusParser.PairClass.MAINSTREAM_MAINSTREAM: ("^", "mainstream-mainstream", "#009900"),
+                    BuzzFeedXMLCorpusParser.PairClass.LEFT_RIGHT: ("x", "left-right", "#000099"),
+                    BuzzFeedXMLCorpusParser.PairClass.LEFT_MAINSTREAM: ("v", "left-mainstream", "#009999"),
+                    BuzzFeedXMLCorpusParser.PairClass.RIGHT_MAINSTREAM: ("D", "right-mainstream", "#aa6600")
+                }
+
+                parser = BuzzFeedXMLCorpusParser("corpora/buzzfeed", chunk_tokenizer,
+                                                 ["articles_buzzfeed1", "articles_buzzfeed2"],
+                                                 BuzzFeedXMLCorpusParser.class_by_orientation)
+            elif experiment == "veracity":
+                labels = {
+                    BuzzFeedXMLCorpusParser.PairClass.FAKE_FAKE: ("<", "fake-fake", "#990000"),
+                    BuzzFeedXMLCorpusParser.PairClass.REAL_REAL: (">", "real-real", "#eeaa00"),
+                    BuzzFeedXMLCorpusParser.PairClass.SATIRE_SATIRE: ("^", "satire-satire", "#009900"),
+                    BuzzFeedXMLCorpusParser.PairClass.FAKE_REAL: ("x", "fake-real", "#000099"),
+                    BuzzFeedXMLCorpusParser.PairClass.FAKE_SATIRE: ("v", "fake-satire", "#009999"),
+                    BuzzFeedXMLCorpusParser.PairClass.SATIRE_REAL: ("D", "satire-real", "#aa6600")
+                }
+
+                parser = BuzzFeedXMLCorpusParser("corpora/buzzfeed", chunk_tokenizer,
+                                                 ["articles_buzzfeed1", "articles_buzzfeed2"],
+                                                 BuzzFeedXMLCorpusParser.class_by_veracity)
+            else:
+                raise ValueError("Invalid experiment")
+            
+            EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter(labels, (-.2, 1.0), True))
             s = UniqueRandomUndersampler()
             for i, pair in enumerate(parser):
                 fs = AvgWordFreqFeatureSet(pair, s)
                 strat = FeatureRemoval(10)
-                strat.run(15, 250, fs, False)
+                strat.run(8, 250, fs, False)
             
         elif corpus == "gutenberg_test":
             EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter({
@@ -144,6 +165,8 @@ def main():
                 fs = AvgWordFreqFeatureSet(pair, s)
                 strat = FeatureRemoval(10)
                 strat.run(20, 250, fs, False)
+        else:
+            raise ValueError("Invalid corpus")
 
         print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
