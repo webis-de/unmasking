@@ -7,6 +7,7 @@ from unmasking.strategies import FeatureRemoval
 
 from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as pyplot
+from PyQt5 import QtWidgets
 
 from random import randint
 from time import time
@@ -39,7 +40,6 @@ class UnmaskingCurvePlotter(EventHandler):
         self._markers = markers
         self._cap_bottom = cap_bottom
         
-        pyplot.ion()
         pyplot.ylim(ylim[0], ylim[1])
         pyplot.xlabel("rounds")
         pyplot.ylabel("discriminability")
@@ -61,6 +61,9 @@ class UnmaskingCurvePlotter(EventHandler):
             legend_labels.append(self._markers[m][1])
         
         pyplot.legend(handles=legend_handles, labels=legend_labels)
+        pyplot.ion()
+        pyplot.show(block=False)
+        QtWidgets.QApplication.processEvents()
     
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
         if event not in self._colors:
@@ -76,7 +79,6 @@ class UnmaskingCurvePlotter(EventHandler):
         last_y = self._normalize(event.values[max(0, self._drawn[event] - 1)])
         last_x = max(0, len(event.values) - 2)
         
-        pyplot.show(block=False)
         for i, v in enumerate(points_to_draw):
             # normalize v
             v = self._normalize(v)
@@ -89,9 +91,9 @@ class UnmaskingCurvePlotter(EventHandler):
             last_y = y[1]
             pyplot.plot(x, y, color=self._colors[event], linestyle='solid', linewidth=1,
                         marker=marker, markersize=4)
-        
-        self._drawn[event] = len(event.values)
+        QtWidgets.QApplication.processEvents()
         self._fig.canvas.draw()
+        self._drawn[event] = len(event.values)
     
     def _normalize(self, val: float):
         if self._cap_bottom:
@@ -183,7 +185,7 @@ def main():
         print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
         # block, so window doesn't close automatically
-        pyplot.show(block=True)
+        pyplot.show()
     except KeyboardInterrupt:
         print("Exited upon user request.")
         exit(1)
