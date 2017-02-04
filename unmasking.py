@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from event import EventBroadcaster, EventHandler, ProgressEvent, UnmaskingTrainCurveEvent
 from input import BookSampleParser, BuzzFeedXMLCorpusParser, SamplePair
-from classifier import UniqueRandomUndersampler, AvgWordFreqFeatureSet
+from classifier import UniqueRandomUndersampler, AvgWordFreqFeatureSet, AvgCharNgramFreqFeatureSet
 from input.tokenizers import SentenceChunkTokenizer, PassthroughTokenizer
 from unmasking.strategies import FeatureRemoval
 
+from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as pyplot
 
 from random import randint
@@ -42,6 +43,10 @@ class UnmaskingCurvePlotter(EventHandler):
         pyplot.ylim(ylim[0], ylim[1])
         pyplot.xlabel("rounds")
         pyplot.ylabel("discriminability")
+        
+        # force integer ticks on x axis
+        self._fig.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+        
         if ylim[0] < 0.0:
             pyplot.axhline(0, linewidth=1.0, linestyle="dashed", color="#aaaaaa")
         
@@ -66,7 +71,7 @@ class UnmaskingCurvePlotter(EventHandler):
             self._drawn[event] = 0
 
         pyplot.xlim(0, max(pyplot.xlim()[1], event.n))
-        pyplot.xticks(range(0, int(pyplot.xlim()[1])))
+        
         points_to_draw = event.values[self._drawn[event]:len(event.values)]
         last_y = self._normalize(event.values[max(0, self._drawn[event] - 1)])
         last_x = max(0, len(event.values) - 2)
@@ -84,7 +89,7 @@ class UnmaskingCurvePlotter(EventHandler):
             last_y = y[1]
             pyplot.plot(x, y, color=self._colors[event], linestyle='solid', linewidth=1,
                         marker=marker, markersize=4)
-
+        
         self._drawn[event] = len(event.values)
         self._fig.canvas.draw()
     
@@ -104,7 +109,7 @@ def main():
         corpus = "buzzfeed"
 
         if corpus == "buzzfeed":
-            experiment = "veracity"
+            experiment = "orientation"
             
             chunk_tokenizer = PassthroughTokenizer()
             
@@ -140,9 +145,10 @@ def main():
             EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter(labels, (-.2, 1.0), True))
             s = UniqueRandomUndersampler()
             for i, pair in enumerate(parser):
-                fs = AvgWordFreqFeatureSet(pair, s)
+                #fs = AvgWordFreqFeatureSet(pair, s)
+                fs = AvgCharNgramFreqFeatureSet(pair, s, 3)
                 strat = FeatureRemoval(10)
-                strat.run(20, 250, fs, False)
+                strat.run(30, 1000, fs, False)
             
         elif corpus == "gutenberg_test":
             EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter({
