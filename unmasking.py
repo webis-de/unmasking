@@ -104,7 +104,7 @@ def main():
         corpus = "buzzfeed"
 
         if corpus == "buzzfeed":
-            experiment = "orientation"
+            experiment = "veracity"
             
             chunk_tokenizer = PassthroughTokenizer()
             
@@ -142,7 +142,7 @@ def main():
             for i, pair in enumerate(parser):
                 fs = AvgWordFreqFeatureSet(pair, s)
                 strat = FeatureRemoval(10)
-                strat.run(8, 250, fs, False)
+                strat.run(20, 250, fs, False)
             
         elif corpus == "gutenberg_test":
             EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter({
