@@ -9,7 +9,7 @@ import matplotlib.pyplot as pyplot
 
 from random import randint
 from time import time
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 
 class PrintProgress(EventHandler):
@@ -21,41 +21,61 @@ class PrintProgress(EventHandler):
         print("{}: {:.2f}%".format(self._text, event.percent_done))
 
 
-class PlotUnmaskingCurve(EventHandler):
-    def __init__(self, markers: Dict[SamplePair.Class, Tuple[str, str]]):
+class UnmaskingCurvePlotter(EventHandler):
+    def __init__(self, markers: Dict[SamplePair.Class, Tuple[str, str, Optional[str]]],
+                 ylim : Tuple[float, float] = (0, 1.0), cap_bottom: bool = True):
         """
-        :param markers: dictionary of pair classes mapped to matplotlib marker codes and a
-                        human-readable legend description
+        :param markers: dictionary of pair classes mapped to matplotlib marker codes, a
+                        human-readable legend description and a color code. If color
+                        is None, random colors will be chosen per curve
+        :param ylim: limits of the y axis
+        :param cap_bottom: whether to cap normalized y values at 0
         """
         super().__init__()
         self._fig = pyplot.figure()
         self._drawn = {}
         self._colors = {}
         self._markers = markers
+        self._cap_bottom = cap_bottom
+        
         pyplot.ion()
-        pyplot.ylim(0, 1.0)
+        pyplot.ylim(ylim[0], ylim[1])
         pyplot.xlabel("rounds")
         pyplot.ylabel("discriminability")
-
+        if ylim[0] < 0.0:
+            pyplot.axhline(0, linewidth=1.0, linestyle="dashed", color="#aaaaaa")
+        
         legend_handles = []
         legend_labels  = []
         for m in self._markers:
-            legend_handles.append(pyplot.Line2D((0, 1), (0, 0), color='#777777', marker=self._markers[m][0]))
+            if len(self._markers[m]) > 2 and self._markers[m][2] is None:
+                color = "#777777"
+            else:
+                color = self._markers[m][2]
+            legend_handles.append(pyplot.Line2D((0, 1), (0, 0), color=color, marker=self._markers[m][0]))
             legend_labels.append(self._markers[m][1])
         
         pyplot.legend(handles=legend_handles, labels=legend_labels)
     
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
         if event not in self._colors:
-            self._colors[event] = "#{:02X}{:02X}{:02X}".format(randint(0, 255), randint(0, 255), randint(0, 255))
+            if self._markers[event.pair.cls][2] is not None:
+                self._colors[event] = self._markers[event.pair.cls][2]
+            else:
+                self._colors[event] = "#{:02X}{:02X}{:02X}".format(randint(0, 255), randint(0, 255), randint(0, 255))
             self._drawn[event] = 0
 
         pyplot.xlim(0, max(pyplot.xlim()[1], event.n))
         pyplot.xticks(range(0, int(pyplot.xlim()[1])))
         points_to_draw = event.values[self._drawn[event]:len(event.values)]
-        last_y = event.values[max(0, self._drawn[event] - 1)]
+        last_y = self._normalize(event.values[max(0, self._drawn[event] - 1)])
         last_x = max(0, len(event.values) - 2)
+        
+        pyplot.show(block=False)
         for i, v in enumerate(points_to_draw):
+            # normalize v
+            v = self._normalize(v)
+            
             marker = self._markers[event.pair.cls][0]
             
             x = [last_x, i + self._drawn[event]]
@@ -67,7 +87,11 @@ class PlotUnmaskingCurve(EventHandler):
 
         self._drawn[event] = len(event.values)
         self._fig.canvas.draw()
-        pyplot.show(block=False)
+    
+    def _normalize(self, val: float):
+        if self._cap_bottom:
+            return max(0, (val - .5) * 2.0)
+        return (val - .5) * 2.0
         
 
 def main():
@@ -80,14 +104,15 @@ def main():
         corpus = "buzzfeed"
 
         if corpus == "buzzfeed":
-            EventBroadcaster.subscribe("onUnmaskingRoundFinished", PlotUnmaskingCurve({
-                BuzzFeedXMLCorpusParser.PairClass.LEFT_LEFT: ("<", "left-left"),
-                BuzzFeedXMLCorpusParser.PairClass.RIGHT_RIGHT: (">", "right-right"),
-                BuzzFeedXMLCorpusParser.PairClass.MAINSTREAM_MAINSTREAM: ("^", "mainstream-mainstream"),
-                BuzzFeedXMLCorpusParser.PairClass.LEFT_RIGHT: ("x", "left-right"),
-                BuzzFeedXMLCorpusParser.PairClass.LEFT_MAINSTREAM: ("v", "left-mainstream"),
-                BuzzFeedXMLCorpusParser.PairClass.RIGHT_MAINSTREAM: ("D", "right-mainstream")
-            }))
+            labels = {
+                BuzzFeedXMLCorpusParser.PairClass.LEFT_LEFT: ("<", "left-left", "#990000"),
+                BuzzFeedXMLCorpusParser.PairClass.RIGHT_RIGHT: (">", "right-right", "#eeaa00"),
+                BuzzFeedXMLCorpusParser.PairClass.MAINSTREAM_MAINSTREAM: ("^", "mainstream-mainstream", "#009900"),
+                BuzzFeedXMLCorpusParser.PairClass.LEFT_RIGHT: ("x", "left-right", "#000099"),
+                BuzzFeedXMLCorpusParser.PairClass.LEFT_MAINSTREAM: ("v", "left-mainstream", "#009999"),
+                BuzzFeedXMLCorpusParser.PairClass.RIGHT_MAINSTREAM: ("D", "right-mainstream", "#aa6600")
+            }
+            EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter(labels, (-.3, 1.0), False))
             
             chunk_tokenizer = PassthroughTokenizer()
             parser = BuzzFeedXMLCorpusParser("corpora/buzzfeed", chunk_tokenizer, ["articles_buzzfeed1", "articles_buzzfeed2"],
@@ -96,12 +121,12 @@ def main():
             for i, pair in enumerate(parser):
                 fs = AvgWordFreqFeatureSet(pair, s)
                 strat = FeatureRemoval(10)
-                strat.run(10, 250, fs, False)
+                strat.run(15, 250, fs, False)
             
         elif corpus == "gutenberg_test":
-            EventBroadcaster.subscribe("onUnmaskingRoundFinished", PlotUnmaskingCurve({
-                BookSampleParser.Class.SAME_AUTHOR: ("o", "same author"),
-                BookSampleParser.Class.DIFFERENT_AUTHORS: ("x", "different authors")
+            EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter({
+                BookSampleParser.Class.SAME_AUTHOR: ("o", "same author", None),
+                BookSampleParser.Class.DIFFERENT_AUTHORS: ("x", "different authors", None)
             }))
             
             chunk_tokenizer = SentenceChunkTokenizer(500)
