@@ -71,7 +71,7 @@ class CachedAvgTokenCountFeatureSet(FeatureSet, CacheMixin):
                 if i >= num_top_words + n:
                     break
                 vec[i] = self.__freq_b[top_n_words[i - n]]
-        
+            
             yield vec
 
     def get_features_relative(self, n: int) -> Iterable[numpy.ndarray]:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from event import EventBroadcaster, EventHandler, ProgressEvent, UnmaskingTrainCurveEvent
-from input import BookSampleParser, BuzzFeedXMLCorpusParser, SamplePair
+from input import BookSampleParser, WebisBuzzfeedCatCorpusParser, WebisBuzzfeedAuthorshipCorpusParser, SamplePair
 from classifier import UniqueRandomUndersampler, AvgWordFreqFeatureSet, AvgCharNgramFreqFeatureSet
 from input.tokenizers import SentenceChunkTokenizer, PassthroughTokenizer
 from unmasking.strategies import FeatureRemoval
@@ -109,46 +109,52 @@ def main():
         corpus = "buzzfeed"
 
         if corpus == "buzzfeed":
-            experiment = "orientation"
+            experiment = "portal_authorship"
             
             chunk_tokenizer = PassthroughTokenizer()
             
             if experiment == "orientation":
                 labels = {
-                    BuzzFeedXMLCorpusParser.PairClass.LEFT_LEFT: ("<", "left-left", "#990000"),
-                    BuzzFeedXMLCorpusParser.PairClass.RIGHT_RIGHT: (">", "right-right", "#eeaa00"),
-                    BuzzFeedXMLCorpusParser.PairClass.MAINSTREAM_MAINSTREAM: ("^", "mainstream-mainstream", "#009900"),
-                    BuzzFeedXMLCorpusParser.PairClass.LEFT_RIGHT: ("x", "left-right", "#000099"),
-                    BuzzFeedXMLCorpusParser.PairClass.LEFT_MAINSTREAM: ("v", "left-mainstream", "#009999"),
-                    BuzzFeedXMLCorpusParser.PairClass.RIGHT_MAINSTREAM: ("D", "right-mainstream", "#aa6600")
+                    WebisBuzzfeedCatCorpusParser.PairClass.LEFT_LEFT: ("<", "left-left", "#990000"),
+                    WebisBuzzfeedCatCorpusParser.PairClass.RIGHT_RIGHT: (">", "right-right", "#eeaa00"),
+                    WebisBuzzfeedCatCorpusParser.PairClass.MAINSTREAM_MAINSTREAM: ("^", "mainstream-mainstream", "#009900"),
+                    WebisBuzzfeedCatCorpusParser.PairClass.LEFT_RIGHT: ("x", "left-right", "#000099"),
+                    WebisBuzzfeedCatCorpusParser.PairClass.LEFT_MAINSTREAM: ("v", "left-mainstream", "#009999"),
+                    WebisBuzzfeedCatCorpusParser.PairClass.RIGHT_MAINSTREAM: ("D", "right-mainstream", "#aa6600")
                 }
 
-                parser = BuzzFeedXMLCorpusParser("corpora/buzzfeed", chunk_tokenizer,
-                                                 ["articles_buzzfeed1", "articles_buzzfeed2"],
-                                                 BuzzFeedXMLCorpusParser.class_by_orientation)
+                parser = WebisBuzzfeedCatCorpusParser("corpora/buzzfeed", chunk_tokenizer,
+                                                      ["articles_buzzfeed1", "articles_buzzfeed2"],
+                                                      WebisBuzzfeedCatCorpusParser.class_by_orientation)
             elif experiment == "veracity":
                 labels = {
-                    BuzzFeedXMLCorpusParser.PairClass.FAKE_FAKE: ("<", "fake-fake", "#990000"),
-                    BuzzFeedXMLCorpusParser.PairClass.REAL_REAL: (">", "real-real", "#eeaa00"),
-                    BuzzFeedXMLCorpusParser.PairClass.SATIRE_SATIRE: ("^", "satire-satire", "#009900"),
-                    BuzzFeedXMLCorpusParser.PairClass.FAKE_REAL: ("x", "fake-real", "#000099"),
-                    BuzzFeedXMLCorpusParser.PairClass.FAKE_SATIRE: ("v", "fake-satire", "#009999"),
-                    BuzzFeedXMLCorpusParser.PairClass.SATIRE_REAL: ("D", "satire-real", "#aa6600")
+                    WebisBuzzfeedCatCorpusParser.PairClass.FAKE_FAKE: ("<", "fake-fake", "#990000"),
+                    WebisBuzzfeedCatCorpusParser.PairClass.REAL_REAL: (">", "real-real", "#eeaa00"),
+                    WebisBuzzfeedCatCorpusParser.PairClass.FAKE_REAL: ("x", "fake-real", "#000099"),
+                    WebisBuzzfeedCatCorpusParser.PairClass.FAKE_SATIRE: ("v", "fake-satire", "#009999"),
+                    WebisBuzzfeedCatCorpusParser.PairClass.SATIRE_REAL: ("D", "satire-real", "#aa6600")
                 }
 
-                parser = BuzzFeedXMLCorpusParser("corpora/buzzfeed", chunk_tokenizer,
-                                                 ["articles_buzzfeed1", "articles_buzzfeed2"],
-                                                 BuzzFeedXMLCorpusParser.class_by_veracity)
+                parser = WebisBuzzfeedCatCorpusParser("corpora/buzzfeed", chunk_tokenizer,
+                                                      ["articles_buzzfeed1", "articles_buzzfeed2"],
+                                                      WebisBuzzfeedCatCorpusParser.class_by_veracity)
+            elif experiment == "portal_authorship":
+                labels = {
+                    WebisBuzzfeedAuthorshipCorpusParser.Class.SAME_PORTAL: ("o", "same portal", None),
+                    WebisBuzzfeedAuthorshipCorpusParser.Class.DIFFERENT_PORTALS: ("x", "different portals", None)
+                }
+                parser = WebisBuzzfeedAuthorshipCorpusParser("corpora/buzzfeed", chunk_tokenizer,
+                                                             ["articles_buzzfeed1"])
             else:
                 raise ValueError("Invalid experiment")
             
             EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter(labels, (-.2, 1.0), True))
             s = UniqueRandomUndersampler()
             for i, pair in enumerate(parser):
-                #fs = AvgWordFreqFeatureSet(pair, s)
-                fs = AvgCharNgramFreqFeatureSet(pair, s, 3)
+                fs = AvgWordFreqFeatureSet(pair, s)
+                #fs = AvgCharNgramFreqFeatureSet(pair, s, 3)
                 strat = FeatureRemoval(10)
-                strat.run(30, 1000, fs, False)
+                strat.run(30, 250, fs, False)
             
         elif corpus == "gutenberg_test":
             EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter({
