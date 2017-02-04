@@ -7,7 +7,7 @@ from unmasking.strategies import FeatureRemoval
 
 from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as pyplot
-from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QApplication
 
 from random import randint
 from time import time
@@ -63,7 +63,7 @@ class UnmaskingCurvePlotter(EventHandler):
         pyplot.legend(handles=legend_handles, labels=legend_labels)
         pyplot.ion()
         pyplot.show(block=False)
-        QtWidgets.QApplication.processEvents()
+        QApplication.processEvents()
     
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
         if event not in self._colors:
@@ -91,7 +91,7 @@ class UnmaskingCurvePlotter(EventHandler):
             last_y = y[1]
             pyplot.plot(x, y, color=self._colors[event], linestyle='solid', linewidth=1,
                         marker=marker, markersize=4)
-        QtWidgets.QApplication.processEvents()
+        QApplication.processEvents()
         self._fig.canvas.draw()
         self._drawn[event] = len(event.values)
     
