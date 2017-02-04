@@ -20,6 +20,36 @@ class WordTokenizer(Tokenizer):
         return (t for t in word_tokenizer.tokenize(text) if t not in self.punctuation)
 
 
+class CharNgramTokenizer(Tokenizer):
+    """
+    Character n-gram tokenizer.
+    """
+    
+    def __init__(self, order: int = 3):
+        """
+        :param order: n-gram order (defaults to trigrams)
+        """
+        super().__init__()
+        self._order = None
+        self.order = order
+    
+    @property
+    def order(self) -> int:
+        """Get n-gram order"""
+        return self._order
+    
+    @order.setter
+    def order(self, order: int):
+        """Set n-gram order"""
+        if order < 1:
+            raise ValueError("Order must be greater than zero")
+        self._order = order
+    
+    def tokenize(self, text: str) -> Iterable[str]:
+        for i in range(0, len(text) - self._order + 1):
+            yield text[i:i + self._order]
+
+
 class PassthroughTokenizer(Tokenizer):
     """
     Tokenizer which returns the full input as a single token / chunk.
