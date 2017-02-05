@@ -17,6 +17,8 @@ class UnmaskingStrategy(ABC):
     * `onUnmaskingRoundFinished`: [type: UnmaskingTrainCurveEvent]
                                   fired whenever a single round of unmasking has finished
                                   to update accuracy curves
+    * `onUnmaskingFinished`:      [type: UnmaskingTrainCurveEvent]
+                                  fired when unmasking curve generation for a text has finished
     """
     
     def __init__(self):
@@ -84,7 +86,9 @@ class UnmaskingStrategy(ABC):
                 if i < m - 1:
                     X = self.transform(X, coef)
             except ValueError:
-                return
+                continue
+        
+        EventBroadcaster.publish("onUnmaskingFinished", event, self.__class__)
     
     @abstractmethod
     def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:

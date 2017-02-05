@@ -500,4 +500,3 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                                          PairGenerationEvent(pair, file_names_a, file_names_b),
                                          self.__class__)
                 yield pair
-
