@@ -265,11 +265,13 @@ def main():
             "num_features": num_features,
             "chunk_tokenizer": chunk_tokenizer.__class__.__name__
         })
-        output_filename = "out/unmasking_" + str(int(time())) + ".json"
-        print("Writing experiment output to '{}'".format(output_filename))
+        output_filename = "out/unmasking_" + str(int(time()))
+        print("Saving plot to '{}.svg'...".format(output_filename))
+        pyplot.savefig(output_filename + ".svg")
+        print("Writing experiment meta data to '{}.json'...".format(output_filename))
         if not os.path.exists("out"):
             os.mkdir("out")
-        stats_accumulator.save(output_filename)
+        stats_accumulator.save(output_filename + ".json")
         
         print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
