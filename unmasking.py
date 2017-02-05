@@ -34,7 +34,7 @@ def main():
         
         corpus            = "buzzfeed"
         removed_per_round = 10
-        iterations        = 10
+        iterations        = 25
         num_features      = 250
         num_experiments   = 5
 
@@ -43,7 +43,7 @@ def main():
         EventBroadcaster.subscribe("onUnmaskingFinished", stats_accumulator)
         
         if corpus == "buzzfeed":
-            experiment = "veracity"
+            experiment = "orientation"
             
             chunk_tokenizer = PassthroughTokenizer()
 
@@ -100,7 +100,7 @@ def main():
                     #fs = AvgCharNgramFreqFeatureSet(pair, s, 3)
                     #fs = AvgDisjunctCharNgramFreqFeatureSet(pair, s, 3)
                     strat = FeatureRemoval(removed_per_round)
-                    strat.run(iterations, num_features, fs, True)
+                    strat.run(iterations, num_features, fs, False)
                 EventBroadcaster.unsubscribe("onUnmaskingRoundFinished", curve_plotter)
                 
                 stats_accumulator.set_meta_data({
@@ -110,6 +110,7 @@ def main():
                     "chunk_tokenizer": chunk_tokenizer.__class__.__name__
                 })
                 save_output(curve_plotter, stats_accumulator)
+                stats_accumulator.reinit()
                 curve_plotter.close()
             
             # noinspection PyUnboundLocalVariable
