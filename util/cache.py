@@ -1,4 +1,4 @@
-from util import BoundedHashMap
+from util.map import BoundedHashMap
 
 
 class CacheMixin:

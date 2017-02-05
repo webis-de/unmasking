@@ -1,4 +1,5 @@
-from event import EventBroadcaster, ProgressEvent
+from event.dispatch import EventBroadcaster
+from event.events import ProgressEvent
 
 from abc import ABC, abstractmethod
 from enum import Enum, unique

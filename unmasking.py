@@ -2,8 +2,10 @@
 from event.interfaces import Event, EventHandler
 from event.dispatch import EventBroadcaster
 from event.events import ProgressEvent, UnmaskingTrainCurveEvent, PairGenerationEvent
-from input import BookSampleParser, WebisBuzzfeedCatCorpusParser, WebisBuzzfeedAuthorshipCorpusParser, SamplePair
-from classifier import UniqueRandomUndersampler, AvgWordFreqFeatureSet, AvgCharNgramFreqFeatureSet
+from input.interfaces import SamplePair
+from input.formats import BookSampleParser, WebisBuzzfeedCatCorpusParser, WebisBuzzfeedAuthorshipCorpusParser
+from classifier.features import AvgWordFreqFeatureSet, AvgCharNgramFreqFeatureSet
+from classifier.sampling import UniqueRandomUndersampler
 from input.tokenizers import SentenceChunkTokenizer, PassthroughTokenizer
 from unmasking.strategies import FeatureRemoval
 
