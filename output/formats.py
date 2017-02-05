@@ -30,25 +30,40 @@ class CurveAverager(EventHandler):
     """
     Average unmasking curves from multiple runs.
     
-    Handles events: onPairGenerated, onUnmaskingFinished
+    Handles events: onUnmaskingFinished
     """
     
     def __init__(self):
-        self._curves = []
+        self._curves = {}
 
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
-        if type(Event) is not UnmaskingTrainCurveEvent:
+        if name != "onUnmaskingFinished":
             return
         
-        self._curves.append(event.values)
+        self.add_curve(event.pair.cls, event.values)
     
-    def get_avg_curve(self) -> List[float]:
+    def add_curve(self, cls: SamplePair.Class, values: List[float]):
         """
-        Generate average curve.
+        Add curve for given class to the list.
         
-        :return: curve as list of floats
+        :param cls: class of the pair
+        :param values: curve points
         """
-        return [sum(e) / len(e) for e in zip(*self._curves)]
+        if cls not in self._curves:
+            self._curves[cls] = []
+        self._curves[cls].append(values)
+    
+    def get_avg_curves(self) -> Dict[SamplePair.Class, List[float]]:
+        """
+        Generate average curves for each class.
+        
+        :return: dict of curve ids and curve points
+        """
+        avg_curves = {}
+        for c in self._curves:
+            avg_curves[c] = [sum(e) / len(e) for e in zip(*self._curves[c])]
+        
+        return avg_curves
 
 
 class UnmaskingStatAccumulator(EventHandler, FileOutput):
@@ -136,61 +151,97 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
         """
         super().__init__()
         self._fig = pyplot.figure()
-        self._drawn = {}
         self._colors = {}
         self._markers = markers
         self._display = display
         self._ylim = ylim
         
+        self._next_curve_id = 0
+        self._curve_ids = []
+        self._events_to_cids = {}
+        
+        self._last_points = {}
+        
         self._setup_axes()
     
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
-        self.plot_curve(event.values, (0.0, event.n), event.pair.cls, id(event))
+        if event not in self._events_to_cids:
+            self._events_to_cids[event] = self.start_new_curve()
+        
+        self.plot_curve(event.values, (0.0, event.n - 1), event.pair.cls, self._events_to_cids[event])
     
-    def plot_curve(self, values: List[float], xlim: Tuple[float, float], curve_class: SamplePair.Class, curve_id: int):
+    def start_new_curve(self) -> int:
+        """
+        Start a new curve and retrieve its handle.
+        
+        :return: handle to the new curve, needed to append further points
+        """
+        self._curve_ids.append(self._next_curve_id)
+        self._last_points[self._next_curve_id] = (0, 0)
+        self._next_curve_id += 1
+        return self._next_curve_id - 1
+    
+    def set_plot_title(self, title: str):
+        """
+        Set plot title.
+        
+        :param title: plot title
+        """
+        pyplot.title(title)
+    
+    def plot_curve(self, values: List[float], xlim: Tuple[float, float],
+                   curve_class: SamplePair.Class, curve_handle: int):
         """
         Plot unmasking curve. Points from ``values`` which have been plotted earlier will not be plotted again.
+        Consecutive calls with the same ``curve_handle`` append points new points to existing curve.
         Therefore, if you want to start a new plot for a certain curve, you need to create a new instance of
         this class or create a new figure with :method:`new_figure()`.
         
         :param values: list of y-axis values
         :param xlim: x-axis limits
         :param curve_class: class of the curve
-        :param curve_id: unique identifier for this curve
+        :param curve_handle: curve handle from :method:`start_new_curve()`
         """
-        if curve_id not in self._colors:
+        if curve_handle not in self._curve_ids:
+            raise ValueError("Invalid curve ID")
+        
+        if curve_handle not in self._colors:
             if self._markers[curve_class][2] is not None:
-                self._colors[curve_id] = self._markers[curve_class][2]
+                self._colors[curve_handle] = self._markers[curve_class][2]
             else:
-                self._colors[curve_id] = "#{:02X}{:02X}{:02X}".format(randint(0, 255), randint(0, 255), randint(0, 255))
-            self._drawn[curve_id] = 0
+                self._colors[curve_handle] = "#{:02X}{:02X}{:02X}".format(randint(0, 255), randint(0, 255), randint(0, 255))
+        
+        if len(values) <= self._last_points[curve_handle][0]:
+            raise ValueError("Number of curve points must be larger than for previous calls")
         
         pyplot.xlim(xlim[0], max(pyplot.xlim()[1], xlim[1]))
+        marker = self._markers[curve_class][0]
         
-        points_to_draw = values[self._drawn[curve_id]:len(values)]
-        last_y = values[max(0, self._drawn[curve_id] - 1)]
-        last_x = max(0, len(values) - 2)
-        
+        last_point = self._last_points[curve_handle]
+        points_to_draw = values[last_point[0]:len(values)]
+        xstart = last_point[0]
+        last_point = (xstart, points_to_draw[0] if xstart == 0 else last_point[1])
         for i, v in enumerate(points_to_draw):
-            marker = self._markers[curve_class][0]
+            x = (last_point[0], xstart + i)
+            y = (last_point[1], v)
             
-            x = [last_x, i + self._drawn[curve_id]]
-            y = [last_y, v]
-            last_x = x[1]
-            last_y = y[1]
-            pyplot.plot(x, y, color=self._colors[curve_id], linestyle='solid', linewidth=1,
+            pyplot.plot(x, y, color=self._colors[curve_handle], linestyle='solid', linewidth=1,
                         marker=marker, markersize=4)
+            last_point = (x[1], y[1])
+            
+        self._last_points[curve_handle] = last_point
         
         if self._display:
             QApplication.processEvents()
             self._fig.canvas.draw()
-        self._drawn[curve_id] = len(values)
     
     def new_figure(self):
-        """Create a new figure and reset list of already drawn curves."""
+        """Create a new figure and reset record of already drawn curves."""
+        self._fig.clear()
         self._fig = pyplot.figure()
-        self._drawn = {}
         self._setup_axes()
+        self._curve_ids = []
+        self._next_curve_id = 0
     
     def close(self):
         """Close an open plot window ."""
