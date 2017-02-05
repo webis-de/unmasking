@@ -472,7 +472,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                     for e in texts_by_class[cls2][idx2][1]:
                         if e.tag == "mainText":
                             chunks_b.append(str(e.text))
-                            file_names_b.append(texts_by_class[cls1][idx1][0])
+                            file_names_b.append(texts_by_class[cls2][idx2][0])
                             break
                     drawn_b.append(idx2)
                     
