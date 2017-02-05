@@ -14,6 +14,8 @@ from typing import Dict, Optional, Tuple
 class ProgressPrinter(EventHandler):
     """
     Print progress events to the console.
+    
+    Handles events: onProgress
     """
     
     def __init__(self, text: str):
@@ -27,6 +29,8 @@ class ProgressPrinter(EventHandler):
 class UnmaskingStatAccumulator(EventHandler, FileOutput):
     """
     Accumulate various statistics about a running experiment.
+    
+    Handles events: onPairGenerated, onUnmaskingFinished
     """
     
     def __init__(self, meta_data: Optional[Dict[str, object]] = None):
@@ -92,6 +96,8 @@ class UnmaskingStatAccumulator(EventHandler, FileOutput):
 class UnmaskingCurvePlotter(EventHandler, FileOutput):
     """
     Plot unmasking curves.
+    
+    Handles events: onUnmaskingRoundFinished
     """
     
     def __init__(self,  markers: Dict[SamplePair.Class, Tuple[str, str, Optional[str]]],
