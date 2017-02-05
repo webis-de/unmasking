@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-from event import EventBroadcaster, EventHandler, ProgressEvent, UnmaskingTrainCurveEvent
+from event.interfaces import Event, EventHandler
+from event.dispatch import EventBroadcaster
+from event.events import ProgressEvent, UnmaskingTrainCurveEvent, PairGenerationEvent
 from input import BookSampleParser, WebisBuzzfeedCatCorpusParser, WebisBuzzfeedAuthorshipCorpusParser, SamplePair
 from classifier import UniqueRandomUndersampler, AvgWordFreqFeatureSet, AvgCharNgramFreqFeatureSet
 from input.tokenizers import SentenceChunkTokenizer, PassthroughTokenizer
@@ -9,6 +11,8 @@ from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as pyplot
 from PyQt5.QtWidgets import QApplication
 
+import json
+import os
 from random import randint
 from time import time
 from typing import Dict, Optional, Tuple
@@ -21,6 +25,69 @@ class PrintProgress(EventHandler):
         
     def handle(self, name: str, event: ProgressEvent, sender: type):
         print("{}: {:.2f}%".format(self._text, event.percent_done))
+
+
+class UnmaskingStatAccumulator(EventHandler):
+    def __init__(self, meta_data: Optional[Dict[str, object]] = None):
+        """
+        :param meta_data: dict with experiment meta data
+        """
+        self._stats = {}
+        if meta_data is not None:
+            self._stats["meta"] = meta_data
+        self._stats["curves"] = {}
+
+    # noinspection PyUnresolvedReferences
+    def handle(self, name: str, event: Event, sender: type):
+        if type(event) != UnmaskingTrainCurveEvent and type(event) != PairGenerationEvent:
+            return
+        
+        pair = event.pair
+        pair_id = id(event.pair)
+        if event.pair is not None and pair_id not in self._stats["curves"]:
+            self._stats["curves"][pair_id] = {}
+        
+        if name == "onPairGenerated":
+            fa, fb = event.files
+            self._stats["curves"][pair_id]["cls"] = str(pair.cls)
+            self._stats["curves"][pair_id]["files_a"] = fa
+            self._stats["curves"][pair_id]["files_b"] = fb
+        elif name == "onUnmaskingFinished":
+            self._stats["curves"][pair_id]["curve"] = [max(0, (v - .5) * 2) for v in event.values]
+            self._stats["curves"][pair_id]["fs"] = event.feature_set.__name__
+    
+    def set_meta_data(self, meta_data: Dict[str, object]):
+        """
+        Set experiment meta data.
+        
+        :param meta_data: meta data dict, None to unset previously set meta data
+        """
+        if meta_data is None and "meta" in self._stats:
+            del self._stats["meta"]
+        elif meta_data is not None:
+            self._stats["meta"] = meta_data
+    
+    def save(self, file_name: str, append: bool = True):
+        """
+        Save accumulated stats to file in JSON format.
+        If the file exists, it will be truncated.
+        
+        :param file_name: output file name
+        """
+        
+        with open(file_name, "w") as f:
+            json.dump(self._stats, f, indent=2)
+    
+    def reinit(self, meta_data: Optional[Dict[str, object]] = None):
+        """
+        Clear stats and reinitialize accumulator.
+        
+        :param meta_data: optional experiment meta data (None to re-use previous meta data)
+        """
+        if meta_data is None and "meta" in self._stats:
+            meta_data = self._stats["meta"]
+        
+        self.__init__(meta_data)
 
 
 class UnmaskingCurvePlotter(EventHandler):
@@ -108,10 +175,17 @@ def main():
         pair_progress = PrintProgress("Pair-building progress")
         EventBroadcaster.subscribe("onProgress", pair_progress, {BookSampleParser})
         
-        corpus = "buzzfeed"
+        corpus            = "buzzfeed"
+        removed_per_round = 10
+        iterations        = 25
+        num_features      = 250
 
+        stats_accumulator = UnmaskingStatAccumulator()
+        EventBroadcaster.subscribe("onPairGenerated", stats_accumulator)
+        EventBroadcaster.subscribe("onUnmaskingFinished", stats_accumulator)
+        
         if corpus == "buzzfeed":
-            experiment = "portal_authorship"
+            experiment = "orientation"
             
             chunk_tokenizer = PassthroughTokenizer()
             
@@ -156,7 +230,7 @@ def main():
                 fs = AvgWordFreqFeatureSet(pair, s)
                 #fs = AvgCharNgramFreqFeatureSet(pair, s, 3)
                 strat = FeatureRemoval(10)
-                strat.run(30, 250, fs, False)
+                strat.run(25, 250, fs, False)
             
         elif corpus == "gutenberg_test":
             EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter({
@@ -177,15 +251,28 @@ def main():
                 EventBroadcaster.subscribe("onProgress", chunking_progress, {SamplePair})
     
                 fs = AvgWordFreqFeatureSet(pair, s)
-                strat = FeatureRemoval(10)
-                strat.run(20, 250, fs, False)
+                strat = FeatureRemoval(removed_per_round)
+                strat.run(iterations, num_features, fs, False)
         else:
             raise ValueError("Invalid corpus")
-
+        
+        # save stats
+        stats_accumulator.set_meta_data({
+            "removed_per_round": removed_per_round,
+            "iterations": iterations,
+            "num_features": num_features,
+            "chunk_tokenizer": chunk_tokenizer.__class__.__name__
+        })
+        output_filename = "out/unmasking_" + str(int(time())) + ".json"
+        print("Writing experiment output to '{}'".format(output_filename))
+        if not os.path.exists("out"):
+            os.mkdir("out")
+        stats_accumulator.save(output_filename)
+        
         print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
         # block, so window doesn't close automatically
-        pyplot.show()
+        pyplot.show(block=True)
     except KeyboardInterrupt:
         print("Exited upon user request.")
         exit(1)

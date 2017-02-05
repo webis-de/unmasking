@@ -62,15 +62,17 @@ class UnmaskingTrainCurveEvent(Event):
     Event for updating training curves of pairs during unmasking.
     """
     
-    def __init__(self, n: int = 0, pair=None):
+    def __init__(self, n: int = 0, pair=None, feature_set: type = None):
         """
         :param n: predicted final number of total values (should be set to the total number of unmasking iterations)
         :param pair: pair for which this curve is being calculated
+        :param feature_set: feature set class used for generating this curve
         """
         super().__init__()
         self._n = n
         self._values = []
         self._pair = pair
+        self._feature_set = feature_set
     
     @property
     def pair(self):
@@ -103,6 +105,16 @@ class UnmaskingTrainCurveEvent(Event):
         This should be set to the number of unmasking iterations.
         """
         self._n = n
+    
+    @property
+    def feature_set(self) -> type:
+        """Feature set class used for generating this curve."""
+        return self._feature_set
+    
+    @feature_set.setter
+    def feature_set(self, fs: type):
+        """Set feature set class used for generating this curve."""
+        self._feature_set = fs
 
 
 class PairGenerationEvent(Event):

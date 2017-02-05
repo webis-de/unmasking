@@ -71,7 +71,7 @@ class UnmaskingStrategy(ABC):
         
         X = numpy.array(X)
         y = numpy.array(y)
-        event = UnmaskingTrainCurveEvent(m, fs.pair)
+        event = UnmaskingTrainCurveEvent(m, fs.pair, fs.__class__)
         for i in range(0, m):
             try:
                 self._clf.fit(X, y)
