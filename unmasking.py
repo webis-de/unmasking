@@ -7,6 +7,7 @@ from input.formats import BookSampleParser, WebisBuzzfeedCatCorpusParser, WebisB
 from input.tokenizers import SentenceChunkTokenizer, PassthroughTokenizer
 from output.formats import ProgressPrinter, UnmaskingStatAccumulator, UnmaskingCurvePlotter, CurveAverager
 from unmasking.strategies import FeatureRemoval
+from util.cache import CacheMixin
 
 import os
 from time import time
@@ -50,6 +51,8 @@ def main():
             EventBroadcaster.subscribe("onUnmaskingFinished", curve_averager)
             
             for experiment_num in range(0, num_experiments):
+                CacheMixin.reset_caches()
+                
                 if experiment == "orientation":
                     labels = {
                         WebisBuzzfeedCatCorpusParser.PairClass.LEFT_LEFT: ("<", "left-left", "#990000"),
@@ -94,7 +97,8 @@ def main():
                     #fs = AvgDisjunctCharNgramFreqFeatureSet(pair, s, 3)
                     strat = FeatureRemoval(removed_per_round)
                     strat.run(iterations, num_features, fs, False)
-
+                EventBroadcaster.unsubscribe("onUnmaskingRoundFinished", curve_plotter)
+                
                 stats_accumulator.set_meta_data({
                     "removed_per_round": removed_per_round,
                     "iterations": iterations,

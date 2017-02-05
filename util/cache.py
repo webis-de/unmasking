@@ -125,3 +125,13 @@ class CacheMixin:
             return CacheMixin.__cache[handle][cache_key]
         
         return default_value
+    
+    @staticmethod
+    def reset_caches():
+        """
+        Invalidate / clear all caches. It is recommended to do this before starting a new experiment.
+        All existing cache handles and aliases will become invalid.
+        """
+        CacheMixin.__cache = {}
+        CacheMixin.__cache_aliases = {}
+        CacheMixin.__next_handle = 0
