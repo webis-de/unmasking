@@ -8,7 +8,7 @@ from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as pyplot
 from PyQt5.QtWidgets import QApplication
 from random import randint
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 class ProgressPrinter(EventHandler):
@@ -24,6 +24,31 @@ class ProgressPrinter(EventHandler):
     
     def handle(self, name: str, event: ProgressEvent, sender: type):
         print("{}: {:.2f}%".format(self._text, event.percent_done))
+
+
+class CurveAverager(EventHandler):
+    """
+    Average unmasking curves from multiple runs.
+    
+    Handles events: onPairGenerated, onUnmaskingFinished
+    """
+    
+    def __init__(self):
+        self._curves = []
+
+    def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
+        if type(Event) is not UnmaskingTrainCurveEvent:
+            return
+        
+        self._curves.append(event.values)
+    
+    def get_avg_curve(self) -> List[float]:
+        """
+        Generate average curve.
+        
+        :return: curve as list of floats
+        """
+        return [sum(e) / len(e) for e in zip(*self._curves)]
 
 
 class UnmaskingStatAccumulator(EventHandler, FileOutput):
@@ -115,17 +140,76 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
         self._colors = {}
         self._markers = markers
         self._display = display
+        self._ylim = ylim
         
-        pyplot.ylim(ylim[0], ylim[1])
+        self._setup_axes()
+    
+    def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
+        self.plot_curve(event.values, (0.0, event.n), event.pair.cls, id(event))
+    
+    def plot_curve(self, values: List[float], xlim: Tuple[float, float], curve_class: SamplePair.Class, curve_id: int):
+        """
+        Plot unmasking curve. Points from ``values`` which have been plotted earlier will not be plotted again.
+        Therefore, if you want to start a new plot for a certain curve, you need to create a new instance of
+        this class or create a new figure with :method:`new_figure()`.
+        
+        :param values: list of y-axis values
+        :param xlim: x-axis limits
+        :param curve_class: class of the curve
+        :param curve_id: unique identifier for this curve
+        """
+        if curve_id not in self._colors:
+            if self._markers[curve_class][2] is not None:
+                self._colors[curve_id] = self._markers[curve_class][2]
+            else:
+                self._colors[curve_id] = "#{:02X}{:02X}{:02X}".format(randint(0, 255), randint(0, 255), randint(0, 255))
+            self._drawn[curve_id] = 0
+        
+        pyplot.xlim(xlim[0], max(pyplot.xlim()[1], xlim[1]))
+        
+        points_to_draw = values[self._drawn[curve_id]:len(values)]
+        last_y = values[max(0, self._drawn[curve_id] - 1)]
+        last_x = max(0, len(values) - 2)
+        
+        for i, v in enumerate(points_to_draw):
+            marker = self._markers[curve_class][0]
+            
+            x = [last_x, i + self._drawn[curve_id]]
+            y = [last_y, v]
+            last_x = x[1]
+            last_y = y[1]
+            pyplot.plot(x, y, color=self._colors[curve_id], linestyle='solid', linewidth=1,
+                        marker=marker, markersize=4)
+        
+        if self._display:
+            QApplication.processEvents()
+            self._fig.canvas.draw()
+        self._drawn[curve_id] = len(values)
+    
+    def new_figure(self):
+        """Create a new figure and reset list of already drawn curves."""
+        self._fig = pyplot.figure()
+        self._drawn = {}
+        self._setup_axes()
+    
+    def close(self):
+        """Close an open plot window ."""
+        pyplot.close()
+    
+    def save(self, file_name: str):
+        pyplot.savefig(file_name)
+    
+    def _setup_axes(self):
+        pyplot.ylim(self._ylim[0], self._ylim[1])
         pyplot.xlabel("rounds")
         pyplot.ylabel("discriminability")
-        
+    
         # force integer ticks on x axis
         self._fig.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
-        
-        if ylim[0] < 0.0:
+    
+        if self._ylim[0] < 0.0:
             pyplot.axhline(0, linewidth=1.0, linestyle="dashed", color="#aaaaaa")
-        
+    
         legend_handles = []
         legend_labels = []
         for m in self._markers:
@@ -135,42 +219,10 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
                 color = self._markers[m][2]
             legend_handles.append(pyplot.Line2D((0, 1), (0, 0), color=color, marker=self._markers[m][0]))
             legend_labels.append(self._markers[m][1])
-        
+    
         pyplot.legend(handles=legend_handles, labels=legend_labels)
-        
+    
         if self._display:
             pyplot.ion()
             pyplot.show(block=False)
             QApplication.processEvents()
-    
-    def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
-        if event not in self._colors:
-            if self._markers[event.pair.cls][2] is not None:
-                self._colors[event] = self._markers[event.pair.cls][2]
-            else:
-                self._colors[event] = "#{:02X}{:02X}{:02X}".format(randint(0, 255), randint(0, 255), randint(0, 255))
-            self._drawn[event] = 0
-        
-        pyplot.xlim(0, max(pyplot.xlim()[1], event.n))
-        
-        points_to_draw = event.values[self._drawn[event]:len(event.values)]
-        last_y = event.values[max(0, self._drawn[event] - 1)]
-        last_x = max(0, len(event.values) - 2)
-        
-        for i, v in enumerate(points_to_draw):
-            marker = self._markers[event.pair.cls][0]
-            
-            x = [last_x, i + self._drawn[event]]
-            y = [last_y, v]
-            last_x = x[1]
-            last_y = y[1]
-            pyplot.plot(x, y, color=self._colors[event], linestyle='solid', linewidth=1,
-                        marker=marker, markersize=4)
-        
-        if self._display:
-            QApplication.processEvents()
-            self._fig.canvas.draw()
-        self._drawn[event] = len(event.values)
-    
-    def save(self, file_name: str):
-        pyplot.savefig(file_name)
