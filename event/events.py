@@ -1,6 +1,6 @@
 from event.interfaces import Event
 
-from typing import List
+from typing import List, Optional, Tuple
 
 
 class ProgressEvent(Event):
@@ -103,3 +103,39 @@ class UnmaskingTrainCurveEvent(Event):
         This should be set to the number of unmasking iterations.
         """
         self._n = n
+
+
+class PairGenerationEvent(Event):
+    """
+    Event for status reports on pair generation.
+    """
+    
+    def __init__(self, pair=None, files_a: Optional[List[str]] = None, files_b: Optional[List[str]] = None):
+        """
+        :param pair: pair for which this event is emitted
+        :param files_a: participating files for chunk set a
+        :param files_b: participating files for chunk set b
+        """
+        self._pair = pair
+        self._files_a = [] if files_a is None else files_a
+        self._files_b = [] if files_b is None else files_b
+    
+    @property
+    def pair(self):
+        """Pair for which this event is emitted"""
+        return self._pair
+    
+    @property
+    def files(self) -> Tuple[List[str], List[str]]:
+        """Lists of input files participating in this pair's generation of chunk sets a and b"""
+        return self._files_a, self._files_b
+    
+    @files.setter
+    def files(self, files: Tuple[List[str], List[str]]):
+        """
+        Set files participating in this pair's generation.
+        
+        :param files: participating files for chunk sets a and b as tuple of lists
+        """
+        self._files_a = files[0]
+        self._files_b = files[1]

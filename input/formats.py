@@ -1,4 +1,5 @@
-from event import EventBroadcaster, ProgressEvent
+from event.dispatch import EventBroadcaster
+from event.events import PairGenerationEvent, ProgressEvent
 from input.interfaces import Tokenizer
 
 from input.interfaces import CorpusParser, SamplePair
@@ -28,9 +29,10 @@ class BookSampleParser(CorpusParser):
     
     Events published by this class:
     
-    * `onProgress`: [type: ProgressEvent]
-                    fired during author pair generation to indicate current progress
-    
+    * `onProgress`:      [type: ProgressEvent]
+                         fired during author pair generation to indicate current progress
+    * `onPairGenerated`: [type PairGenerationEvent]
+                         fired when a pair has been generated
     """
 
     class Class(SamplePair.Class):
@@ -97,11 +99,13 @@ class BookSampleParser(CorpusParser):
             
             compare_texts = []
             last_filename = None
+            comp_file_names = []
             for file_name in self._authors[self._next2]:
                 if file_name == self._next1:
                     # don't compare a text with itself
                     continue
-                
+
+                comp_file_names.append(file_name)
                 with open(file_name, "r") as handle:
                     compare_texts.append(handle.read())
                     last_filename = file_name
@@ -121,7 +125,11 @@ class BookSampleParser(CorpusParser):
             if self._files[self._next1] == self._next2:
                 cls = self._parser.Class.SAME_AUTHOR
             
-            return SamplePair([self._current_file_contents], compare_texts, cls, self._parser.chunk_tokenizer)
+            pair = SamplePair([self._current_file_contents], compare_texts, cls, self._parser.chunk_tokenizer)
+            EventBroadcaster.publish("onPairGenerated",
+                                     PairGenerationEvent(pair, [self._next1], comp_file_names),
+                                     self._parser.__class__)
+            yield pair
     
     def __iter__(self) -> BookSampleParserIterator:
         return self.BookSampleParserIterator(self)
@@ -137,8 +145,10 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
     
     Events published by this class:
     
-    * `onProgress`: [type: ProgressEvent]
-                    fired during author pair generation to indicate current progress
+    * `onProgress`:      [type: ProgressEvent]
+                         fired during pair generation to indicate current progress
+    * `onPairGenerated`: [type PairGenerationEvent]
+                         fired when a pair has been generated
     """
     
     class Class(SamplePair.Class):
@@ -186,11 +196,10 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
                 
                 if portal == "" or main_text == "":
                     continue
-
-                # portal is identified by second-level domain of source URI
+                
                 if portal not in texts_by_portals:
                     texts_by_portals[portal] = []
-                texts_by_portals[portal].append(main_text)
+                texts_by_portals[portal].append((file_path, main_text))
         
         # discard all portals with too few texts
         discard = []
@@ -209,14 +218,18 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
                 pair_counter = 0
                 
                 # keep track of already drawn texts
-                drawn1 = []
-                drawn2 = []
+                drawn_a = []
+                drawn_b = []
 
                 # final chunks of a pair
                 chunks_a = []
                 chunks_b = []
                 
-                while pair_counter < self._samples and len(drawn1) < num_texts1 and len(drawn2) < num_texts2:
+                # file names of drawn texts
+                file_names_a = []
+                file_names_b = []
+                
+                while pair_counter < self._samples and len(drawn_a) < num_texts1 and len(drawn_b) < num_texts2:
                     idx1 = random.randint(0, num_texts1 - 1)
                     idx2 = random.randint(0, num_texts2 - 1)
                     if cls1 == cls2:
@@ -224,39 +237,44 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
                         # when comparing a class against itself
                         if idx1 == idx2:
                             continue
-                        if idx1 in drawn1 or idx1 in drawn2:
+                        if idx1 in drawn_a or idx1 in drawn_b:
                             continue
-                        if idx2 in drawn1 or idx2 in drawn2:
+                        if idx2 in drawn_a or idx2 in drawn_b:
                             continue
                     
-                    if idx1 in drawn1 or idx2 in drawn2:
+                    if idx1 in drawn_a or idx2 in drawn_b:
                         continue
 
-                    chunks_a.append(texts_by_portals[cls1][idx1])
-                    chunks_b.append(texts_by_portals[cls2][idx2])
-                    drawn1.append(idx1)
-                    drawn2.append(idx2)
+                    chunks_a.append(texts_by_portals[cls1][idx1][1])
+                    chunks_b.append(texts_by_portals[cls2][idx2][1])
+                    file_names_a.append(texts_by_portals[cls1][idx1][0])
+                    file_names_b.append(texts_by_portals[cls2][idx2][0])
+                    drawn_a.append(idx1)
+                    drawn_b.append(idx2)
                     
                     pair_counter += 1
                     
                     # break earlier when we are comparing a class with itself, since
                     # we only need half the number of iterations
-                    if cls1 == cls2 and len(drawn1) >= num_texts1 // 2:
+                    if cls1 == cls2 and len(drawn_a) >= num_texts1 // 2:
                         break
     
                     # generate more samples by random oversampling when one class has less
                     # than self._samples // 2 samples
-                    if pair_counter < self._samples // 2 and len(drawn1) >= num_texts1:
-                        drawn1 = []
-                        print("Oversampling 1 for", cls1)
-                    elif pair_counter < self._samples // 2 and len(drawn2) >= num_texts2:
-                        print("Oversampling 2 for", cls2)
-                        drawn2 = []
+                    if pair_counter < self._samples // 2 and len(drawn_a) >= num_texts1:
+                        drawn_a = []
+                    elif pair_counter < self._samples // 2 and len(drawn_b) >= num_texts2:
+                        drawn_b = []
                 
                 pair_class = self.Class.DIFFERENT_PORTALS
                 if cls1 == cls2:
                     pair_class = self.Class.SAME_PORTAL
-                yield SamplePair(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
+                
+                pair = SamplePair(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
+                EventBroadcaster.publish("onPairGenerated",
+                                         PairGenerationEvent(pair, file_names_a, file_names_b),
+                                         self.__class__)
+                yield pair
         
 
 class WebisBuzzfeedCatCorpusParser(CorpusParser):
@@ -267,10 +285,10 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
     
     Pairs are generated by randomly drawing texts from the input set without replacement.
     
-    Events published by this class:
-    
-    * `onProgress`: [type: ProgressEvent]
-                    fired during author pair generation to indicate current progress
+    * `onProgress`:      [type: ProgressEvent]
+                         fired during pair generation to indicate current progress
+    * `onPairGenerated`: [type PairGenerationEvent]
+                         fired when a pair has been generated
     """
     
     class PairClass(SamplePair.Class):
@@ -393,7 +411,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                 
                 if cls not in texts_by_class:
                     texts_by_class[cls] = []
-                texts_by_class[cls].append(xml)
+                texts_by_class[cls].append((file_path, xml))
         
         # compound classes to build
         processed_comp_classes = []
@@ -410,8 +428,8 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                 num_texts2 = len(texts_by_class[cls2])
                 
                 # list to keep track of already drawn texts, so we don't use them again
-                drawn1 = []
-                drawn2 = []
+                drawn_a = []
+                drawn_b = []
 
                 # number of already matched chunk / text pairs
                 pair_counter = 0
@@ -420,12 +438,16 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                 chunks_a = []
                 chunks_b = []
                 
+                # file names of drawn texts
+                file_names_a = []
+                file_names_b = []
+                
                 # skip if both classes have too few samples
                 if num_texts1 + num_texts2 < self._samples or \
                    cls1 == cls2 and num_texts1 < self._samples // 4:
                     continue
                 
-                while pair_counter < self._samples and len(drawn1) < num_texts1 and len(drawn2) < num_texts2 > 0:
+                while pair_counter < self._samples and len(drawn_a) < num_texts1 and len(drawn_b) < num_texts2 > 0:
                     idx1 = random.randint(0, num_texts1 - 1)
                     idx2 = random.randint(0, num_texts2 - 1)
                     if cls1 == cls2:
@@ -433,42 +455,49 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                         # when comparing a class against itself
                         if idx1 == idx2:
                             continue
-                        if idx1 in drawn1 or idx1 in drawn2:
+                        if idx1 in drawn_a or idx1 in drawn_b:
                             continue
-                        if idx2 in drawn1 or idx2 in drawn2:
+                        if idx2 in drawn_a or idx2 in drawn_b:
                             continue
             
-                    if idx1 in drawn1 or idx2 in drawn2:
+                    if idx1 in drawn_a or idx2 in drawn_b:
                         continue
-            
-                    for c in texts_by_class[cls1][idx1]:
-                        if c.tag == "mainText":
-                            chunks_a.append(str(c.text))
+                    
+                    for e in texts_by_class[cls1][idx1][1]:
+                        if e.tag == "mainText":
+                            chunks_a.append(str(e.text))
+                            file_names_a.append(texts_by_class[cls1][idx1][0])
                             break
-                    drawn1.append(idx1)
-                    for c in texts_by_class[cls2][idx2]:
-                        if c.tag == "mainText":
-                            chunks_b.append(str(c.text))
+                    drawn_a.append(idx1)
+                    for e in texts_by_class[cls2][idx2][1]:
+                        if e.tag == "mainText":
+                            chunks_b.append(str(e.text))
+                            file_names_b.append(texts_by_class[cls1][idx1][0])
                             break
-                    drawn2.append(idx2)
-
+                    drawn_b.append(idx2)
+                    
                     pair_counter += 1
                     
                     # break earlier when we are comparing a class with itself, since
                     # we only need half the number of iterations
-                    if cls1 == cls2 and len(drawn1) >= num_texts1 // 2:
+                    if cls1 == cls2 and len(drawn_a) >= num_texts1 // 2:
                         break
                     
                     # generate more samples by random oversampling when one class has less
                     # than self._samples // 2 samples
-                    if pair_counter < self._samples // 2 and len(drawn1) >= num_texts1:
-                        drawn1 = []
-                    elif pair_counter < self._samples // 2 and len(drawn2) >= num_texts2:
-                        drawn2 = []
+                    if pair_counter < self._samples // 2 and len(drawn_a) >= num_texts1:
+                        drawn_a = []
+                    elif pair_counter < self._samples // 2 and len(drawn_b) >= num_texts2:
+                        drawn_b = []
                 
                 try:
                     pair_class = self.PairClass[str(cls1) + "_" + str(cls2)]
                 except KeyError:
                     pair_class = self.PairClass[str(cls2) + "_" + str(cls1)]
                 
-                yield SamplePair(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
+                pair = SamplePair(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
+                EventBroadcaster.publish("onPairGenerated",
+                                         PairGenerationEvent(pair, file_names_a, file_names_b),
+                                         self.__class__)
+                yield pair
+
