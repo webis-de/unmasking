@@ -167,5 +167,4 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
         self._drawn[event] = len(event.values)
     
     def save(self, file_name: str):
-        """Save plot to SVG file."""
         pyplot.savefig(file_name)
