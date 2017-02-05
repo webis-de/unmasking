@@ -1,7 +1,7 @@
 from classifier.interfaces import FeatureSet
 from classifier.sampling import SamplePair, ChunkSampler
 from input.interfaces import Tokenizer
-from input.tokenizers import WordTokenizer, CharNgramTokenizer
+from input.tokenizers import WordTokenizer, CharNgramTokenizer, DisjunctCharNgramTokenizer
 from util.cache import CacheMixin
 
 import numpy
@@ -117,3 +117,16 @@ class AvgCharNgramFreqFeatureSet(CachedAvgTokenCountFeatureSet):
         :param order: n-gram order (defaults to trigrams)
         """
         super().__init__(pair, sampler, CharNgramTokenizer(order))
+
+
+class AvgDisjunctCharNgramFreqFeatureSet(CachedAvgTokenCountFeatureSet):
+    """
+    Feature set using the average frequencies of the k most
+    frequent character n-grams in both input chunk sets.
+    """
+
+    def __init__(self, pair: SamplePair, sampler: ChunkSampler, order: int = 3):
+        """
+        :param order: n-gram order (defaults to trigrams)
+        """
+        super().__init__(pair, sampler, DisjunctCharNgramTokenizer(order))

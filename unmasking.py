@@ -4,7 +4,7 @@ from event.dispatch import EventBroadcaster
 from event.events import ProgressEvent, UnmaskingTrainCurveEvent, PairGenerationEvent
 from input.interfaces import SamplePair
 from input.formats import BookSampleParser, WebisBuzzfeedCatCorpusParser, WebisBuzzfeedAuthorshipCorpusParser
-from classifier.features import AvgWordFreqFeatureSet, AvgCharNgramFreqFeatureSet
+from classifier.features import AvgWordFreqFeatureSet, AvgCharNgramFreqFeatureSet, AvgDisjunctCharNgramFreqFeatureSet
 from classifier.sampling import UniqueRandomUndersampler
 from input.tokenizers import SentenceChunkTokenizer, PassthroughTokenizer
 from unmasking.strategies import FeatureRemoval
@@ -231,8 +231,9 @@ def main():
             for i, pair in enumerate(parser):
                 fs = AvgWordFreqFeatureSet(pair, s)
                 #fs = AvgCharNgramFreqFeatureSet(pair, s, 3)
-                strat = FeatureRemoval(10)
-                strat.run(25, 250, fs, False)
+                #fs = AvgDisjunctCharNgramFreqFeatureSet(pair, s, 3)
+                strat = FeatureRemoval(removed_per_round)
+                strat.run(iterations, num_features, fs, False)
             
         elif corpus == "gutenberg_test":
             EventBroadcaster.subscribe("onUnmaskingRoundFinished", UnmaskingCurvePlotter({

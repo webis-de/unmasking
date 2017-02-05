@@ -50,6 +50,22 @@ class CharNgramTokenizer(Tokenizer):
             yield text[i:i + self._order]
 
 
+class DisjunctCharNgramTokenizer(CharNgramTokenizer):
+    """
+    Tokenizer for producing disjunct character n-grams.
+    If the input text length is not a multiple of the given n-gram order, the last n-gram will be discarded.
+    E.g. "hello world" will become ["hel", "lo ", "wor"]
+    """
+    
+    def tokenize(self, text: str) -> Iterable[str]:
+        text_len = len(text)
+        for i in range(0, text_len, self._order):
+            if i + self._order > text_len:
+                return
+            
+            yield text[i:i + self._order]
+
+
 class PassthroughTokenizer(Tokenizer):
     """
     Tokenizer which returns the full input as a single token / chunk.
