@@ -8,8 +8,6 @@ from input.tokenizers import SentenceChunkTokenizer, PassthroughTokenizer
 from output.formats import ProgressPrinter, UnmaskingStatAccumulator, UnmaskingCurvePlotter
 from unmasking.strategies import FeatureRemoval
 
-import matplotlib.pyplot as pyplot
-
 import os
 from time import time
 
@@ -123,7 +121,7 @@ def main():
         print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
         # block, so window doesn't close automatically
-        pyplot.show(block=True)
+        input("Press enter to terminate...")
     except KeyboardInterrupt:
         print("Exited upon user request.")
         exit(1)
