@@ -43,7 +43,7 @@ def main():
         EventBroadcaster.subscribe("onUnmaskingFinished", stats_accumulator)
         
         if corpus == "buzzfeed":
-            experiment = "orientation"
+            experiment = "veracity"
             
             chunk_tokenizer = PassthroughTokenizer()
 
@@ -68,11 +68,19 @@ def main():
                                                           WebisBuzzfeedCatCorpusParser.class_by_orientation)
                 elif experiment == "veracity":
                     labels = {
-                        #WebisBuzzfeedCatCorpusParser.PairClass.FAKE_FAKE: ("<", "fake-fake", "#990000"),
-                        #WebisBuzzfeedCatCorpusParser.PairClass.REAL_REAL: (">", "real-real", "#eeaa00"),
-                        #WebisBuzzfeedCatCorpusParser.PairClass.FAKE_REAL: ("x", "fake-real", "#000099"),
-                        #WebisBuzzfeedCatCorpusParser.PairClass.FAKE_SATIRE: ("v", "fake-satire", "#009999"),
-                        #WebisBuzzfeedCatCorpusParser.PairClass.SATIRE_REAL: ("D", "satire-real", "#aa6600")
+                        WebisBuzzfeedCatCorpusParser.PairClass.FAKE_FAKE: ("<", "fake-fake", "#990000"),
+                        WebisBuzzfeedCatCorpusParser.PairClass.REAL_REAL: (">", "real-real", "#eeaa00"),
+                        WebisBuzzfeedCatCorpusParser.PairClass.FAKE_REAL: ("x", "fake-real", "#000099"),
+                        WebisBuzzfeedCatCorpusParser.PairClass.FAKE_SATIRE: ("v", "fake-satire", "#009999"),
+                        WebisBuzzfeedCatCorpusParser.PairClass.SATIRE_REAL: ("^", "satire-real", "#aa6600"),
+                        WebisBuzzfeedCatCorpusParser.PairClass.SATIRE_SATIRE: ("D", "satire-satire", "#009900")
+                    }
+    
+                    parser = WebisBuzzfeedCatCorpusParser("corpora/buzzfeed", chunk_tokenizer,
+                                                          ["articles_buzzfeed1", "articles_buzzfeed2", "articles_rubin"],
+                                                          WebisBuzzfeedCatCorpusParser.class_by_veracity)
+                elif experiment == "veracity-orientation":
+                    labels = {
                         WebisBuzzfeedCatCorpusParser.PairClass.FAKE_LEFT_FAKE_RIGHT: ("<", "fake,left-fake,right", "#990000"),
                         WebisBuzzfeedCatCorpusParser.PairClass.FAKE_LEFT_REAL_LEFT: (">", "fake,left-real,left", "#eeaa00"),
                         WebisBuzzfeedCatCorpusParser.PairClass.FAKE_RIGHT_REAL_RIGHT: ("x", "fake,right-real,right", "#000099"),
@@ -82,7 +90,7 @@ def main():
                     parser = WebisBuzzfeedCatCorpusParser("corpora/buzzfeed", chunk_tokenizer,
                                                           ["articles_buzzfeed1", "articles_buzzfeed2"],
                                                           WebisBuzzfeedCatCorpusParser.class_by_orientation_and_veracity)
-                elif experiment == "portal_authorship":
+                elif experiment == "portal-authorship":
                     labels = {
                         WebisBuzzfeedAuthorshipCorpusParser.Class.SAME_PORTAL: ("o", "same portal", None),
                         WebisBuzzfeedAuthorshipCorpusParser.Class.DIFFERENT_PORTALS: ("x", "different portals", None)

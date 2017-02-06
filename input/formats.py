@@ -385,9 +385,9 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
         cls = None
     
         for c in xmlroot:
-            #if c.tag == "orientation" and c.text == "satire":
-            #    cls = "satire"
-            #    break
+            if c.tag == "orientation" and c.text == "satire":
+                cls = "satire"
+                break
             if c.tag == "veracity":
                 cls = c.text
                 break
@@ -542,10 +542,10 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                     
                     # generate more samples by random oversampling when one class has less
                     # than self._samples // 2 samples
-                    if pair_counter < self._samples // 2 and len(drawn_a) >= num_texts1:
-                        drawn_a = []
-                    elif pair_counter < self._samples // 2 and len(drawn_b) >= num_texts2:
-                        drawn_b = []
+                    #if pair_counter < self._samples // 2 and len(drawn_a) >= num_texts1:
+                    #    drawn_a = []
+                    #elif pair_counter < self._samples // 2 and len(drawn_b) >= num_texts2:
+                    #    drawn_b = []
                                
                 pair = SamplePair(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
                 EventBroadcaster.publish("onPairGenerated",
