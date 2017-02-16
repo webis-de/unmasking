@@ -5,6 +5,8 @@ from input.interfaces import Tokenizer
 from input.interfaces import CorpusParser, SamplePair
 import os
 import random
+import re
+from glob import glob
 from typing import Callable, Iterable, List
 from urllib.parse import urlparse
 import xml.etree.ElementTree as etree
@@ -390,7 +392,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                 break
             if c.tag == "veracity":
                 cls = c.text
-                break
+                # don't break to make sure satire overrides veracity
         
         e = WebisBuzzfeedCatCorpusParser.SingleTextClass
         if cls == "satire":
@@ -552,3 +554,60 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                                          PairGenerationEvent(pair, file_names_a, file_names_b),
                                          self.__class__)
                 yield pair
+
+
+class PanParser(CorpusParser):
+    """
+    Corpus parser for PAN-style authroship verification corpora.
+    This parser will build no new pairs, since the corpus format already consists of pairs.
+
+    * `onProgress`:      [type: ProgressEvent]
+                         fired during pair generation to indicate current progress
+    * `onPairGenerated`: [type PairGenerationEvent]
+                         fired when a pair has been generated
+    """
+    
+    class Class(SamplePair.Class):
+        UNSPECIFIED = -1
+        DIFFERENT_AUTHORS = 0
+        SAME_AUTHOR = 1
+
+    def __iter__(self) -> Iterable[SamplePair]:
+        # parse ground truth if it exists
+        ground_truth = {}
+        if os.path.isfile(self.corpus_path + "/truth.txt"):
+            with open(self.corpus_path + "/truth.txt", "r") as f:
+                for line in f:
+                    tmp = [x.strip().replace("\ufeff", "") for x in re.split("[ \t]+", line)]
+                    if 2 != len(tmp):
+                        continue
+                    ground_truth[tmp[0]] = (tmp[1].upper() == "Y")
+        
+        for case_dir in glob(self.corpus_path + "/*"):
+            if not os.path.isdir(case_dir) or \
+               not os.path.isfile(case_dir + "/unknown.txt") or \
+               not os.path.isfile(case_dir + "/known01.txt"):
+                continue
+            
+            case = os.path.basename(case_dir)
+            
+            chunks_a = []
+            file_name_a = self.corpus_path + "/" + case + "/unknown.txt"
+            with open(file_name_a, "r") as f:
+                chunks_a.append(f.read())
+                
+            chunks_b = []
+            file_names_b = glob(self.corpus_path + "/" + case + "/known??.txt")
+            for t in file_names_b:
+                with open(t, "r") as f:
+                    chunks_b.append(f.read())
+            
+            cls = self.Class.UNSPECIFIED
+            if case in ground_truth:
+                cls = self.Class.SAME_AUTHOR if ground_truth[case] else self.Class.DIFFERENT_AUTHORS
+            
+            pair = SamplePair(chunks_a, chunks_b, cls, self.chunk_tokenizer)
+            EventBroadcaster.publish("onPairGenerated",
+                                     PairGenerationEvent(pair, [file_name_a], file_names_b),
+                                     self.__class__)
+            yield pair

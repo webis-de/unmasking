@@ -3,7 +3,7 @@ from classifier.features import AvgWordFreqFeatureSet, AvgCharNgramFreqFeatureSe
 from classifier.sampling import UniqueRandomUndersampler
 from event.dispatch import EventBroadcaster
 from input.interfaces import SamplePair
-from input.formats import BookSampleParser, WebisBuzzfeedCatCorpusParser, WebisBuzzfeedAuthorshipCorpusParser
+from input.formats import BookSampleParser, WebisBuzzfeedCatCorpusParser, WebisBuzzfeedAuthorshipCorpusParser, PanParser
 from input.tokenizers import SentenceChunkTokenizer, PassthroughTokenizer
 from output.formats import ProgressPrinter, UnmaskingStatAccumulator, UnmaskingCurvePlotter, CurveAverager
 from unmasking.strategies import FeatureRemoval
@@ -32,8 +32,8 @@ def main():
         pair_progress = ProgressPrinter("Pair-building progress")
         EventBroadcaster.subscribe("onProgress", pair_progress, {BookSampleParser})
         
-        corpus            = "buzzfeed"
-        removed_per_round = 10
+        corpus            = "gutenberg_pan"
+        removed_per_round = 5
         iterations        = 25
         num_features      = 250
         num_experiments   = 5
@@ -43,7 +43,7 @@ def main():
         EventBroadcaster.subscribe("onUnmaskingFinished", stats_accumulator)
         
         if corpus == "buzzfeed":
-            experiment = "veracity"
+            experiment = "orientation"
             
             chunk_tokenizer = PassthroughTokenizer()
 
@@ -64,7 +64,7 @@ def main():
                     }
     
                     parser = WebisBuzzfeedCatCorpusParser("corpora/buzzfeed", chunk_tokenizer,
-                                                          ["articles_buzzfeed1", "articles_buzzfeed2"],
+                                                          ["articles_buzzfeed1", "articles_buzzfeed2", "articles_rubin"],
                                                           WebisBuzzfeedCatCorpusParser.class_by_orientation)
                 elif experiment == "veracity":
                     labels = {
@@ -141,6 +141,36 @@ def main():
             parser = BookSampleParser("corpora/gutenberg_test", chunk_tokenizer)
             s = UniqueRandomUndersampler()
     
+            chunking_progress = None
+            for i, pair in enumerate(parser):
+                if chunking_progress is not None:
+                    EventBroadcaster.unsubscribe("onProgress", chunking_progress, {SamplePair})
+    
+                chunking_progress = ProgressPrinter("Chunking progress for pair {}".format(i))
+                EventBroadcaster.subscribe("onProgress", chunking_progress, {SamplePair})
+    
+                fs = AvgWordFreqFeatureSet(pair, s)
+                strat = FeatureRemoval(removed_per_round)
+                strat.run(iterations, num_features, fs, False)
+
+            stats_accumulator.set_meta_data({
+                "removed_per_round": removed_per_round,
+                "iterations": iterations,
+                "num_features": num_features,
+                "chunk_tokenizer": chunk_tokenizer.__class__.__name__
+            })
+            save_output(curve_plotter, stats_accumulator)
+        elif corpus == "gutenberg_pan":
+            curve_plotter = UnmaskingCurvePlotter({
+                PanParser.Class.SAME_AUTHOR: ("o", "same author", None),
+                PanParser.Class.DIFFERENT_AUTHORS: ("x", "different authors", None)
+            })
+            EventBroadcaster.subscribe("onUnmaskingRoundFinished", curve_plotter)
+
+            chunk_tokenizer = SentenceChunkTokenizer(400)
+            parser = PanParser("corpora/gutenberg_pan", chunk_tokenizer)
+            s = UniqueRandomUndersampler()
+
             chunking_progress = None
             for i, pair in enumerate(parser):
                 if chunking_progress is not None:
