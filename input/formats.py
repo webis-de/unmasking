@@ -131,7 +131,7 @@ class BookSampleParser(CorpusParser):
             EventBroadcaster.publish("onPairGenerated",
                                      PairGenerationEvent(pair, [self._next1], comp_file_names),
                                      self._parser.__class__)
-            yield pair
+            return pair
     
     def __iter__(self) -> BookSampleParserIterator:
         return self.BookSampleParserIterator(self)

@@ -32,7 +32,7 @@ def main():
         pair_progress = ProgressPrinter("Pair-building progress")
         EventBroadcaster.subscribe("onProgress", pair_progress, {BookSampleParser})
         
-        corpus            = "gutenberg_pan"
+        corpus            = "gutenberg_test"
         removed_per_round = 5
         iterations        = 25
         num_features      = 250
