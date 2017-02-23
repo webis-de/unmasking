@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 from classifier.features import AvgWordFreqFeatureSet, AvgCharNgramFreqFeatureSet, AvgDisjunctCharNgramFreqFeatureSet
-from classifier.sampling import UniqueRandomUndersampler
+from classifier.sampling import UniqueRandomUndersampler, RandomOversampler
 from event.dispatch import EventBroadcaster
 from input.interfaces import SamplePair
 from input.formats import BookSampleParser, WebisBuzzfeedCatCorpusParser, WebisBuzzfeedAuthorshipCorpusParser, PanParser
 from input.tokenizers import SentenceChunkTokenizer, PassthroughTokenizer
 from output.formats import ProgressPrinter, UnmaskingStatAccumulator, UnmaskingCurvePlotter, CurveAverager
 from unmasking.strategies import FeatureRemoval
-from util.cache import CacheMixin
 
 import os
 from time import time
@@ -51,7 +50,6 @@ def main():
             EventBroadcaster.subscribe("onUnmaskingFinished", curve_averager)
             
             for experiment_num in range(0, num_experiments):
-                CacheMixin.reset_caches()
                 
                 if experiment == "orientation":
                     labels = {
@@ -132,8 +130,8 @@ def main():
             
         elif corpus == "gutenberg_test":
             curve_plotter = UnmaskingCurvePlotter({
-                BookSampleParser.Class.SAME_AUTHOR: ("o", "same author", None),
-                BookSampleParser.Class.DIFFERENT_AUTHORS: ("x", "different authors", None)
+                BookSampleParser.Class.SAME_AUTHOR: ("o", "same author", "#009900"),
+                BookSampleParser.Class.DIFFERENT_AUTHORS: ("x", "different authors", "#990000")
             })
             EventBroadcaster.subscribe("onUnmaskingRoundFinished", curve_plotter)
             
@@ -151,7 +149,7 @@ def main():
     
                 fs = AvgWordFreqFeatureSet(pair, s)
                 strat = FeatureRemoval(removed_per_round)
-                strat.run(iterations, num_features, fs, False)
+                strat.run(iterations, num_features, fs, True)
 
             stats_accumulator.set_meta_data({
                 "removed_per_round": removed_per_round,
@@ -162,11 +160,15 @@ def main():
             save_output(curve_plotter, stats_accumulator)
         elif corpus == "gutenberg_pan":
             curve_plotter = UnmaskingCurvePlotter({
-                PanParser.Class.SAME_AUTHOR: ("o", "same author", None),
-                PanParser.Class.DIFFERENT_AUTHORS: ("x", "different authors", None)
+                PanParser.Class.SAME_AUTHOR: ("o", "same author", "#009900"),
+                PanParser.Class.DIFFERENT_AUTHORS: ("x", "different authors", "#990000")
             })
             EventBroadcaster.subscribe("onUnmaskingRoundFinished", curve_plotter)
 
+            removed_per_round = 10
+            iterations = 13
+            num_features = 1000
+            
             chunk_tokenizer = SentenceChunkTokenizer(400)
             parser = PanParser("corpora/gutenberg_pan", chunk_tokenizer)
             s = UniqueRandomUndersampler()
@@ -179,7 +181,7 @@ def main():
                 chunking_progress = ProgressPrinter("Chunking progress for pair {}".format(i))
                 EventBroadcaster.subscribe("onProgress", chunking_progress, {SamplePair})
     
-                fs = AvgWordFreqFeatureSet(pair, s)
+                fs = AvgDisjunctCharNgramFreqFeatureSet(pair, s)
                 strat = FeatureRemoval(removed_per_round)
                 strat.run(iterations, num_features, fs, False)
 

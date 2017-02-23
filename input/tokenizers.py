@@ -1,9 +1,9 @@
 from input.interfaces import Tokenizer
-from util.cache import CacheMixin
 
 import nltk
 
 from typing import Iterable
+from functools import lru_cache
 
 
 class WordTokenizer(Tokenizer):
@@ -76,7 +76,7 @@ class PassthroughTokenizer(Tokenizer):
         return [text]
 
 
-class SentenceChunkTokenizer(Tokenizer, CacheMixin):
+class SentenceChunkTokenizer(Tokenizer):
     """
     Tokenizer to tokenize texts into chunks of ``chunk_size`` words without splitting sentences.
     If ``chunk_size`` is smaller than the text length, only a single chunk will be produced.
@@ -91,34 +91,17 @@ class SentenceChunkTokenizer(Tokenizer, CacheMixin):
         :param chunk_size: maximum chunk size
         :param language: language of the text
         """
-        self._chunks_handle = self.resolve_cache_alias(self.__class__.__name__ + "_chunked_texts")
-        if -1 == self._chunks_handle:
-            self._chunks_handle = self.init_cache(2000)
-            self.set_cache_alias(self._chunks_handle, self.__class__.__name__ + "_chunked_texts")
-            
-        self._tokenizers_handle = self.resolve_cache_alias(self.__class__.__name__ + "_sent_tokenizers")
-        if -1 == self._tokenizers_handle:
-            self._tokenizers_handle = self.init_cache(0)
-            self.set_cache_alias(self._tokenizers_handle, self.__class__.__name__ + "_sent_tokenizers")
-        
         self._chunk_size = chunk_size
         self._language = language
 
+    @lru_cache(maxsize=2000)
     def tokenize(self, text: str) -> Iterable[str]:
-        cached_chunks = self.get_cache_item(self._chunks_handle, text)
-        if cached_chunks is not None:
-            return cached_chunks
-        
         word_tokenizer = WordTokenizer()
         total_words = len(list(word_tokenizer.tokenize(text)))
         num_chunks = total_words // self._chunk_size
         ideal_chunk_size = max(total_words // max(num_chunks, 1), self._chunk_size)
-    
-        sent_tokenizer = self.get_cache_item(self._tokenizers_handle, self._language)
-        if sent_tokenizer is None:
-            sent_tokenizer = nltk.data.load('tokenizers/punkt/{}.pickle'.format(self._language))
-            self.set_cache_item(self._chunks_handle, self._language, sent_tokenizer)
-    
+
+        sent_tokenizer = self._get_sent_tokenizer(self._language)
         sentences = sent_tokenizer.tokenize(text)
         
         chunks = []
@@ -143,15 +126,17 @@ class SentenceChunkTokenizer(Tokenizer, CacheMixin):
         else:
             # otherwise add left-over sentences to last chunk
             chunks[-1] += " " + current_chunk
-        
+
             # combine last two chunks if the last chunk is too small
             if len(chunks) >= 2:
                 last_chunk_len = len(list(word_tokenizer.tokenize(chunks[-1])))
                 if last_chunk_len < self._chunk_size:
                     chunks[-2] += " " + chunks[-1]
                     del chunks[-1]
-    
-        # cache chunked text
-        self.set_cache_item(self._chunks_handle, text, chunks)
-        
+
         return chunks
+
+    @lru_cache(maxsize=20)
+    def _get_sent_tokenizer(self, lang: str):
+        return nltk.data.load('tokenizers/punkt/{}.pickle'.format(lang))
+ 
