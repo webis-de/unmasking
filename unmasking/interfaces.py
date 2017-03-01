@@ -45,7 +45,7 @@ class UnmaskingStrategy(ABC):
         self._clf = clf
     
     # noinspection PyPep8Naming
-    def run(self, m: int, n: int, fs: FeatureSet, relative: bool = True, folds: int = 10):
+    def run(self, m: int, n: int, fs: FeatureSet, relative: bool = False, folds: int = 10, monotonize : bool = False):
         """
         Run ``m`` rounds of unmasking on given parameterized feature set.
         
@@ -54,6 +54,7 @@ class UnmaskingStrategy(ABC):
         :param fs: parameterized feature set
         :param relative: whether to use relative (normalized) of absolute feature weights
         :param folds: number of cross-validation folds
+        :param monotonize: whether to monotonize curves (i.e., no point will be larger than the previous point)
         """
         X = []
         y = []
@@ -73,11 +74,17 @@ class UnmaskingStrategy(ABC):
         X = numpy.array(X)
         y = numpy.array(y)
         event = UnmaskingTrainCurveEvent(m, fs.pair, fs.__class__)
+        prev_score = 1
         for i in range(0, m):
             try:
                 self._clf.fit(X, y)
                 scores = cross_val_score(self._clf, X, y, cv=folds)
-                event.values = max(0, (scores.mean() - .5) * 2)
+                score = max(0, (scores.mean() - .5) * 2)
+                if monotonize:
+                    event.values = min(score, prev_score)
+                else:
+                    event.values = score
+                prev_score = event.values[-1]
                 if isinstance(self._clf.coef_, list):
                     coef = numpy.array(self._clf.coef_[0])
                 else:
