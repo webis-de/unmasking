@@ -89,7 +89,7 @@ class BookSampleParser(CorpusParser):
                 self._next1 = next(self._iterator1)
                 self._iterator2 = iter(self._authors)
                 self._progress_event.increment()
-                with open(self._next1, "r") as handle:
+                with open(self._next1, "r", encoding="utf-8", errors="ignore") as handle:
                     self._current_file_contents = handle.read()
             
             # next author
@@ -108,7 +108,7 @@ class BookSampleParser(CorpusParser):
                     continue
 
                 comp_file_names.append(file_name)
-                with open(file_name, "r") as handle:
+                with open(file_name, "r", encoding="utf-8", errors="ignore") as handle:
                     compare_texts.append(handle.read())
                     last_filename = file_name
             
@@ -576,7 +576,7 @@ class PanParser(CorpusParser):
         # parse ground truth if it exists
         ground_truth = {}
         if os.path.isfile(self.corpus_path + "/truth.txt"):
-            with open(self.corpus_path + "/truth.txt", "r") as f:
+            with open(self.corpus_path + "/truth.txt", "r", encoding="utf-8", errors="ignore") as f:
                 for line in f:
                     tmp = [x.strip().replace("\ufeff", "") for x in re.split("[ \t]+", line)]
                     if 2 != len(tmp):
@@ -593,13 +593,13 @@ class PanParser(CorpusParser):
             
             chunks_a = []
             file_name_a = self.corpus_path + "/" + case + "/unknown.txt"
-            with open(file_name_a, "r") as f:
+            with open(file_name_a, "r", encoding="utf-8", errors="ignore") as f:
                 chunks_a.append(f.read())
                 
             chunks_b = []
             file_names_b = glob(self.corpus_path + "/" + case + "/known??.txt")
             for t in file_names_b:
-                with open(t, "r") as f:
+                with open(t, "r", encoding="utf-8", errors="ignore") as f:
                     chunks_b.append(f.read())
             
             cls = self.Class.UNSPECIFIED

@@ -6,7 +6,6 @@ from output.interfaces import FileOutput
 import json
 from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as pyplot
-from PyQt5.QtWidgets import QApplication
 from random import randint
 from typing import Dict, List, Optional, Tuple
 
@@ -163,6 +162,7 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
         self._last_points = {}
         
         self._setup_axes()
+        self._line = None
     
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
         if event not in self._events_to_cids:
@@ -232,8 +232,8 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
         self._last_points[curve_handle] = last_point
         
         if self._display:
-            QApplication.processEvents()
-            self._fig.canvas.draw()
+            self._fig.canvas.blit()
+            self._fig.canvas.flush_events()
     
     def new_figure(self):
         """Create a new figure and reset record of already drawn curves."""
@@ -276,4 +276,4 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
         if self._display:
             pyplot.ion()
             pyplot.show(block=False)
-            QApplication.processEvents()
+            self._fig.canvas.flush_events()
