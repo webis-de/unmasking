@@ -94,7 +94,7 @@ class SentenceChunkTokenizer(Tokenizer):
         self._chunk_size = chunk_size
         self._language = language
 
-    @lru_cache(maxsize=2000)
+    @lru_cache(maxsize=10000)
     def tokenize(self, text: str) -> Iterable[str]:
         word_tokenizer = WordTokenizer()
         total_words = len(list(word_tokenizer.tokenize(text)))
