@@ -7,6 +7,7 @@ from sklearn.svm import LinearSVC
 import numpy
 
 from abc import ABC, abstractmethod
+from typing import List
 
 
 class UnmaskingStrategy(ABC):
@@ -74,30 +75,60 @@ class UnmaskingStrategy(ABC):
         X = numpy.array(X)
         y = numpy.array(y)
         event = UnmaskingTrainCurveEvent(m, fs.pair, fs.__class__)
-        prev_score = 1
+        values = []
         for i in range(0, m):
             try:
                 self._clf.fit(X, y)
                 scores = cross_val_score(self._clf, X, y, cv=folds)
                 score = max(0, (scores.mean() - .5) * 2)
                 if monotonize:
-                    event.values = min(score, prev_score)
+                    values.append(score)
                 else:
-                    event.values = score
-                prev_score = event.values[-1]
+                    values.append(score)
+                    event.values = values
+
                 if isinstance(self._clf.coef_, list):
                     coef = numpy.array(self._clf.coef_[0])
                 else:
                     coef = numpy.array(self._clf.coef_)
-    
-                EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
+
+                if not monotonize:
+                    EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
+
                 if i < m - 1:
                     X = self.transform(X, coef)
             except ValueError:
                 continue
-        
+
+        if monotonize:
+            event.values = self._monotonize(values)
+            EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
         EventBroadcaster.publish("onUnmaskingFinished", event, self.__class__)
-    
+
+    def _monotonize(self, values: List[float]):
+        # monotonize from the left
+        values_l = numpy.zeros(len(values))
+        prev_value = 1.0
+        for i, v in enumerate(values):
+            values_l[i] = min(prev_value, v)
+            prev_value = values_l[i]
+
+        # monotonize from the right
+        values_r = numpy.zeros(len(values))
+        prev_value = 0.0
+        for i in range(len(values) - 1, -1, -1):
+            values_r[i] = max(prev_value, values[i])
+            prev_value = values_r[i]
+
+        # calculate squared differences to find the better of both approximations
+        values_arr = numpy.array(values)
+        delta_l = numpy.sum(numpy.square(values_arr - values_l))
+        delta_r = numpy.sum(numpy.square(values_arr - values_r))
+
+        if delta_l <= delta_r:
+            return list(values_l)
+        return list(values_r)
+
     @abstractmethod
     def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
         """

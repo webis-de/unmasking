@@ -85,7 +85,12 @@ class UnmaskingTrainCurveEvent(Event):
         return self._values
     
     @values.setter
-    def values(self, point: float):
+    def values(self, points: List[float]):
+        """Set curve points and update ``n`` if necessary."""
+        self._values = points
+        self._n = max(self._n, len(self._values))
+
+    def value(self, point: float):
         """Add point to curve and update ``n`` if necessary."""
         self._values.append(point)
         self._n = max(self._n, len(self._values))
