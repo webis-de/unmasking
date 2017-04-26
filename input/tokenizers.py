@@ -4,6 +4,7 @@ import nltk
 
 from typing import Iterable
 from functools import lru_cache
+from random import randint
 
 
 class WordTokenizer(Tokenizer):
@@ -15,6 +16,7 @@ class WordTokenizer(Tokenizer):
                    "(", ")", "[", "]", "{", "}", "<", ">",
                    "`", "``", "'", "''", "--", "---"]
     
+    @lru_cache(maxsize=10000)
     def tokenize(self, text: str) -> Iterable[str]:
         word_tokenizer = nltk.tokenize.TreebankWordTokenizer()
         return (t for t in word_tokenizer.tokenize(text) if t not in self.punctuation)
@@ -139,4 +141,58 @@ class SentenceChunkTokenizer(Tokenizer):
     @lru_cache(maxsize=20)
     def _get_sent_tokenizer(self, lang: str):
         return nltk.data.load('tokenizers/punkt/{}.pickle'.format(lang))
- 
+
+
+class RandomWordChunkTokenizer(WordTokenizer):
+    """
+    Tokenizer to produce chunks of words by randomly drawing words from a given text.
+    
+    Drawing can either be done with replacement or without replacement and full refill
+    once all words have been drawn from the pool.
+    """
+
+    def __init__(self, chunk_size: int, num_chunks: int, with_replacement: bool = True):
+        """
+        :param chunk_size: target chunk size
+        :param num_chunks: number of chunks to generate
+        :param with_replacement: whether to draw with replacement or without and
+                                 full refill once all words have been drawn
+        """
+        self._chunk_size = chunk_size
+        self._num_chunks = num_chunks
+        self._with_replacement = with_replacement
+    
+    def tokenize(self, text: str) -> Iterable[str]:
+        words = self._get_words(text)
+        word_freq = nltk.FreqDist(words)
+        num_words = len(words)
+        drawn = {}
+        num_drawn = 0
+        
+        for i in range(0, self._num_chunks):
+            chunk = ""
+            cur_chunk_size = 0
+            
+            while cur_chunk_size < self._chunk_size:
+                word = words[randint(0, num_words - 1)]
+
+                if not self._with_replacement:
+                    if num_drawn < num_words and word in drawn and drawn[word] >= word_freq[word]:
+                        continue
+                    elif num_drawn >= num_words:
+                        drawn = {}
+                        num_drawn = 0
+                    
+                    drawn[word] = drawn.get(word, 0) + 1
+                    num_drawn += 1
+                
+                if chunk != "":
+                    chunk += " "
+                chunk += word
+                cur_chunk_size += 1
+            
+            yield chunk
+
+    @lru_cache(maxsize=10000)
+    def _get_words(self, text: str):
+        return list(super().tokenize(text))
