@@ -1,13 +1,13 @@
 from event.interfaces import Event, EventHandler
 from event.events import ProgressEvent, UnmaskingTrainCurveEvent, PairGenerationEvent
 from input.interfaces import SamplePair
-from output.interfaces import FileOutput
+from output.interfaces import Aggregator, FileOutput
 
 import json
 from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as pyplot
 from random import randint
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class ProgressPrinter(EventHandler):
@@ -25,44 +25,51 @@ class ProgressPrinter(EventHandler):
         print("{}: {:.2f}%".format(self._text, event.percent_done))
 
 
-class CurveAverager(EventHandler):
+class CurveAverager(EventHandler, Aggregator):
     """
     Average unmasking curves from multiple runs.
     
     Handles events: onUnmaskingFinished
     """
-    
+
     def __init__(self):
         self._curves = {}
+        self._aggregate_by_class = False
 
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
         if name != "onUnmaskingFinished":
             return
         
-        self.add_curve(event.pair.cls, event.values)
-    
-    def add_curve(self, cls: SamplePair.Class, values: List[float]):
-        """
-        Add curve for given class to the list.
-        
-        :param cls: class of the pair
-        :param values: curve points
-        """
-        if cls not in self._curves:
+        self.add_curve(event.pair.cls, event.pair, event.values)
+
+    def add_curve(self, identifier: int, cls: SamplePair.Class, values: List[float]):
+        agg = identifier
+        if self._aggregate_by_class:
+            agg = cls
+            identifier = None
+
+        if agg not in self._curves:
             self._curves[cls] = []
-        self._curves[cls].append(values)
-    
-    def get_avg_curves(self) -> Dict[SamplePair.Class, List[float]]:
-        """
-        Generate average curves for each class.
-        
-        :return: dict of curve ids and curve points
-        """
+        self._curves[cls].append((identifier, cls, values))
+
+    def get_aggregated_curves(self) -> Dict[Any, Tuple[int, SamplePair.Class, List[float]]]:
         avg_curves = {}
         for c in self._curves:
-            avg_curves[c] = [sum(e) / len(e) for e in zip(*self._curves[c])]
+            curves = [c for c in zip(*self._curves[c])][2]
+            avg_curves[c] = (self._curves[c][-1][0],
+                             self._curves[c][-1][1],
+                             [sum(e) / len(e) for e in zip(curves)])
         
         return avg_curves
+
+    @property
+    def aggregate_by_class(self):
+        """ Whether to aggregate by class (default: False, i.e. aggregate by identifier) """
+        return self._aggregate_by_class
+
+    @aggregate_by_class.setter
+    def aggregate_by_class(self, agg_by_class: bool):
+        self._aggregate_by_class = agg_by_class
 
 
 class UnmaskingStatAccumulator(EventHandler, FileOutput):
