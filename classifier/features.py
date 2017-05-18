@@ -23,8 +23,16 @@ class CachedAvgTokenCountFeatureSet(FeatureSet):
         :param chunk_tokenizer: tokenizer for tokenizing chunks
         """
         super().__init__(pair, sampler)
-        
+
         self._chunk_tokenizer = chunk_tokenizer
+        self._is_prepared = False
+
+        self.__freq_a = None
+        self.__freq_b = None
+
+    def _prepare(self):
+        if self._is_prepared:
+            return
 
         freq_dist_a = FreqDist()
         for a in self._pair.chunks_a:
@@ -49,7 +57,11 @@ class CachedAvgTokenCountFeatureSet(FeatureSet):
         self.__freq_a = None
         self.__freq_b = None
 
+        self._is_prepared = True
+
     def get_features_absolute(self, n: int) -> Iterable[numpy.ndarray]:
+        self._prepare()
+
         top_n_words = numpy.array([w for (w, f) in self._avg_freq_dist.most_common(n)])
         num_top_words = len(top_n_words)
         for c in self._chunks:
@@ -70,6 +82,8 @@ class CachedAvgTokenCountFeatureSet(FeatureSet):
             yield vec
 
     def get_features_relative(self, n: int) -> Iterable[numpy.ndarray]:
+        self._prepare()
+
         features = self.get_features_absolute(n)
         for vec in features:
             n_a = self.__freq_a.N()
@@ -100,23 +114,43 @@ class AvgCharNgramFreqFeatureSet(CachedAvgTokenCountFeatureSet):
     """
     Feature set using the average frequencies of the k most
     frequent character n-grams in both input chunk sets.
+
+    Default n-gram order is 3.
     """
 
-    def __init__(self, pair: SamplePair, sampler: ChunkSampler, order: int = 3):
-        """
-        :param order: n-gram order (defaults to trigrams)
-        """
-        super().__init__(pair, sampler, CharNgramTokenizer(order))
+    def __init__(self, pair: SamplePair, sampler: ChunkSampler):
+        self.__tokenizer = CharNgramTokenizer(3)
+        super().__init__(pair, sampler, self.__tokenizer)
+
+    @property
+    def order(self) -> int:
+        """ Get n-gram order. """
+        return self.__tokenizer.order
+
+    @order.setter
+    def order(self, ngram_order: int):
+        """ Set n-gram order. """
+        self.__tokenizer.order = ngram_order
 
 
 class AvgDisjunctCharNgramFreqFeatureSet(CachedAvgTokenCountFeatureSet):
     """
     Feature set using the average frequencies of the k most
     frequent character n-grams in both input chunk sets.
+
+    Default n-gram order is 3.
     """
 
-    def __init__(self, pair: SamplePair, sampler: ChunkSampler, order: int = 3):
-        """
-        :param order: n-gram order (defaults to trigrams)
-        """
-        super().__init__(pair, sampler, DisjunctCharNgramTokenizer(order))
+    def __init__(self, pair: SamplePair, sampler: ChunkSampler):
+        self.__tokenizer = DisjunctCharNgramTokenizer(3)
+        super().__init__(pair, sampler, self.__tokenizer)
+
+    @property
+    def order(self) -> int:
+        """ Get n-gram order. """
+        return self.__tokenizer.order
+
+    @order.setter
+    def order(self, ngram_order: int):
+        """ Set n-gram order. """
+        self.__tokenizer.order = ngram_order

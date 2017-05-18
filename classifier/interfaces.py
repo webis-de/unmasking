@@ -9,6 +9,9 @@ from typing import Iterable, Tuple
 class ChunkSampler(ABC):
     """
     Base class for chunk samplers used for generating pairs of chunks from :class:`SamplePair`s.
+
+    Chunk sampler properties with setters defined via @property.setter
+    can be set at runtime via job configuration.
     """
     
     @abstractmethod
@@ -25,6 +28,9 @@ class ChunkSampler(ABC):
 class FeatureSet(ABC):
     """
     Base class for text discrimination feature sets.
+
+    Feature properties with setters defined via @property.setter
+    can be set at runtime via job configuration.
     """
     
     def __init__(self, pair: SamplePair, sampler: ChunkSampler):
