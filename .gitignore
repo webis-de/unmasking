@@ -1,8 +1,31 @@
+# Output files
+examples/*/unmasking-out/
+
+# Cache and compiled files
+*.pyc
+__pycache__/
+
+# Project files
 .idea
 *.iml
-*.pyc
-__pycache__
+.project
+
+# Archives
 *.zip
+*.xz
+*.gz
+*.bz2
 *.tar
-corpora
-out
+
+# OS files
+.DS_Store
+.directory
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*~
+*.tmp
+*.swp
+*.bkp
+tmp.*
