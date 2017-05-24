@@ -49,7 +49,9 @@ class YamlLoader(ConfigLoader):
                 continue
 
             keys = i.split(".", 1)
-            parsed_cfg[keys[0]] = self._parse_dot_notation({keys[1]: cfg[i]})
+            if keys[0] not in parsed_cfg:
+                parsed_cfg[keys[0]] = {}
+            parsed_cfg[keys[0]].update(self._parse_dot_notation({keys[1]: cfg[i]}))
         return parsed_cfg
 
 
@@ -65,6 +67,19 @@ class JobConfigLoader(YamlLoader):
 
     def get(self, name: str) -> Any:
         try:
+            # return dict if found under this name
             return super().get(name)
         except KeyError:
-            return self._default_config.get(name)
+            try:
+                # try to find inheriting dict
+                cfg = super().get(name + "%")
+                if type(cfg) is dict:
+                    cfg.update(self._default_config.get(name))
+                elif type(cfg) is list:
+                    cfg_tmp = list(cfg)
+                    cfg = self._default_config.get(name)
+                    cfg.extend(cfg_tmp)
+                return cfg
+            except KeyError:
+                # return default if all else fails
+                return self._default_config.get(name)

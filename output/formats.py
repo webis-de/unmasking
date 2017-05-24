@@ -1,6 +1,7 @@
 from event.interfaces import Event, EventHandler
 from event.events import ProgressEvent, UnmaskingTrainCurveEvent, PairGenerationEvent
 from input.interfaces import SamplePair
+from job.interfaces import Configurable
 from output.interfaces import Aggregator, FileOutput
 
 import json
@@ -10,22 +11,32 @@ from random import randint
 from typing import Any, Dict, List, Optional, Tuple
 
 
-class ProgressPrinter(EventHandler):
+class ProgressPrinter(EventHandler, Configurable):
     """
     Print progress events to the console.
     
     Handles events: onProgress
     """
     
-    def __init__(self, text: str):
+    def __init__(self, text: str = None):
         super().__init__()
+        self._text = text
+    
+    @property
+    def text(self) -> str:
+        """Get display text"""
+        return self._text
+    
+    @text.setter
+    def text(self, text: str):
+        """Set display text"""
         self._text = text
     
     def handle(self, name: str, event: ProgressEvent, sender: type):
         print("{}: {:.2f}%".format(self._text, event.percent_done))
 
 
-class CurveAverager(EventHandler, Aggregator):
+class CurveAverager(EventHandler, Aggregator, Configurable):
     """
     Average unmasking curves from multiple runs.
     
@@ -72,7 +83,7 @@ class CurveAverager(EventHandler, Aggregator):
         self._aggregate_by_class = agg_by_class
 
 
-class UnmaskingStatAccumulator(EventHandler, FileOutput):
+class UnmaskingStatAccumulator(EventHandler, FileOutput, Configurable):
     """
     Accumulate various statistics about a running experiment.
     
@@ -139,14 +150,14 @@ class UnmaskingStatAccumulator(EventHandler, FileOutput):
         self.__init__(meta_data)
 
 
-class UnmaskingCurvePlotter(EventHandler, FileOutput):
+class UnmaskingCurvePlotter(EventHandler, FileOutput, Configurable):
     """
     Plot unmasking curves.
     
     Handles events: onUnmaskingRoundFinished
     """
     
-    def __init__(self,  markers: Dict[SamplePair.Class, Tuple[str, str, Optional[str]]],
+    def __init__(self,  markers: Dict[SamplePair.Class, Tuple[str, str, Optional[str]]] = None,
                  ylim: Tuple[float, float] = (0, 1.0), display: bool = True):
         """
         :param markers: dictionary of pair classes mapped to matplotlib marker codes, a
@@ -158,7 +169,9 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
         super().__init__()
         self._fig = pyplot.figure()
         self._colors = {}
-        self._markers = markers
+        self._markers = None
+        if markers is not None:
+            self.markers = markers
         self._display = display
         self._ylim = ylim
         
@@ -168,8 +181,42 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
         
         self._last_points = {}
         
-        self._setup_axes()
+        if self._markers is not None:
+            self._setup_axes()
         self._line = None
+    
+    @property
+    def markers(self) -> Dict[SamplePair.Class, Tuple[str, str, Optional[str]]]:
+        """Get markers"""
+        return self._markers
+    
+    @markers.setter
+    def markers(self, markers:  Dict[SamplePair.Class, Tuple[str, str, Optional[str]]]):
+        """Set markers"""
+        self._markers = {}
+        for m in markers:
+            self._markers[str(m)] = markers[m]
+        self._setup_axes()
+    
+    @property
+    def ylim(self):
+        """Get y axis limits"""
+        return self._ylim
+    
+    @property
+    def display(self) -> bool:
+        """Get whether the plot will be displayed on screen"""
+        return self._display
+    
+    @display.setter
+    def display(self, display: bool):
+        """Set whether the plot will be displayed on screen"""
+        self._display = display
+    
+    @ylim.setter
+    def ylim(self, ylim: Tuple[float, float]):
+        """Set y axis limits"""
+        self._ylim = ylim
     
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
         if event not in self._events_to_cids:
@@ -213,8 +260,8 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
             raise ValueError("Invalid curve ID")
         
         if curve_handle not in self._colors:
-            if self._markers[curve_class][2] is not None:
-                self._colors[curve_handle] = self._markers[curve_class][2]
+            if self._markers[str(curve_class)][2] is not None:
+                self._colors[curve_handle] = self._markers[str(curve_class)][2]
             else:
                 self._colors[curve_handle] = "#{:02X}{:02X}{:02X}".format(randint(0, 255), randint(0, 255), randint(0, 255))
         
@@ -222,7 +269,7 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput):
             raise ValueError("Number of curve points must be larger than for previous calls")
         
         pyplot.xlim(xlim[0], max(pyplot.xlim()[1], xlim[1]))
-        marker = self._markers[curve_class][0]
+        marker = self._markers[str(curve_class)][0]
         
         last_point = self._last_points[curve_handle]
         points_to_draw = values[last_point[0]:len(values)]

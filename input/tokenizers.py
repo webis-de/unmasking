@@ -88,12 +88,32 @@ class SentenceChunkTokenizer(Tokenizer):
     the cache size is limited to 400 texts.
     """
     
-    def __init__(self, chunk_size: int, language: str = "english"):
+    def __init__(self, chunk_size : int = 500, language: str = "english"):
         """
         :param chunk_size: maximum chunk size
         :param language: language of the text
         """
         self._chunk_size = chunk_size
+        self._language = language
+    
+    @property
+    def chunk_size(self) -> int:
+        """Get chunk size"""
+        return self._chunk_size
+    
+    @chunk_size.setter
+    def chunk_size(self, chunk_size: int):
+        """Set chunk size"""
+        self._chunk_size = chunk_size
+    
+    @property
+    def language(self) -> str:
+        """Get language"""
+        return self._language
+    
+    @language.setter
+    def language(self, language: str):
+        """Set language"""
         self._language = language
 
     @lru_cache(maxsize=10000)

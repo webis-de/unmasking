@@ -2,10 +2,13 @@
 # configuration parameters.
 #
 # These values can be overridden via job-specific configuration files
+# You can append % to the names of objects or lists in your job config
+# to inherit from this default configuration.
 
 ---
-defaults:
 
+# Defaults for Job configuration
+job:
   # Default feature set for representing texts in vectors
   #
   # You can also specify an optional dictionary of parameters for
@@ -15,18 +18,19 @@ defaults:
     parameters: null
 
   # Default samplers for generating chunk pairs.
-  # Using multiple samplers to generate multiple pairs is possible
   #
   # You can also specify an optional dictionary of parameters for
   # configuring properties of this feature set.
-  classifier.samplers:
-    -
-      name: classifier.sampling.RandomOverSampler
-      parameters: null
+  classifier.sampler:
+    name: classifier.sampling.RandomOversampler
+    parameters: null
 
   # Default unmasking strategy to be applied.
-  unmasking.strategy:
-    name: unmasking.strategies.FeatureRemoval
+  unmasking:
+    strategy:
+      name: unmasking.strategies.FeatureRemoval
+      parameters:
+        num_eliminate: 10
 
     # Number of unmasking iterations
     iterations: 10
@@ -56,14 +60,17 @@ defaults:
       name: output.formats.UnmaskingStatAccumulator
       parameters: null
       events:
-        - name: onPairGenerated
-        - name: onUnmaskingFinished
+        - onPairGenerated
+        - onUnmaskingFinished
 
     -
       name: output.formats.UnmaskingCurvePlotter
-      parameters: null
+      parameters:
+        markers:
+          SAME_AUTHOR: ["o", "same author", "#009900"]
+          DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
       events:
-        - name: onUnmaskingRoundFinished
+        - onUnmaskingRoundFinished
 
   # Global experiment settings
   experiment:

@@ -1,14 +1,18 @@
 from event.dispatch import EventBroadcaster
 from event.events import ProgressEvent
+from job.interfaces import Configurable
 
 from abc import ABC, abstractmethod
 from enum import Enum, unique
 from typing import Iterable, List
 
 
-class Tokenizer(ABC):
+class Tokenizer(ABC, Configurable):
     """
     Base class for tokenizers.
+    
+    Tokenizer properties with setters defined via @property.setter
+    can be set at runtime via job configuration.
     """
     
     @abstractmethod
@@ -61,7 +65,7 @@ class SamplePair:
                     return bool(self.value) == other
         
         def __hash__(self):
-            return self.value
+            return self.name
     
     def __init__(self, a: List[str], b: List[str], cls: Class, chunk_tokenizer: Tokenizer):
         """
@@ -110,18 +114,28 @@ class SamplePair:
         return self._chunks_b
 
 
-class CorpusParser(ABC):
+class CorpusParser(ABC, Configurable):
     """
     Base class for corpus parsers.
     """
     
-    def __init__(self, corpus_path: str, chunk_tokenizer: Tokenizer):
+    def __init__(self, chunk_tokenizer: Tokenizer, corpus_path: str = None):
         """
         :param corpus_path: path to the corpus directory
         :param chunk_tokenizer: chunk tokenizer
         """
-        self.corpus_path = corpus_path
+        self._corpus_path = corpus_path
         self.chunk_tokenizer = chunk_tokenizer
+    
+    @property
+    def corpus_path(self) -> str:
+        """Get corpus path"""
+        return self._corpus_path
+    
+    @corpus_path.setter
+    def corpus_path(self, path: str):
+        """Set corpus path"""
+        self._corpus_path = path
     
     @abstractmethod
     def __iter__(self) -> Iterable[SamplePair]:

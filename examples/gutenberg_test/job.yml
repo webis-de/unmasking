@@ -1,0 +1,42 @@
+# Example Job configuration for parsing Gutenberg test corpus
+# You can append % to the names of objects or lists to inherit
+# from the default configuration.
+
+---
+job:
+  # Input corpus options
+  input:
+    # Corpus parser class
+    parser:
+      name: input.formats.BookSampleParser
+      parameters:
+        corpus_path: examples/corpora/gutenberg_test
+
+    # Tokenizer for creating chunks from input texts
+    tokenizer:
+      name: input.tokenizers.SentenceChunkTokenizer
+
+      # Tokenizer-specific parameters
+      parameters:
+        chunk_size: 500
+        language: "english"
+
+  # Specify outputs, but inherit already configured outputs
+  # from the default configuration.
+  outputs%:
+    -
+      name: output.formats.ProgressPrinter
+      parameters:
+        text: Overall pair-building progress
+      events:
+        - onProgress
+      senders:
+        - input.formats.BookSampleParser
+    -
+      name: output.formats.ProgressPrinter
+      parameters:
+        text: Chunking current pair
+      events:
+        - onProgress
+      senders:
+        - input.interfaces.SamplePair
