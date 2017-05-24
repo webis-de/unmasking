@@ -1,0 +1,74 @@
+# Unmasking tool config file for defining default unmasking experiment
+# configuration parameters.
+#
+# These values can be overridden via job-specific configuration files
+
+---
+defaults:
+
+  # Default feature set for representing texts in vectors
+  #
+  # You can also specify an optional dictionary of parameters for
+  # configuring properties of this feature set.
+  classifier.featureSet:
+    name: classifier.features.AvgWordFreqFeatureSet
+    parameters: null
+
+  # Default samplers for generating chunk pairs.
+  # Using multiple samplers to generate multiple pairs is possible
+  #
+  # You can also specify an optional dictionary of parameters for
+  # configuring properties of this feature set.
+  classifier.samplers:
+    -
+      name: classifier.sampling.RandomOverSampler
+      parameters: null
+
+  # Default unmasking strategy to be applied.
+  unmasking.strategy:
+    name: unmasking.strategies.FeatureRemoval
+
+    # Number of unmasking iterations
+    iterations: 10
+
+    # Feature vector size
+    vectorSize: 250
+
+    # Number of cross-validation folds for comparing two texts of a pair
+    folds: 10
+
+    # Whether to use relative instead of absolute feature weights.
+    relative: false
+
+    # Whether to monotonize curves after unmasking
+    monotonize: false
+
+  # Output formats for specific events and optional parameters.
+  # For events you can specify the name and optionally a list of senders to listen to.
+  #
+  # For example:
+  # events:
+  #   -
+  #     name: onProgress
+  #     senders: input.formats.BookSampleParser
+  outputs:
+    -
+      name: output.formats.UnmaskingStatAccumulator
+      parameters: null
+      events:
+        - name: onPairGenerated
+        - name: onUnmaskingFinished
+
+    -
+      name: output.formats.UnmaskingCurvePlotter
+      parameters: null
+      events:
+        - name: onUnmaskingRoundFinished
+
+  # Global experiment settings
+  experiment:
+    # Number of repeated runs to perform of an experiment
+    # (default: 1, i.e. an experiment is only run once).
+    repetitions: 1
+
+    aggregator: output.formats.CurveAverager
