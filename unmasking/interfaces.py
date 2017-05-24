@@ -48,11 +48,11 @@ class UnmaskingStrategy(ABC):
     # noinspection PyPep8Naming
     def run(self, m: int, n: int, fs: FeatureSet, relative: bool = False, folds: int = 10, monotonize : bool = False):
         """
-        Run ``m`` rounds of unmasking on given parameterized feature set.
+        Run ``m`` rounds of unmasking on given parametrized feature set.
         
         :param m: number of unmasking rounds
         :param n: number of features to use
-        :param fs: parameterized feature set
+        :param fs: parametrized feature set
         :param relative: whether to use relative (normalized) of absolute feature weights
         :param folds: number of cross-validation folds
         :param monotonize: whether to monotonize curves (i.e., no point will be larger than the previous point)
