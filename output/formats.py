@@ -7,6 +7,7 @@ from output.interfaces import Aggregator, FileOutput
 import json
 from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as pyplot
+import os
 from random import randint
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -36,7 +37,7 @@ class ProgressPrinter(EventHandler, Configurable):
         print("{}: {:.2f}%".format(self._text, event.percent_done))
 
 
-class CurveAverager(EventHandler, Aggregator, Configurable):
+class CurveAverageAggregator(EventHandler, FileOutput, Aggregator, Configurable):
     """
     Average unmasking curves from multiple runs.
     
@@ -45,6 +46,7 @@ class CurveAverager(EventHandler, Aggregator, Configurable):
 
     def __init__(self):
         self._curves = {}
+        self._meta_data = {}
         self._aggregate_by_class = False
 
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
@@ -60,8 +62,8 @@ class CurveAverager(EventHandler, Aggregator, Configurable):
             identifier = None
 
         if agg not in self._curves:
-            self._curves[cls] = []
-        self._curves[cls].append((identifier, cls, values))
+            self._curves[agg] = []
+        self._curves[agg].append((identifier, cls, values))
 
     def get_aggregated_curves(self) -> Dict[Any, Tuple[int, SamplePair.Class, List[float]]]:
         avg_curves = {}
@@ -73,6 +75,21 @@ class CurveAverager(EventHandler, Aggregator, Configurable):
         
         return avg_curves
 
+    def save(self, output_dir: str):
+        """
+        Save accumulated stats to file in JSON format.
+        If the file exists, it will be truncated.
+        """
+
+        file_name = os.path.join(output_dir, self._get_output_filename_base() + ".json")
+        with open(file_name, "w") as f:
+            self._meta_data["aggregate_key"] = "class" if self._aggregate_by_class else "curve_id"
+            stats = {
+                "meta": self._meta_data,
+                "curves": self._curves
+            }
+            json.dump(stats, f, indent=2)
+
     @property
     def aggregate_by_class(self):
         """ Whether to aggregate by class (default: False, i.e. aggregate by identifier) """
@@ -81,6 +98,16 @@ class CurveAverager(EventHandler, Aggregator, Configurable):
     @aggregate_by_class.setter
     def aggregate_by_class(self, agg_by_class: bool):
         self._aggregate_by_class = agg_by_class
+    
+    @property
+    def meta_data(self) -> Dict[str, object]:
+        """Get experiment meta data"""
+        return self._meta_data
+    
+    @meta_data.setter
+    def meta_data(self, meta_data: Dict[str, object]):
+        """Set experiment meta data"""
+        self._meta_data = meta_data
 
 
 class UnmaskingStatAccumulator(EventHandler, FileOutput, Configurable):
@@ -94,10 +121,10 @@ class UnmaskingStatAccumulator(EventHandler, FileOutput, Configurable):
         """
         :param meta_data: dict with experiment meta data
         """
-        self._stats = {}
-        if meta_data is not None:
-            self._stats["meta"] = meta_data
-        self._stats["curves"] = {}
+        self._stats = {
+            "meta": meta_data if meta_data is not None else {},
+            "curves": []
+        }
     
     # noinspection PyUnresolvedReferences
     def handle(self, name: str, event: Event, sender: type):
@@ -118,23 +145,13 @@ class UnmaskingStatAccumulator(EventHandler, FileOutput, Configurable):
             self._stats["curves"][pair_id]["curve"] = event.values
             self._stats["curves"][pair_id]["fs"] = event.feature_set.__name__
     
-    def set_meta_data(self, meta_data: Dict[str, object]):
-        """
-        Set experiment meta data.
-
-        :param meta_data: meta data dict, None to unset previously set meta data
-        """
-        if meta_data is None and "meta" in self._stats:
-            del self._stats["meta"]
-        elif meta_data is not None:
-            self._stats["meta"] = meta_data
-    
-    def save(self, file_name: str):
+    def save(self, output_dir: str):
         """
         Save accumulated stats to file in JSON format.
         If the file exists, it will be truncated.
         """
-        
+
+        file_name = os.path.join(output_dir, self._get_output_filename_base() + ".json")
         with open(file_name, "w") as f:
             json.dump(self._stats, f, indent=2)
     
@@ -148,6 +165,18 @@ class UnmaskingStatAccumulator(EventHandler, FileOutput, Configurable):
             meta_data = self._stats["meta"]
         
         self.__init__(meta_data)
+    
+    @property
+    def meta_data(self) -> Dict[str, object]:
+        """Get experiment meta data"""
+        if "meta" in self._stats:
+            return self._stats["meta"]
+        return {}
+    
+    @meta_data.setter
+    def meta_data(self, meta_data: Dict[str, object]):
+        """Set experiment meta data"""
+        self._stats["meta"] = meta_data
 
 
 class UnmaskingCurvePlotter(EventHandler, FileOutput, Configurable):
@@ -262,7 +291,6 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput, Configurable):
         this class or create a new figure with :method:`new_figure()`.
         
         :param values: list of y-axis values
-        :param xlim: x-axis limits
         :param curve_class: class of the curve
         :param curve_handle: curve handle from :method:`start_new_curve()`
         """
@@ -313,8 +341,8 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput, Configurable):
         """Close an open plot window ."""
         pyplot.close()
     
-    def save(self, file_name: str):
-        pyplot.savefig(file_name)
+    def save(self, output_dir: str):
+        pyplot.savefig(os.path.join(output_dir, self._get_output_filename_base() + ".svg"))
     
     def _setup_axes(self):
         pyplot.ylim(self._ylim[0], self._ylim[1])

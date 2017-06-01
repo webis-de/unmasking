@@ -74,10 +74,13 @@ job:
       events:
         - onUnmaskingRoundFinished
 
+  # Output directory
+  output_dir: out
+
   # Global experiment settings
   experiment:
     # Number of repeated runs to perform of an experiment
     # (default: 1, i.e. an experiment is only run once).
     repetitions: 1
 
-    aggregator: output.formats.CurveAverager
+    aggregator: output.formats.CurveAverageAggregator

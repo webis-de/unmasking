@@ -65,7 +65,7 @@ class SamplePair:
                     return bool(self.value) == other
         
         def __hash__(self):
-            return self.name
+            return self.__repr__().__hash__()
     
     def __init__(self, a: List[str], b: List[str], cls: Class, chunk_tokenizer: Tokenizer):
         """

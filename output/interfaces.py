@@ -1,6 +1,7 @@
 from input.interfaces import SamplePair
 
 from abc import ABC, abstractmethod
+from time import time
 from typing import Any, Dict, List, Tuple
 
 
@@ -20,6 +21,15 @@ class FileOutput(ABC):
         :param file_name: output file name
         """
         pass
+    
+    def _get_output_filename_base(self) -> str:
+        """
+        Generate a base filename (without extension) containing a timestamp which
+        can safely be used for writing output files.
+        
+        :return: filename base
+        """
+        return self.__class__.__name__ + "." + str(int(time()))
 
 
 class Aggregator(ABC):
