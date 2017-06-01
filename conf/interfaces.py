@@ -23,6 +23,15 @@ class ConfigLoader(ABC):
         """
         pass
 
+    @abstractmethod
+    def save(self, file_name: str) -> Any:
+        """
+        Save a copy of the current configuration to the given file
+
+        :param file_name: name of the target file (without extension)
+        """
+        pass
+
 
 class Configurable:
     """

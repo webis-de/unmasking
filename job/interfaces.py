@@ -80,15 +80,15 @@ class JobExecutor(ABC):
         outputs = conf.get("job.outputs")
     
         for output in outputs:
-            format_obj = self._configure_instance(output)
-            if not isinstance(format_obj, Output):
+            output_obj = self._configure_instance(output)
+            if not isinstance(output_obj, Output):
                 raise ValueError("'{}' is not an Output".format(output["name"]))
             
             if "events" in output:
                 # noinspection PyTypeChecker
-                self._subscribe_to_events(format_obj, output["events"])
+                self._subscribe_to_events(output_obj, output["events"])
             
-            self._outputs.append(output)
+            self._outputs.append(output_obj)
             
     def _load_aggregators(self, conf: ConfigLoader):
         """
@@ -99,15 +99,15 @@ class JobExecutor(ABC):
         aggs = conf.get("job.experiment.aggregators")
     
         for output in aggs:
-            format_obj = self._configure_instance(output)
-            if not isinstance(format_obj, Aggregator):
+            agg_obj = self._configure_instance(output)
+            if not isinstance(agg_obj, Aggregator):
                 raise ValueError("'{}' is not an Aggregator".format(output["name"]))
             
             if "events" in output:
                 # noinspection PyTypeChecker
-                self._subscribe_to_events(format_obj, output["events"])
+                self._subscribe_to_events(agg_obj, output["events"])
             
-            self._aggregators.append(output)
+            self._aggregators.append(agg_obj)
     
     @abstractmethod
     def run(self, conf: ConfigLoader):

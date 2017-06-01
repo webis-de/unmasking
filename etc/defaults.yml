@@ -64,6 +64,7 @@ job:
 
     - name: output.formats.UnmaskingCurvePlotter
       parameters:
+        display: false
         markers:
           SAME_AUTHOR: ["o", "same author", "#009900"]
           DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
@@ -71,6 +72,14 @@ job:
         ylim: [0.0, 1.0]
       events:
         - name: onUnmaskingRoundFinished
+
+    - name: output.formats.ProgressPrinter
+      parameters:
+        text: Chunking current pair
+      events:
+        - name: onProgress
+          senders:
+            - input.interfaces.SamplePair
 
   # Output directory
   output_dir: out
@@ -86,3 +95,5 @@ job:
     # Parameters are the same as for outputs.
     aggregators:
       - name: output.formats.CurveAverageAggregator
+        events:
+          - name: onUnmaskingFinished

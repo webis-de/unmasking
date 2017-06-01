@@ -54,6 +54,10 @@ class YamlLoader(ConfigLoader):
             parsed_cfg[keys[0]].update(self._parse_dot_notation({keys[1]: cfg[i]}))
         return parsed_cfg
 
+    def save(self, file_name: str) -> Any:
+        with open(file_name + ".yml", "w") as f:
+            yaml.safe_dump(self._config, f, default_flow_style=False)
+
 
 class JobConfigLoader(YamlLoader):
     """

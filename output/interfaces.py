@@ -20,6 +20,11 @@ class Output(Configurable, ABC):
         """
         pass
     
+    @abstractmethod
+    def reset(self):
+        """Reset output and clear all variable data"""
+        pass
+    
     def _get_output_filename_base(self) -> str:
         """
         Generate a base filename (without extension) containing a timestamp which

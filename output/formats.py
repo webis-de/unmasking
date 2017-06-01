@@ -1,4 +1,3 @@
-from conf.interfaces import Configurable
 from event.interfaces import Event, EventHandler
 from event.events import ProgressEvent, UnmaskingTrainCurveEvent, PairGenerationEvent
 from input.interfaces import SamplePair
@@ -39,6 +38,9 @@ class ProgressPrinter(EventHandler, Output):
     def save(self, output_dir: str):
         pass
 
+    def reset(self):
+        pass
+
 
 class CurveAverageAggregator(EventHandler, Aggregator):
     """
@@ -47,9 +49,12 @@ class CurveAverageAggregator(EventHandler, Aggregator):
     Handles events: onUnmaskingFinished
     """
 
-    def __init__(self):
+    def __init__(self, meta_data: Dict[str, Any] = None):
+        """
+        :param meta_data: dict with experiment meta data
+        """
         self._curves = {}
-        self._meta_data = {}
+        self._meta_data = meta_data if meta_data is not None else {}
         self._aggregate_by_class = False
 
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
@@ -93,6 +98,9 @@ class CurveAverageAggregator(EventHandler, Aggregator):
             }
             json.dump(stats, f, indent=2)
 
+    def reset(self):
+        self.__init__(self._meta_data)
+
     @property
     def aggregate_by_class(self):
         """ Whether to aggregate by class (default: False, i.e. aggregate by identifier) """
@@ -103,12 +111,12 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         self._aggregate_by_class = agg_by_class
     
     @property
-    def meta_data(self) -> Dict[str, object]:
+    def meta_data(self) -> Dict[str, Any]:
         """Get experiment meta data"""
         return self._meta_data
     
     @meta_data.setter
-    def meta_data(self, meta_data: Dict[str, object]):
+    def meta_data(self, meta_data: Dict[str, Any]):
         """Set experiment meta data"""
         self._meta_data = meta_data
 
@@ -119,8 +127,8 @@ class UnmaskingStatAccumulator(EventHandler, Output):
     
     Handles events: onPairGenerated, onUnmaskingFinished
     """
-    
-    def __init__(self, meta_data: Optional[Dict[str, object]] = None):
+
+    def __init__(self, meta_data: Optional[Dict[str, Any]] = None):
         """
         :param meta_data: dict with experiment meta data
         """
@@ -157,27 +165,20 @@ class UnmaskingStatAccumulator(EventHandler, Output):
         file_name = os.path.join(output_dir, self._get_output_filename_base() + ".json")
         with open(file_name, "w") as f:
             json.dump(self._stats, f, indent=2)
-    
-    def reinit(self, meta_data: Optional[Dict[str, object]] = None):
-        """
-        Clear stats and reinitialize accumulator.
 
-        :param meta_data: optional experiment meta data (None to re-use previous meta data)
-        """
-        if meta_data is None and "meta" in self._stats:
-            meta_data = self._stats["meta"]
-        
+    def reset(self):
+        meta_data = self._stats["meta"]
         self.__init__(meta_data)
     
     @property
-    def meta_data(self) -> Dict[str, object]:
+    def meta_data(self) -> Dict[str, Any]:
         """Get experiment meta data"""
         if "meta" in self._stats:
             return self._stats["meta"]
         return {}
     
     @meta_data.setter
-    def meta_data(self, meta_data: Dict[str, object]):
+    def meta_data(self, meta_data: Dict[str, Any]):
         """Set experiment meta data"""
         self._stats["meta"] = meta_data
 
@@ -190,7 +191,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     """
     
     def __init__(self,  markers: Dict[SamplePair.Class, Tuple[str, str, Optional[str]]] = None,
-                 ylim: Tuple[float, float] = (0, 1.0), display: bool = True):
+                 ylim: Tuple[float, float] = (0, 1.0), display: bool = False):
         """
         :param markers: dictionary of pair classes mapped to matplotlib marker codes, a
                         human-readable legend description and a color code. If color
@@ -205,6 +206,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         if markers is not None:
             self.markers = markers
         self._display = display
+        self._is_displayed = False
         self._ylim = ylim
         self._xlim = None
         
@@ -216,7 +218,6 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         
         if self._markers is not None:
             self._setup_axes()
-        self._line = None
     
     @property
     def markers(self) -> Dict[SamplePair.Class, Tuple[str, str, Optional[str]]]:
@@ -329,6 +330,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._last_points[curve_handle] = last_point
         
         if self._display:
+            self.show()
             self._fig.canvas.blit()
             self._fig.canvas.flush_events()
     
@@ -340,17 +342,36 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._curve_ids = []
         self._next_curve_id = 0
     
+    def show(self):
+        """Show plot area on screen."""
+        if not self._is_displayed:
+            pyplot.ion()
+            pyplot.show(block=False)
+            self._fig.canvas.flush_events()
+            self._is_displayed = True
+    
     def close(self):
-        """Close an open plot window ."""
+        """Close an open plot window."""
         pyplot.close()
     
     def save(self, output_dir: str):
         pyplot.savefig(os.path.join(output_dir, self._get_output_filename_base() + ".svg"))
+
+    def reset(self):
+        self._next_curve_id = 0
+        self._curve_ids = []
+        self._events_to_cids = {}
+        self._last_points = {}
+        self._is_displayed = False
+    
+        self._fig.clear()
+        if self._markers is not None:
+            self._setup_axes()
     
     def _setup_axes(self):
         pyplot.ylim(self._ylim[0], self._ylim[1])
         pyplot.xlabel("rounds")
-        pyplot.ylabel("discriminability")
+        pyplot.ylabel("accuracy")
     
         # force integer ticks on x axis
         self._fig.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -369,8 +390,3 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             legend_labels.append(self._markers[m][1])
     
         pyplot.legend(handles=legend_handles, labels=legend_labels)
-    
-        if self._display:
-            pyplot.ion()
-            pyplot.show(block=False)
-            self._fig.canvas.flush_events()
