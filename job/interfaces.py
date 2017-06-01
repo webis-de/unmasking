@@ -1,9 +1,11 @@
+from conf.interfaces import ConfigLoader
+from event.dispatch import EventBroadcaster
+from event.interfaces import EventHandler
+from output.interfaces import Output
+
 from abc import abstractmethod, ABC
 from importlib import import_module
 from typing import Any, Dict
-
-from conf.interfaces import ConfigLoader
-from event.dispatch import EventBroadcaster
 
 
 class JobExecutor(ABC):
@@ -47,11 +49,18 @@ class JobExecutor(ABC):
     
         for output in outputs:
             format_obj = self._configure_instance(output)
+            if not isinstance(format_obj, Output):
+                raise ValueError("'{}' is not an Output".format(output["name"]))
+            
             senders = None
             if "senders" in output and type(output["senders"]) is list:
                 senders = {self._load_class(s) for s in output["senders"]}
-            for event in output["events"]:
-                EventBroadcaster.subscribe(event, format_obj, senders)
+                
+            if "events" in output:
+                if not isinstance(format_obj, EventHandler):
+                    raise ValueError("'{}' is not an EventHandler".format(output["name"]))
+                for event in output["events"]:
+                    EventBroadcaster.subscribe(event, format_obj, senders)
     
     @abstractmethod
     def run(self, conf: ConfigLoader):

@@ -1,3 +1,4 @@
+from conf.interfaces import Configurable
 from event.interfaces import Event, EventHandler
 from event.events import ProgressEvent, UnmaskingTrainCurveEvent, PairGenerationEvent
 from input.interfaces import SamplePair
