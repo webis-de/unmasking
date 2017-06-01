@@ -1,17 +1,31 @@
 from conf.interfaces import ConfigLoader
 from event.dispatch import EventBroadcaster
 from event.interfaces import EventHandler
-from output.interfaces import Output
+from output.interfaces import Output, Aggregator
 
 from abc import abstractmethod, ABC
 from importlib import import_module
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 
 class JobExecutor(ABC):
     """
     Generic job executor.
     """
+    
+    def __init__(self):
+        self._outputs = []
+        self._aggregators = []
+    
+    @property
+    def outputs(self) -> List[Output]:
+        """Get configured outputs"""
+        return self._outputs
+    
+    @property
+    def aggregators(self) -> List[Aggregator]:
+        """Get configured aggregators"""
+        return self._aggregators
     
     def _load_class(self, name: str):
         """
@@ -39,9 +53,27 @@ class JobExecutor(ABC):
                 obj.set_property(p, cfg["parameters"][p])
         return obj
 
-    def _subscribe_to_output_events(self, conf: ConfigLoader):
+    def _subscribe_to_events(self, obj: EventHandler, events: List[Dict[str, Any]]):
         """
-        Subscribe to output events for the given job.
+        Subscribe an object to events for the given job.
+
+        :param obj: EventHandler object to subscribe
+        :param events: list of dicts containing a name key and an optional
+                       senders key with a list of allowed senders
+        """
+
+        if not isinstance(obj, EventHandler):
+            raise ValueError("'{}' is not an EventHandler".format(obj.__class__.__name__))
+        
+        for event in events:
+            senders = None
+            if "senders" in event and type(event["senders"]) is list:
+                senders = {self._load_class(s) if type(s) is str else s for s in event["senders"]}
+            EventBroadcaster.subscribe(event["name"], obj, senders)
+
+    def _load_outputs(self, conf: ConfigLoader):
+        """
+        Load job output modules.
         
         :param conf: job configuration
         """
@@ -52,15 +84,30 @@ class JobExecutor(ABC):
             if not isinstance(format_obj, Output):
                 raise ValueError("'{}' is not an Output".format(output["name"]))
             
-            senders = None
-            if "senders" in output and type(output["senders"]) is list:
-                senders = {self._load_class(s) for s in output["senders"]}
-                
             if "events" in output:
-                if not isinstance(format_obj, EventHandler):
-                    raise ValueError("'{}' is not an EventHandler".format(output["name"]))
-                for event in output["events"]:
-                    EventBroadcaster.subscribe(event, format_obj, senders)
+                # noinspection PyTypeChecker
+                self._subscribe_to_events(format_obj, output["events"])
+            
+            self._outputs.append(output)
+            
+    def _load_aggregators(self, conf: ConfigLoader):
+        """
+        Load job aggregator modules.
+        
+        :param conf: job configuration
+        """
+        aggs = conf.get("job.experiment.aggregators")
+    
+        for output in aggs:
+            format_obj = self._configure_instance(output)
+            if not isinstance(format_obj, Aggregator):
+                raise ValueError("'{}' is not an Aggregator".format(output["name"]))
+            
+            if "events" in output:
+                # noinspection PyTypeChecker
+                self._subscribe_to_events(format_obj, output["events"])
+            
+            self._aggregators.append(output)
     
     @abstractmethod
     def run(self, conf: ConfigLoader):

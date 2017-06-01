@@ -24,19 +24,18 @@ job:
   # Specify outputs, but inherit already configured outputs
   # from the default configuration.
   outputs%:
-    -
-      name: output.formats.ProgressPrinter
+    - name: output.formats.ProgressPrinter
       parameters:
         text: Overall pair-building progress
       events:
-        - onProgress
-      senders:
-        - input.formats.BookSampleParser
-    -
-      name: output.formats.ProgressPrinter
+        - name: onProgress
+          senders:
+            - input.formats.BookSampleParser
+
+    - name: output.formats.ProgressPrinter
       parameters:
         text: Chunking current pair
       events:
-        - onProgress
-      senders:
-        - input.interfaces.SamplePair
+        - name: onProgress
+          senders:
+            - input.interfaces.SamplePair

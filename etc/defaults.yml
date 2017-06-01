@@ -52,19 +52,17 @@ job:
   #
   # For example:
   # events:
-  #   -
-  #     name: onProgress
-  #     senders: input.formats.BookSampleParser
+  #   - name: onProgress
+  #     senders:
+  #       - input.formats.BookSampleParser
   outputs:
-    -
-      name: output.formats.UnmaskingStatAccumulator
+    - name: output.formats.UnmaskingStatAccumulator
       parameters: null
       events:
-        - onPairGenerated
-        - onUnmaskingFinished
+        - name: onPairGenerated
+        - name: onUnmaskingFinished
 
-    -
-      name: output.formats.UnmaskingCurvePlotter
+    - name: output.formats.UnmaskingCurvePlotter
       parameters:
         markers:
           SAME_AUTHOR: ["o", "same author", "#009900"]
@@ -72,7 +70,7 @@ job:
 
         ylim: [0.0, 1.0]
       events:
-        - onUnmaskingRoundFinished
+        - name: onUnmaskingRoundFinished
 
   # Output directory
   output_dir: out
@@ -83,4 +81,8 @@ job:
     # (default: 1, i.e. an experiment is only run once).
     repetitions: 1
 
-    aggregator: output.formats.CurveAverageAggregator
+    # Aggregator formats to aggregate experiment outputs
+    # over various runs.
+    # Parameters are the same as for outputs.
+    aggregators:
+      - name: output.formats.CurveAverageAggregator

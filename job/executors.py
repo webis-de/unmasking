@@ -10,6 +10,7 @@ class DefaultExecutor(JobExecutor):
     """
     
     def __init__(self):
+        super().__init__()
         self._config = None
 
     def run(self, conf: ConfigLoader):
@@ -18,7 +19,8 @@ class DefaultExecutor(JobExecutor):
         chunk_tokenizer = self._configure_instance(self._config.get("job.input.tokenizer"))
         parser = self._configure_instance(self._config.get("job.input.parser"), chunk_tokenizer)
         
-        self._subscribe_to_output_events(self._config)
+        self._load_outputs(self._config)
+        self._load_aggregators(self._config)
         
         start_time = time()
         try:

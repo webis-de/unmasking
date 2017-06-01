@@ -1,5 +1,5 @@
 # Output files
-examples/*/unmasking-out/
+out/
 
 # Cache and compiled files
 *.pyc
