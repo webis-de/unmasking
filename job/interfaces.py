@@ -117,5 +117,3 @@ class JobExecutor(ABC):
         :param conf: job configuration loader
         """
         pass
-
-
