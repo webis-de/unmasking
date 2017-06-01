@@ -88,7 +88,7 @@ class SentenceChunkTokenizer(Tokenizer):
     the cache size is limited to 400 texts.
     """
     
-    def __init__(self, chunk_size : int = 500, language: str = "english"):
+    def __init__(self, chunk_size: int = 500, language: str = "english"):
         """
         :param chunk_size: maximum chunk size
         :param language: language of the text
@@ -171,7 +171,7 @@ class RandomWordChunkTokenizer(WordTokenizer):
     once all words have been drawn from the pool.
     """
 
-    def __init__(self, chunk_size: int, num_chunks: int, with_replacement: bool = True):
+    def __init__(self, chunk_size: int = 600, num_chunks: int = 25, with_replacement: bool = True):
         """
         :param chunk_size: target chunk size
         :param num_chunks: number of chunks to generate
@@ -216,3 +216,32 @@ class RandomWordChunkTokenizer(WordTokenizer):
     @lru_cache(maxsize=10000)
     def _get_words(self, text: str):
         return list(super().tokenize(text))
+    
+    @property
+    def chunk_size(self) -> int:
+        """Size of a chunk in words"""
+        return self._chunk_size
+    
+    @chunk_size.setter
+    def chunk_size(self, chunk_size: int):
+        """Set chunk size in words"""
+        self._chunk_size = chunk_size
+    
+    @property
+    def num_chunks(self) -> int:
+        """Number of chunks to produce"""
+        return self._num_chunks
+    
+    @num_chunks.setter
+    def num_chunks(self, num_chunks: int):
+        """Set number of chunks to produce"""
+        self._num_chunks = num_chunks
+    
+    @property
+    def with_replacement(self) -> bool:
+        """Whether to draw words with or without replacement"""
+        return self._with_replacement
+    
+    @with_replacement.setter
+    def with_replacement(self, with_replacement: bool):
+        self._with_replacement = with_replacement

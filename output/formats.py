@@ -174,6 +174,7 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput, Configurable):
             self.markers = markers
         self._display = display
         self._ylim = ylim
+        self._xlim = None
         
         self._next_curve_id = 0
         self._curve_ids = []
@@ -203,6 +204,21 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput, Configurable):
         """Get y axis limits"""
         return self._ylim
     
+    @ylim.setter
+    def ylim(self, ylim: Tuple[float, float]):
+        """Set y axis limits"""
+        self._ylim = ylim
+    
+    @property
+    def xlim(self):
+        """Get x axis limits"""
+        return self._xlim
+    
+    @xlim.setter
+    def xlim(self, xlim: Tuple[float, float]):
+        """Set y axis limits"""
+        self._xlim = xlim
+    
     @property
     def display(self) -> bool:
         """Get whether the plot will be displayed on screen"""
@@ -213,16 +229,11 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput, Configurable):
         """Set whether the plot will be displayed on screen"""
         self._display = display
     
-    @ylim.setter
-    def ylim(self, ylim: Tuple[float, float]):
-        """Set y axis limits"""
-        self._ylim = ylim
-    
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
         if event not in self._events_to_cids:
             self._events_to_cids[event] = self.start_new_curve()
         
-        self.plot_curve(event.values, (0.0, event.n - 1), event.pair.cls, self._events_to_cids[event])
+        self.plot_curve(event.values, event.pair.cls, self._events_to_cids[event])
     
     def start_new_curve(self) -> int:
         """
@@ -243,8 +254,7 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput, Configurable):
         """
         pyplot.title(title)
     
-    def plot_curve(self, values: List[float], xlim: Tuple[float, float],
-                   curve_class: SamplePair.Class, curve_handle: int):
+    def plot_curve(self, values: List[float], curve_class: SamplePair.Class, curve_handle: int):
         """
         Plot unmasking curve. Points from ``values`` which have been plotted earlier will not be plotted again.
         Consecutive calls with the same ``curve_handle`` append points new points to existing curve.
@@ -268,7 +278,9 @@ class UnmaskingCurvePlotter(EventHandler, FileOutput, Configurable):
         if len(values) <= self._last_points[curve_handle][0]:
             raise ValueError("Number of curve points must be larger than for previous calls")
         
-        pyplot.xlim(xlim[0], max(pyplot.xlim()[1], xlim[1]))
+        if self._xlim is not None:
+            pyplot.xlim(self._xlim)
+            
         marker = self._markers[str(curve_class)][0]
         
         last_point = self._last_points[curve_handle]

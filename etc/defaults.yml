@@ -69,6 +69,8 @@ job:
         markers:
           SAME_AUTHOR: ["o", "same author", "#009900"]
           DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
+
+        ylim: [0.0, 1.0]
       events:
         - onUnmaskingRoundFinished
 
