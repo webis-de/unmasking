@@ -57,7 +57,7 @@ class DefaultExecutor(JobExecutor):
                     output.reset()
                 
             for aggregator in self.aggregators:
-                aggregator.save()
+                aggregator.save(output_dir)
                 aggregator.reset()
         finally:
             print("Time taken: {:.03f} seconds.".format(time() - start_time))
