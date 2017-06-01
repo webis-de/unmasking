@@ -65,21 +65,38 @@ class JobConfigLoader(YamlLoader):
         self._default_config = YamlLoader()
         self._default_config.load("etc/defaults.yml")
 
+    def load(self, filename: str):
+        super().load(filename)
+        self._config = self._resolve_inheritance(self._config)
+    
+    def _resolve_inheritance(self, d: Dict[str, Any], path: str = ""):
+        for k in d:
+            if k.endswith("%"):
+                t = type(d[k])
+                p = path + "." + k[0:-1] if path != "" else k[0:-1]
+                
+                if t is not dict and t is not list:
+                    raise KeyError("Config option '{}' is of non-inheritable type {}".format(p, t))
+                
+                try:
+                    inherit = self._default_config.get(p)
+                except KeyError:
+                    raise KeyError("Config option '{}' has no inheritable defaults".format(p))
+                
+                d[k[0:-1]] = inherit
+                if t is dict:
+                    d[k[0:-1]].update(self._resolve_inheritance(d[k], p))
+                elif t is list:
+                    d[k[0:-1]].extend(d[k])
+                
+                del d[k]
+            elif type(d[k]) is dict:
+                d[k] = self._resolve_inheritance(d[k], path + "." + k if path != "" else k)
+
+        return d
+
     def get(self, name: str) -> Any:
         try:
-            # return dict if found under this name
             return super().get(name)
         except KeyError:
-            try:
-                # try to find inheriting dict
-                cfg = super().get(name + "%")
-                if type(cfg) is dict:
-                    cfg.update(self._default_config.get(name))
-                elif type(cfg) is list:
-                    cfg_tmp = list(cfg)
-                    cfg = self._default_config.get(name)
-                    cfg.extend(cfg_tmp)
-                return cfg
-            except KeyError:
-                # return default if all else fails
-                return self._default_config.get(name)
+            return self._default_config.get(name)
