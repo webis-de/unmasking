@@ -1,6 +1,6 @@
 from event.dispatch import EventBroadcaster
 from event.events import ProgressEvent
-from job.interfaces import Configurable
+from conf.interfaces import Configurable
 
 from abc import ABC, abstractmethod
 from enum import Enum, unique

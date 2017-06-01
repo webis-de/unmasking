@@ -1,7 +1,7 @@
 from classifier.interfaces import FeatureSet
 from event.dispatch import EventBroadcaster
 from event.events import UnmaskingTrainCurveEvent
-from job.interfaces import Configurable
+from conf.interfaces import Configurable
 
 from sklearn.model_selection import cross_val_score
 from sklearn.svm import LinearSVC

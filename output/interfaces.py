@@ -1,3 +1,4 @@
+from conf.interfaces import Configurable
 from input.interfaces import SamplePair
 
 from abc import ABC, abstractmethod
@@ -5,20 +6,17 @@ from time import time
 from typing import Any, Dict, List, Tuple
 
 
-class FileOutput(ABC):
+class Output(Configurable, ABC):
     """
-    Base class for objects which can save their state to a file.
-
-    File output properties with setters defined via @property.setter
-    can be set at runtime via job configuration.
+    Base class for output handlers
     """
     
     @abstractmethod
-    def save(self, file_name: str):
+    def save(self, output_dir: str):
         """
-        Save object state to given file
+        Save object state to file in a given output directory
 
-        :param file_name: output file name
+        :param output_dir: output directory
         """
         pass
     
@@ -32,13 +30,10 @@ class FileOutput(ABC):
         return self.__class__.__name__ + "." + str(int(time()))
 
 
-class Aggregator(ABC):
+class Aggregator(Output, ABC):
     """
     Base class for unmasking curve aggregation.
     This can be used for building ensembles of multiple runs.
-
-    Aggregator properties with setters defined via @property.setter
-    can be set at runtime via job configuration.
     """
 
     @abstractmethod

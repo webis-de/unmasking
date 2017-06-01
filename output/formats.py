@@ -1,8 +1,7 @@
 from event.interfaces import Event, EventHandler
 from event.events import ProgressEvent, UnmaskingTrainCurveEvent, PairGenerationEvent
 from input.interfaces import SamplePair
-from job.interfaces import Configurable
-from output.interfaces import Aggregator, FileOutput
+from output.interfaces import Aggregator, Output
 
 import json
 from matplotlib.ticker import MaxNLocator
@@ -12,13 +11,13 @@ from random import randint
 from typing import Any, Dict, List, Optional, Tuple
 
 
-class ProgressPrinter(EventHandler, Configurable):
+class ProgressPrinter(EventHandler, Output):
     """
     Print progress events to the console.
     
     Handles events: onProgress
     """
-    
+
     def __init__(self, text: str = None):
         super().__init__()
         self._text = text
@@ -36,8 +35,11 @@ class ProgressPrinter(EventHandler, Configurable):
     def handle(self, name: str, event: ProgressEvent, sender: type):
         print("{}: {:.2f}%".format(self._text, event.percent_done))
 
+    def save(self, output_dir: str):
+        pass
 
-class CurveAverageAggregator(EventHandler, FileOutput, Aggregator, Configurable):
+
+class CurveAverageAggregator(EventHandler, Aggregator):
     """
     Average unmasking curves from multiple runs.
     
@@ -110,7 +112,7 @@ class CurveAverageAggregator(EventHandler, FileOutput, Aggregator, Configurable)
         self._meta_data = meta_data
 
 
-class UnmaskingStatAccumulator(EventHandler, FileOutput, Configurable):
+class UnmaskingStatAccumulator(EventHandler, Output):
     """
     Accumulate various statistics about a running experiment.
     
@@ -123,10 +125,10 @@ class UnmaskingStatAccumulator(EventHandler, FileOutput, Configurable):
         """
         self._stats = {
             "meta": meta_data if meta_data is not None else {},
-            "curves": []
+            "curves": {}
         }
-    
-    # noinspection PyUnresolvedReferences
+
+    # noinspection PyUnresolvedReferences,PyTypeChecker
     def handle(self, name: str, event: Event, sender: type):
         if type(event) != UnmaskingTrainCurveEvent and type(event) != PairGenerationEvent:
             return
@@ -179,7 +181,7 @@ class UnmaskingStatAccumulator(EventHandler, FileOutput, Configurable):
         self._stats["meta"] = meta_data
 
 
-class UnmaskingCurvePlotter(EventHandler, FileOutput, Configurable):
+class UnmaskingCurvePlotter(EventHandler, Output):
     """
     Plot unmasking curves.
     
