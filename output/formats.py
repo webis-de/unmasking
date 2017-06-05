@@ -71,7 +71,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
 
         if agg not in self._curves:
             self._curves[agg] = []
-        self._curves[agg].append((identifier, str(cls), values))
+        self._curves[agg].append((str(identifier), str(cls), values))
 
     def get_aggregated_curves(self) -> Dict[Any, Tuple[int, SamplePair.Class, List[float]]]:
         avg_curves = {}
