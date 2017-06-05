@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from typing import Any
+from typing import Any, Dict
 
 
 class ConfigLoader(ABC):
@@ -13,11 +13,20 @@ class ConfigLoader(ABC):
         pass
 
     @abstractmethod
-    def get(self, name: str) -> Any:
+    def set(self, cfg: Dict[str, Any]):
+        """
+        Set configuration from given dictioanry.
+
+        :param cfg: configuration dict
+        """
+        pass
+
+    @abstractmethod
+    def get(self, name: str = None) -> Any:
         """
         Get configuration option.
 
-        :param name: name of the option
+        :param name: name of the option, None to get full config dict
         :return: option value
         :raise: KeyError if option not found
         """

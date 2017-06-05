@@ -1,13 +1,22 @@
 from conf.interfaces import ConfigLoader
-from job.interfaces import JobExecutor
+from conf.loader import JobConfigLoader
+from job.interfaces import JobExecutor, ConfigurationExpander
 
 import os
 from time import time
+from typing import Any, Dict, Tuple
 
 
-class DefaultExecutor(JobExecutor):
+class ExpandingExecutor(JobExecutor):
     """
-    Default job executor.
+    Expanding job executor.
+
+    Expands its job configuration to multiple configurations with various parameter settings
+    based on a set of expansion variables. Expansion is performed based on the
+    job.experiment.configurations and job.experiment.configuration_expander settings.
+    job.experiment.repetitions controls how often each individual configuration is run.
+
+    Multiple runs are aggregated based on the job.experiment.aggregators setting.
     """
     
     def __init__(self):
@@ -16,9 +25,6 @@ class DefaultExecutor(JobExecutor):
 
     def run(self, conf: ConfigLoader):
         self._config = conf
-        
-        chunk_tokenizer = self._configure_instance(self._config.get("job.input.tokenizer"))
-        parser = self._configure_instance(self._config.get("job.input.parser"), chunk_tokenizer)
         
         self._load_outputs(self._config)
         self._load_aggregators(self._config)
@@ -32,32 +38,75 @@ class DefaultExecutor(JobExecutor):
             raise IOError("Failed to create output directory '{}', maybe it exists already?".format(output_dir))
         
         conf.save(os.path.join(output_dir, "job"))
+
+        config_vectors = self._config.get("job.experiment.configurations")
+        config_variables = [tuple()]
+        expanded_vectors = [tuple()]
+        if config_vectors:
+            config_expander = self._configure_instance(self._config.get("job.experiment.configuration_expander"))
+            if not isinstance(config_expander, ConfigurationExpander):
+                raise ValueError("'{}' is not a ConfigurationExpander".format(config_expander.__class__.__name__))
+
+            config_variables = config_vectors.keys()
+            expanded_vectors = config_expander.expand(config_vectors.values())
         
         start_time = time()
         try:
-            iterations = self._config.get("job.experiment.repetitions")
-            
-            for rep in range(0, iterations):
-                for i, pair in enumerate(parser):
-                    sampler = self._configure_instance(self._config.get("job.classifier.sampler"))
-                    feature_set = self._configure_instance(self._config.get("job.classifier.featureSet"), pair, sampler)
-                    
-                    unmasking_cfg = self._config.get("job.unmasking")
-                    strat = self._configure_instance(unmasking_cfg["strategy"])
-                    strat.run(
-                        unmasking_cfg["iterations"],
-                        unmasking_cfg["vectorSize"],
-                        feature_set,
-                        unmasking_cfg["relative"],
-                        unmasking_cfg["folds"],
-                        unmasking_cfg["monotonize"])
-                    
-                for output in self.outputs:
-                    output.save(output_dir)
-                    output.reset()
+            for vector in expanded_vectors:
+                if vector:
+                    cfg = JobConfigLoader(self._expand_dict(self._config.get(), config_variables, vector))
+                else:
+                    cfg = JobConfigLoader(self._config.get())
+
+                chunk_tokenizer = self._configure_instance(cfg.get("job.input.tokenizer"))
+                parser = self._configure_instance(cfg.get("job.input.parser"), chunk_tokenizer)
+                iterations = cfg.get("job.experiment.repetitions")
+
+                for rep in range(0, iterations):
+                    for i, pair in enumerate(parser):
+                        sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
+                        feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
+
+                        strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
+                        strat.run(
+                            cfg.get("job.unmasking.iterations"),
+                            cfg.get("job.unmasking.vector_size"),
+                            feature_set,
+                            cfg.get("job.unmasking.relative"),
+                            cfg.get("job.unmasking.folds"),
+                            cfg.get("job.unmasking.monotonize"))
+
+                    for output in self.outputs:
+                        output.save(output_dir)
+                        output.reset()
                 
             for aggregator in self.aggregators:
                 aggregator.save(output_dir)
                 aggregator.reset()
         finally:
             print("Time taken: {:.03f} seconds.".format(time() - start_time))
+
+    def _expand_dict(self, d: Dict[str, Any], keys: Tuple[str], values: Tuple) -> Dict[str, Any]:
+        """
+        Expand variables in configuration dictionary.
+
+        :param d: dict to expand
+        :param keys: replacement keys
+        :param values: expansion values (in the same order as keys)
+        :return: expanded dict
+        """
+        expanded = {}
+        for k in d:
+            expanded[k] = d[k]
+
+            if type(d[k]) is dict:
+                expanded[k] = self._expand_dict(d[k], keys, values)
+            elif type(d[k]) is str:
+                for repl, val in zip(keys, values):
+                    if "$" + repl in d[k]:
+                        new_value = d[k].replace("$" + repl, str(val))
+                        try:
+                            expanded[k] = type(val)(new_value)
+                        except (TypeError, ValueError):
+                            expanded[k] = new_value
+        return expanded

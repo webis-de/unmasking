@@ -12,14 +12,17 @@ class YamlLoader(ConfigLoader):
     def __init__(self):
         self._config = {}
 
-    def get(self, name: str) -> Any:
+    def get(self, name: str = None) -> Any:
         """
         Get configuration option. Use dot notation to reference hierarchies of options.
 
-        :param name: dot-separated config option path
+        :param name: dot-separated config option path, None to get full config dict
         :return: option value
         :raise: KeyError if option not found
         """
+        if name is None:
+            return self._config
+
         keys = name.split(".")
         cfg = self._config
         for k in keys:
@@ -37,6 +40,9 @@ class YamlLoader(ConfigLoader):
             raise RuntimeError("Invalid configuration file")
 
         self._config = self._parse_dot_notation(cfg)
+
+    def set(self, cfg: Dict[str, Any]):
+        self._config = cfg
 
     def _parse_dot_notation(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
         parsed_cfg = {}
@@ -64,14 +70,28 @@ class JobConfigLoader(YamlLoader):
     Job configuration loader class with fallback to default configuration.
     """
 
-    def __init__(self):
+    _default_config = None
+
+    def __init__(self, cfg : Dict[str, Any] = None):
+        """
+        :param cfg: optional configuration dict to construct configuration from
+        """
         super().__init__()
-        self._default_config = YamlLoader()
-        self._default_config.load("etc/defaults.yml")
+
+        if self._default_config is None:
+            self._default_config = YamlLoader()
+            self._default_config.load("etc/defaults.yml")
+
+        if cfg is not None:
+            self.set(cfg)
 
     def load(self, filename: str):
         super().load(filename)
-        self._config = self._resolve_inheritance(self._config)
+        self._config.update(self._resolve_inheritance(self._config))
+
+    def set(self, cfg : Dict[str, Any]):
+        super().set(cfg)
+        self._config.update(self._resolve_inheritance(self._config))
     
     def _resolve_inheritance(self, d: Dict[str, Any], path: str = ""):
         for k in d:
@@ -98,9 +118,3 @@ class JobConfigLoader(YamlLoader):
                 d[k] = self._resolve_inheritance(d[k], path + "." + k if path != "" else k)
 
         return d
-
-    def get(self, name: str) -> Any:
-        try:
-            return super().get(name)
-        except KeyError:
-            return self._default_config.get(name)

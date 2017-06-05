@@ -3,14 +3,14 @@
 # from the default configuration.
 
 ---
-job:
+job%:
   # Input corpus options
   input:
     # Corpus parser class
     parser:
       name: input.formats.BookSampleParser
       parameters:
-        corpus_path: examples/corpora/gutenberg_test
+        corpus_path: examples/gutenberg_test/corpus
 
     # Tokenizer for creating chunks from input texts
     tokenizer:
@@ -18,19 +18,31 @@ job:
 
       # Tokenizer-specific parameters
       parameters:
-        chunk_size: 500
+        chunk_size: $chunk_size
         language: "english"
 
-  # Specify outputs, but inherit already configured outputs
-  # from the default configuration.
-  outputs%:
-    - name: output.formats.ProgressPrinter
-      parameters:
-        text: Overall pair-building progress
+  unmasking%.iterations: 30
+
+  # Specify outputs. Since we are overriding the settings for the
+  # UnmaskingCurvePlotter, we can't inherit from the default config
+  outputs:
+    - name: output.formats.UnmaskingStatAccumulator
+      parameters: null
       events:
-        - name: onProgress
-          senders:
-            - input.formats.BookSampleParser
+        - name: onPairGenerated
+        - name: onUnmaskingFinished
+
+    - name: output.formats.UnmaskingCurvePlotter
+      parameters:
+        display: true
+        markers:
+          SAME_AUTHOR: ["o", "same author", "#009900"]
+          DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
+
+        ylim: [0.0, 1.0]
+        xlim: [0, 24]
+      events:
+        - name: onUnmaskingRoundFinished
 
     - name: output.formats.ProgressPrinter
       parameters:
@@ -39,3 +51,8 @@ job:
         - name: onProgress
           senders:
             - input.interfaces.SamplePair
+
+  experiment%.configurations:
+    # Perform and aggregate two runs, one with a chunk size of
+    # 500 and one with a chunk size of 600
+    chunk_size: [500, 600]

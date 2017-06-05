@@ -24,7 +24,7 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 from conf.loader import JobConfigLoader
-from job.executors import DefaultExecutor
+from job.executors import ExpandingExecutor
 
 import argparse
 import os
@@ -58,7 +58,7 @@ def main():
     config_loader.load(args.config)
 
     try:
-        executor = DefaultExecutor()
+        executor = ExpandingExecutor()
         executor.run(config_loader)
     except KeyboardInterrupt:
         print("Exited upon user request.", file=sys.stderr)

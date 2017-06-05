@@ -62,6 +62,8 @@ class BookSampleParser(CorpusParser):
             
             # read in all directory and file names and build
             # file -> author and author -> files maps
+            if not os.path.isdir(self._parser.corpus_path):
+                raise IOError("Corpus '{}' not found".format(self._parser.corpus_path))
             dirs = os.listdir(self._parser.corpus_path)
             for d in dirs:
                 dir_path = os.path.join(self._parser.corpus_path, d)

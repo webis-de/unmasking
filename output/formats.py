@@ -64,14 +64,14 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         self.add_curve(event.pair.cls, event.pair, event.values)
 
     def add_curve(self, identifier: int, cls: SamplePair.Class, values: List[float]):
-        agg = identifier
+        agg = str(identifier)
         if self._aggregate_by_class:
-            agg = cls
+            agg = str(cls)
             identifier = None
 
         if agg not in self._curves:
             self._curves[agg] = []
-        self._curves[agg].append((identifier, cls, values))
+        self._curves[agg].append((identifier, str(cls), values))
 
     def get_aggregated_curves(self) -> Dict[Any, Tuple[int, SamplePair.Class, List[float]]]:
         avg_curves = {}

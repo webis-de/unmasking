@@ -4,6 +4,12 @@
 # These values can be overridden via job-specific configuration files
 # You can append % to the names of objects or lists in your job config
 # to inherit from this default configuration.
+#
+# You can use variables starting with $ for values which are defined
+# in job.experiment.configurations. The definition consists of a list
+# of values for this variable, each representing a separate experiment
+# configuration. The specified aggregator will be used to aggregate
+# results of multiple configurations.
 
 ---
 
@@ -13,7 +19,7 @@ job:
   #
   # You can also specify an optional dictionary of parameters for
   # configuring properties of this feature set.
-  classifier.featureSet:
+  classifier.feature_set:
     name: classifier.features.AvgWordFreqFeatureSet
     parameters: null
 
@@ -36,7 +42,7 @@ job:
     iterations: 10
 
     # Feature vector size
-    vectorSize: 250
+    vector_size: 250
 
     # Number of cross-validation folds for comparing two texts of a pair
     folds: 10
@@ -86,12 +92,35 @@ job:
 
   # Global experiment settings
   experiment:
-    # Number of repeated runs to perform of an experiment
-    # (default: 1, i.e. an experiment is only run once).
+    # Definition of values for experiment configurations.
+    # This is a dictionary of variable names mapping to a vector of possible
+    # configuration values. An experiment will be run multiple times, once
+    # per configuration value.
+    configurations: null
+
+    # Expander for experiment configurations.
+    #
+    # Options are:
+    # - job.configuration.SequentialExpander
+    # - job.configuration.ProductExpander
+    #
+    # The zip expander will generate n configurations for m vectors
+    # containing n values each (vectors must have the same length).
+    # The product expander will generate the Cartesian product with all
+    # n^m (or n1*n2*...*nn for vectors of different lengths) possible
+    # combinations
+    #
+    # WARNING: building the Cartesian product is linear to the number of
+    # dimensions of a single vector, but exponential to the overall number
+    # of vectors. Make sure you have enough memory.
+    configuration_expander:
+      name: job.configuration.ZipExpander
+
+    # Number of repeated runs to perform per configuration
     repetitions: 1
 
-    # Aggregator formats to aggregate experiment outputs
-    # over various runs.
+    # Aggregator formats to aggregate results of multiple runs
+    # of various configurations.
     # Parameters are the same as for outputs.
     aggregators:
       - name: output.formats.CurveAverageAggregator

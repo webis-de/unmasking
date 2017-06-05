@@ -5,7 +5,7 @@ from output.interfaces import Output, Aggregator
 
 from abc import abstractmethod, ABC
 from importlib import import_module
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List, Tuple
 
 
 class JobExecutor(ABC):
@@ -115,5 +115,25 @@ class JobExecutor(ABC):
         Execute job with given job configuration.
 
         :param conf: job configuration loader
+        """
+        pass
+
+
+class ConfigurationExpander(ABC):
+    """
+    Base class for configuration expanders.
+    """
+
+    @abstractmethod
+    def expand(self, configuration_vectors: Iterable[Tuple]) -> Iterable[Tuple]:
+        """
+        Expand the given configuration vectors based on a certain expansion strategy.
+
+        Generates an iterable sequence of n-dimensional vectors from an input
+        Iterable of n configuration vectors where each vector represents a
+        single configuration.
+
+        :param configuration_vectors: input vectors with configuration values
+        :return: list of expanded configuration vectors
         """
         pass
