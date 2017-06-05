@@ -59,6 +59,8 @@ class BookSampleParser(CorpusParser):
             
             # de-duplication of single-text pairs
             self._single_text_pairs = []
+
+            self._pair_num = 0
             
             # read in all directory and file names and build
             # file -> author and author -> files maps
@@ -80,9 +82,9 @@ class BookSampleParser(CorpusParser):
                     self._authors[d].append(file_path)
             
             self._iterator1 = iter(self._files)
-            
+
             # progress publisher
-            self._progress_event = ProgressEvent(len(self._files))
+            self._progress_event = ProgressEvent(ProgressEvent.generate_group_id(self._files), 0, len(self._files))
         
         def __next__(self) -> SamplePair:
             # next text
@@ -90,7 +92,7 @@ class BookSampleParser(CorpusParser):
                 EventBroadcaster.publish("onProgress", self._progress_event, self._parser.__class__)
                 self._next1 = next(self._iterator1)
                 self._iterator2 = iter(self._authors)
-                self._progress_event.increment()
+                self._progress_event = ProgressEvent.new_event(self._progress_event)
                 with open(self._next1, "r", encoding="utf-8", errors="ignore") as handle:
                     self._current_file_contents = handle.read()
             
@@ -128,11 +130,14 @@ class BookSampleParser(CorpusParser):
             cls = self._parser.Class.DIFFERENT_AUTHORS
             if self._files[self._next1] == self._next2:
                 cls = self._parser.Class.SAME_AUTHOR
-            
+
             pair = SamplePair([self._current_file_contents], compare_texts, cls, self._parser.chunk_tokenizer)
+            group_id = PairGenerationEvent.generate_group_id(["a:" + self._next1] + ["b:" + n for n in comp_file_names])
             EventBroadcaster.publish("onPairGenerated",
-                                     PairGenerationEvent(pair, [self._next1], comp_file_names),
+                                     PairGenerationEvent(group_id, self._pair_num,
+                                                         pair, [self._next1], comp_file_names),
                                      self._parser.__class__)
+            self._pair_num += 1
             return pair
     
     def __iter__(self) -> BookSampleParserIterator:
@@ -211,6 +216,8 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
             if len(texts_by_portals[p]) < 50:
                 discard.append(p)
         texts_by_portals = {k: v for (k, v) in texts_by_portals.items() if k not in discard}
+
+        pair_num = 0
         
         for cls1 in texts_by_portals:
             num_texts1 = len(texts_by_portals[cls1])
@@ -275,9 +282,11 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
                     pair_class = self.Class.SAME_PORTAL
                 
                 pair = SamplePair(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
+                group_id = PairGenerationEvent.generate_group_id([pair.pair_id])
                 EventBroadcaster.publish("onPairGenerated",
-                                         PairGenerationEvent(pair, file_names_a, file_names_b),
+                                         PairGenerationEvent(group_id, pair_num, pair, file_names_a, file_names_b),
                                          self.__class__)
+                pair_num += 1
                 yield pair
         
 
@@ -469,6 +478,8 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
         # compound classes to build
         processed_comp_classes = []
 
+        pair_num = 0
+
         for cls1 in texts_by_class:
             num_texts1 = len(texts_by_class[cls1])
             
@@ -552,9 +563,11 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                     #    drawn_b = []
                                
                 pair = SamplePair(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
+                group_id = PairGenerationEvent.generate_group_id([pair.pair_id])
                 EventBroadcaster.publish("onPairGenerated",
-                                         PairGenerationEvent(pair, file_names_a, file_names_b),
+                                         PairGenerationEvent(group_id, pair_num, pair, file_names_a, file_names_b),
                                          self.__class__)
+                pair_num += 1
                 yield pair
 
 
@@ -584,6 +597,8 @@ class PanParser(CorpusParser):
                     if 2 != len(tmp):
                         continue
                     ground_truth[tmp[0]] = (tmp[1].upper() == "Y")
+
+        pair_num = 0
         
         for case_dir in glob(self.corpus_path + "/*"):
             if not os.path.isdir(case_dir) or \
@@ -609,7 +624,9 @@ class PanParser(CorpusParser):
                 cls = self.Class.SAME_AUTHOR if ground_truth[case] else self.Class.DIFFERENT_AUTHORS
             
             pair = SamplePair(chunks_a, chunks_b, cls, self.chunk_tokenizer)
+            group_id = PairGenerationEvent.generate_group_id([pair.pair_id])
             EventBroadcaster.publish("onPairGenerated",
-                                     PairGenerationEvent(pair, [file_name_a], file_names_b),
+                                     PairGenerationEvent(group_id, pair_num, pair, [file_name_a], file_names_b),
                                      self.__class__)
+            pair_num += 1
             yield pair

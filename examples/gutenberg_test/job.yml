@@ -21,7 +21,7 @@ job%:
         chunk_size: $chunk_size
         language: "english"
 
-  unmasking%.iterations: 30
+  unmasking%.iterations: 24
 
   # Specify outputs. Since we are overriding the settings for the
   # UnmaskingCurvePlotter, we can't inherit from the default config

@@ -61,9 +61,9 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         if name != "onUnmaskingFinished":
             return
         
-        self.add_curve(event.pair.cls, event.pair, event.values)
+        self.add_curve(event.pair.pair_id, event.pair.cls, event.values)
 
-    def add_curve(self, identifier: int, cls: SamplePair.Class, values: List[float]):
+    def add_curve(self, identifier: str, cls: SamplePair.Class, values: List[float]):
         agg = str(identifier)
         if self._aggregate_by_class:
             agg = str(cls)
@@ -71,6 +71,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
 
         if agg not in self._curves:
             self._curves[agg] = []
+
         self._curves[agg].append((str(identifier), str(cls), values))
 
     def get_aggregated_curves(self) -> Dict[Any, Tuple[int, SamplePair.Class, List[float]]]:
@@ -139,11 +140,11 @@ class UnmaskingStatAccumulator(EventHandler, Output):
 
     # noinspection PyUnresolvedReferences,PyTypeChecker
     def handle(self, name: str, event: Event, sender: type):
-        if type(event) != UnmaskingTrainCurveEvent and type(event) != PairGenerationEvent:
+        if type(event) is not UnmaskingTrainCurveEvent and type(event) is not PairGenerationEvent:
             return
         
         pair = event.pair
-        pair_id = id(event.pair)
+        pair_id = pair.pair_id
         if event.pair is not None and pair_id not in self._stats["curves"]:
             self._stats["curves"][pair_id] = {}
         
@@ -212,7 +213,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         
         self._next_curve_id = 0
         self._curve_ids = []
-        self._events_to_cids = {}
+        self._events_to_pair_ids = {}
         
         self._last_points = {}
         
@@ -263,10 +264,10 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._display = display
     
     def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
-        if event not in self._events_to_cids:
-            self._events_to_cids[event] = self.start_new_curve()
-        
-        self.plot_curve(event.values, event.pair.cls, self._events_to_cids[event])
+        if event.pair.pair_id not in self._events_to_pair_ids:
+            self._events_to_pair_ids[event.pair.pair_id] = self.start_new_curve()
+
+        self.plot_curve(event.values, event.pair.cls, self._events_to_pair_ids[event.pair.pair_id])
     
     def start_new_curve(self) -> int:
         """
@@ -360,7 +361,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     def reset(self):
         self._next_curve_id = 0
         self._curve_ids = []
-        self._events_to_cids = {}
+        self._events_to_pair_ids = {}
         self._last_points = {}
         self._is_displayed = False
     

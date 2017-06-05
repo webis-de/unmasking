@@ -66,13 +66,14 @@ class ExpandingExecutor(JobExecutor):
                 parser = self._configure_instance(cfg.get("job.input.parser"), chunk_tokenizer)
                 iterations = cfg.get("job.experiment.repetitions")
 
+                strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
                 for rep in range(0, iterations):
                     for i, pair in enumerate(parser):
                         sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
                         feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
 
-                        strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
                         strat.run(
+                            pair,
                             cfg.get("job.unmasking.iterations"),
                             cfg.get("job.unmasking.vector_size"),
                             feature_set,

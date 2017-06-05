@@ -42,7 +42,7 @@ class Aggregator(Output, ABC):
     """
 
     @abstractmethod
-    def add_curve(self, identifier: int, cls: SamplePair.Class, values: List[float]):
+    def add_curve(self, identifier: str, cls: SamplePair.Class, values: List[float]):
         """
         Add curve to aggregation for given class.
 

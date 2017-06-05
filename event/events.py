@@ -8,53 +8,36 @@ class ProgressEvent(Event):
     Event for indicating progress of an operation with a fixed number of steps to be performed.
     """
     
-    def __init__(self, ops_total: int = 1):
+    def __init__(self, group_id: str, serial: int, events_total: int = 1):
         """
-        :param ops_total: total number of operations / steps that will be performed
+        :param group_id: event group ID token
+        :param serial: event serial number
+        :param events_total: total number of events that will be sent in this event group
         """
-        super().__init__()
+        super().__init__(group_id, serial)
         
-        if ops_total < 1:
-            raise AttributeError("ops_total must be greater than 1")
-        
-        self._ops_done = 0
-        self._ops_total = ops_total
+        if events_total < 1:
+            raise AttributeError("events_total must be greater than 0")
+
+        self._events_total = events_total
+
+    def clone(self) -> Event:
+        return ProgressEvent(self.group_id, self.serial, self._events_total)
     
     @property
-    def ops_total(self) -> int:
-        """Get total number of operations / steps that will be performed."""
-        return self._ops_total
-    
-    @property
-    def ops_done(self) -> int:
-        """Get number of operations that have been completed so far."""
-        return self._ops_done
-    
-    @ops_done.setter
-    def ops_done(self, new_val: int):
-        """Update number of operations that have been completed."""
-        if new_val > self._ops_total:
-            raise AttributeError("ops_done cannot be larger than total number of operations")
-        self._ops_done = new_val
+    def events_total(self) -> int:
+        """Get total number of events that will be sent in this event group."""
+        return self._events_total
     
     @property
     def percent_done(self) -> float:
         """Total progress in percent."""
-        return (float(self._ops_done) / self.ops_total) * 100.0
+        return (float(self.serial) / self.events_total) * 100.0
     
     @property
     def finished(self) -> bool:
         """True if all operations have finished."""
-        return self._ops_done >= self._ops_total
-    
-    def increment(self, steps: int = 1):
-        """
-        Increment completed operations counter.
-        If the counter would exceed the set total number of operations, no further increments will be added.
-        
-        :param steps: how many steps to increment
-        """
-        self._ops_done = min(self._ops_done + steps, self._ops_total)
+        return self.serial >= self._events_total
 
 
 class UnmaskingTrainCurveEvent(Event):
@@ -62,17 +45,24 @@ class UnmaskingTrainCurveEvent(Event):
     Event for updating training curves of pairs during unmasking.
     """
     
-    def __init__(self, n: int = 0, pair=None, feature_set: type = None):
+    def __init__(self, group_id: str, serial: int, n: int = 0, pair: "SamplePair" = None, feature_set: type = None):
         """
+        :param group_id: event group ID token
+        :param serial: event serial number
         :param n: predicted final number of total values (should be set to the total number of unmasking iterations)
         :param pair: pair for which this curve is being calculated
         :param feature_set: feature set class used for generating this curve
         """
-        super().__init__()
+        super().__init__(group_id, serial)
         self._n = n
         self._values = []
         self._pair = pair
         self._feature_set = feature_set
+
+    def clone(self) -> Event:
+        clone = UnmaskingTrainCurveEvent(self.group_id, self.serial, self._n, self._pair, self._feature_set)
+        clone._values = self._values
+        return clone
     
     @property
     def pair(self):
@@ -127,15 +117,22 @@ class PairGenerationEvent(Event):
     Event for status reports on pair generation.
     """
     
-    def __init__(self, pair=None, files_a: Optional[List[str]] = None, files_b: Optional[List[str]] = None):
+    def __init__(self, group_id: str, serial: int, pair: "SamplePair" = None,
+                 files_a: Optional[List[str]] = None, files_b: Optional[List[str]] = None):
         """
+        :param group_id: event group ID token
+        :param serial: event serial number
         :param pair: pair for which this event is emitted
         :param files_a: participating files for chunk set a
         :param files_b: participating files for chunk set b
         """
+        super().__init__(group_id, serial)
         self._pair = pair
         self._files_a = [] if files_a is None else files_a
         self._files_b = [] if files_b is None else files_b
+
+    def clone(self) -> Event:
+        return PairGenerationEvent(self.group_id, self.serial, self._pair, self._files_a, self._files_b)
     
     @property
     def pair(self):

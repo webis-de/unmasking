@@ -5,6 +5,7 @@ from conf.interfaces import Configurable
 from abc import ABC, abstractmethod
 from enum import Enum, unique
 from typing import Iterable, List
+from uuid import UUID, uuid5
 
 
 class Tokenizer(ABC, Configurable):
@@ -14,7 +15,7 @@ class Tokenizer(ABC, Configurable):
     Tokenizer properties with setters defined via @property.setter
     can be set at runtime via job configuration.
     """
-    
+
     @abstractmethod
     def tokenize(self, text: str) -> Iterable[str]:
         """
@@ -35,20 +36,22 @@ class SamplePair:
     * `onProgress`: [type: ProgressEvent]
                     fired during chunk generation to indicate current progress
     """
-    
+
+    SAMPLE_PAIR_NS = UUID("412bd9f0-4c61-4bb7-a7f2-c88be2f9555c")
+
     @unique
     class Class(Enum):
         """
         Base enumeration type for pairs. Members designating specific pair classes can be
         defined in sub-types of this enum type.
         """
-        
+
         def __repr__(self):
             return self.name
-        
+
         def __str__(self):
             return self.__repr__()
-        
+
         def __eq__(self, other):
             if other is None and self.value == -1:
                 return True
@@ -63,10 +66,10 @@ class SamplePair:
                     return False
                 else:
                     return bool(self.value) == other
-        
+
         def __hash__(self):
             return self.__repr__().__hash__()
-    
+
     def __init__(self, a: List[str], b: List[str], cls: Class, chunk_tokenizer: Tokenizer):
         """
         Initialize pair of sample texts. Expects a set of main texts ``a`` and one
@@ -79,35 +82,49 @@ class SamplePair:
         :param cls: class of the pair
         :param chunk_tokenizer: chunk tokenizer
         """
-        
+
         self._cls = cls
         self._chunk_tokenizer = chunk_tokenizer
-        
-        self._progress_event = ProgressEvent(len(a) + len(b))
+
+        self._a = a
+        self._b = b
+        self._pair_id = None
+
+        group_id = ProgressEvent.generate_group_id([self.pair_id])
+        total_events = len(a) + len(b)
+        self._progress_event = ProgressEvent(group_id, 0, total_events)
         EventBroadcaster.publish("onProgress", self._progress_event, self.__class__)
-        
+
         self._chunks_a = []
         for t in a:
             self._chunks_a.extend(self._chunk_tokenizer.tokenize(t))
-            self._progress_event.increment()
+            self._progress_event = ProgressEvent.new_event(self._progress_event)
             EventBroadcaster.publish("onProgress", self._progress_event, self.__class__)
-        
+
         self._chunks_b = []
         for t in b:
             self._chunks_b.extend(self._chunk_tokenizer.tokenize(t))
-            self._progress_event.increment()
+            self._progress_event = ProgressEvent.new_event(self._progress_event)
             EventBroadcaster.publish("onProgress", self._progress_event, self.__class__)
-    
+
     @property
     def cls(self) -> Class:
         """Class (same author|different authors|unspecified)"""
         return self._cls
-    
+
+    @property
+    def pair_id(self) -> str:
+        """UUID string identifying a pair based on its set of texts."""
+        if self._pair_id is None:
+            self._pair_id = str(uuid5(self.SAMPLE_PAIR_NS, "\n".join(sorted(self._a) + sorted(self._b))))
+
+        return self._pair_id
+
     @property
     def chunks_a(self) -> List[str]:
         """Chunks of first text (text to verify)"""
         return self._chunks_a
-    
+
     @property
     def chunks_b(self) -> List[str]:
         """Chunks of texts to compare the first text (a) with"""
@@ -118,7 +135,7 @@ class CorpusParser(ABC, Configurable):
     """
     Base class for corpus parsers.
     """
-    
+
     def __init__(self, chunk_tokenizer: Tokenizer, corpus_path: str = None):
         """
         :param corpus_path: path to the corpus directory
@@ -126,17 +143,17 @@ class CorpusParser(ABC, Configurable):
         """
         self._corpus_path = corpus_path
         self.chunk_tokenizer = chunk_tokenizer
-    
+
     @property
     def corpus_path(self) -> str:
         """Get corpus path"""
         return self._corpus_path
-    
+
     @corpus_path.setter
     def corpus_path(self, path: str):
         """Set corpus path"""
         self._corpus_path = path
-    
+
     @abstractmethod
     def __iter__(self) -> Iterable[SamplePair]:
         """
@@ -146,12 +163,3 @@ class CorpusParser(ABC, Configurable):
         :return: iterable of SamplePairs
         """
         pass
-    
-    def get_all_pairs(self) -> List[SamplePair]:
-        """
-        :return: list of all pairs in the current corpus
-        """
-        pairs = []
-        for p in self:
-            pairs.append(p)
-        return pairs
