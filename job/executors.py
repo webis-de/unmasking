@@ -52,10 +52,14 @@ class ExpandingExecutor(JobExecutor):
         
         start_time = time()
         try:
-            for vector in expanded_vectors:
+            for config_index, vector in enumerate(expanded_vectors):
                 if vector:
+                    config_output_dir = os.path.join(output_dir, "config_{}".format(config_index))
                     cfg = JobConfigLoader(self._expand_dict(self._config.get(), config_variables, vector))
+                    os.makedirs(config_output_dir)
+                    cfg.save(os.path.join(config_output_dir, "job_expanded"))
                 else:
+                    config_output_dir = output_dir
                     cfg = JobConfigLoader(self._config.get())
 
                 chunk_tokenizer = self._configure_instance(cfg.get("job.input.tokenizer"))
@@ -77,7 +81,7 @@ class ExpandingExecutor(JobExecutor):
                             cfg.get("job.unmasking.monotonize"))
 
                     for output in self.outputs:
-                        output.save(output_dir)
+                        output.save(config_output_dir)
                         output.reset()
                 
             for aggregator in self.aggregators:
