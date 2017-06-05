@@ -54,7 +54,7 @@ class ExpandingExecutor(JobExecutor):
         try:
             for config_index, vector in enumerate(expanded_vectors):
                 if vector:
-                    config_output_dir = os.path.join(output_dir, "config_{}".format(config_index))
+                    config_output_dir = os.path.join(output_dir, "config_{:05d}".format(config_index))
                     cfg = JobConfigLoader(self._expand_dict(self._config.get(), config_variables, vector))
                     os.makedirs(config_output_dir)
                     cfg.save(os.path.join(config_output_dir, "job_expanded"))
