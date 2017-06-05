@@ -15,7 +15,7 @@ class ConfigLoader(ABC):
     @abstractmethod
     def set(self, cfg: Dict[str, Any]):
         """
-        Set configuration from given dictioanry.
+        Set configuration from given dictionary.
 
         :param cfg: configuration dict
         """
