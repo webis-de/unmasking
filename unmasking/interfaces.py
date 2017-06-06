@@ -101,7 +101,8 @@ class UnmaskingStrategy(ABC, Configurable):
                     EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
                     event = UnmaskingTrainCurveEvent.new_event(event)
 
-                X = self.transform(X, coef)
+                if i < m - 1:
+                    X = self.transform(X, coef)
             except ValueError:
                 continue
 

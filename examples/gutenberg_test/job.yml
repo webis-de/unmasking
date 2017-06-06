@@ -40,7 +40,7 @@ job%:
           DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
 
         ylim: [0.0, 1.0]
-        xlim: [0, 24]
+        xlim: [0, 23]
       events:
         - name: onUnmaskingRoundFinished
 

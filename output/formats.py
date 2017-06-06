@@ -57,8 +57,8 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         self._meta_data = meta_data if meta_data is not None else {}
         self._aggregate_by_class = False
 
-    def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
-        if name != "onUnmaskingFinished":
+    def handle(self, name: str, event: Event, sender: type):
+        if not isinstance(event, UnmaskingTrainCurveEvent):
             return
         
         self.add_curve(event.pair.pair_id, event.pair.cls, event.values)
@@ -77,10 +77,14 @@ class CurveAverageAggregator(EventHandler, Aggregator):
     def get_aggregated_curves(self) -> Dict[Any, Tuple[int, SamplePair.Class, List[float]]]:
         avg_curves = {}
         for c in self._curves:
-            curves = [c for c in zip(*self._curves[c])][2]
-            avg_curves[c] = (self._curves[c][-1][0],
-                             self._curves[c][-1][1],
-                             [sum(e) / len(e) for e in zip(curves)])
+            avg_curves[c] = {}
+            if self._aggregate_by_class:
+                avg_curves[c]["curve_id"] = self._curves[c][-1][0]
+            else:
+                avg_curves[c]["cls"] = self._curves[c][-1][1]
+
+            curves = [x for x in zip(*self._curves[c])][2]
+            avg_curves[c]["curve"] = [sum(x) / len(x) for x in zip(*curves)]
         
         return avg_curves
 
@@ -95,7 +99,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
             self._meta_data["aggregate_key"] = "class" if self._aggregate_by_class else "curve_id"
             stats = {
                 "meta": self._meta_data,
-                "curves": self._curves
+                "curves": self.get_aggregated_curves()
             }
             json.dump(stats, f, indent=2)
 
