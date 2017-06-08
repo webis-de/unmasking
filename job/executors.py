@@ -1,5 +1,7 @@
 from conf.interfaces import ConfigLoader
 from conf.loader import JobConfigLoader
+from event.dispatch import EventBroadcaster
+from event.events import ConfigurationFinishedEvent, JobFinishedEvent
 from job.interfaces import JobExecutor, ConfigurationExpander
 
 import os
@@ -16,7 +18,15 @@ class ExpandingExecutor(JobExecutor):
     job.experiment.configurations and job.experiment.configuration_expander settings.
     job.experiment.repetitions controls how often each individual configuration is run.
 
-    Multiple runs are aggregated based on the job.experiment.aggregators setting.
+    Multiple runs are aggregated based on the job.experiment.aggregators setting.Events published by this class:
+
+    Events published by this class:
+
+    * `onConfigurationFinished`: [type: ConfigurationFinishedEvent]
+                                 fired after an individual configuration has finished execution.
+    * `onJobFinished`:           [type JobFinishedEvent]
+                                 fired when the job has finished, but before aggregators are asked
+                                 to save their outputs
     """
     
     def __init__(self):
@@ -88,7 +98,13 @@ class ExpandingExecutor(JobExecutor):
                     for output in self.outputs:
                         output.save(config_output_dir)
                         output.reset()
-                
+
+                event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
+                EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
+
+            event = JobFinishedEvent(job_id, 0, self.aggregators)
+            EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
+
             for aggregator in self.aggregators:
                 aggregator.save(output_dir)
                 aggregator.reset()

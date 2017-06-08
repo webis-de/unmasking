@@ -1,8 +1,7 @@
 from input.interfaces import SamplePair
 
-import numpy
-
 from abc import ABC, abstractmethod
+import numpy
 from typing import Iterable, Tuple
 
 

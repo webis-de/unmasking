@@ -59,7 +59,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
 
     def handle(self, name: str, event: Event, sender: type):
         if not isinstance(event, UnmaskingTrainCurveEvent):
-            return
+            raise TypeError("event must be of type UnmaskingTrainCurveEvent")
         
         self.add_curve(event.pair.pair_id, event.pair.cls, event.values)
 
@@ -144,8 +144,8 @@ class UnmaskingStatAccumulator(EventHandler, Output):
 
     # noinspection PyUnresolvedReferences,PyTypeChecker
     def handle(self, name: str, event: Event, sender: type):
-        if type(event) is not UnmaskingTrainCurveEvent and type(event) is not PairGenerationEvent:
-            return
+        if isinstance(event, UnmaskingTrainCurveEvent) and isinstance(event, PairGenerationEvent):
+            raise TypeError("event must be of type UnmaskingTrainCurveEvent or PairGenerationEvent")
         
         pair = event.pair
         pair_id = pair.pair_id
@@ -195,7 +195,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     Handles events: onUnmaskingRoundFinished
     """
     
-    def __init__(self,  markers: Dict[SamplePair.Class, Tuple[str, str, Optional[str]]] = None,
+    def __init__(self, markers: Dict[SamplePair.Class, Tuple[str, str, Optional[str]]] = None,
                  ylim: Tuple[float, float] = (0, 1.0), display: bool = False):
         """
         :param markers: dictionary of pair classes mapped to matplotlib marker codes, a
@@ -267,7 +267,10 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         """Set whether the plot will be displayed on screen"""
         self._display = display
     
-    def handle(self, name: str, event: UnmaskingTrainCurveEvent, sender: type):
+    def handle(self, name: str, event: Event, sender: type):
+        if not isinstance(event, UnmaskingTrainCurveEvent):
+            raise TypeError("event must be of type UnmaskingTrainCurveEvent")
+
         if event.pair.pair_id not in self._events_to_pair_ids:
             self._events_to_pair_ids[event.pair.pair_id] = self.start_new_curve()
 
@@ -395,3 +398,32 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             legend_labels.append(self._markers[m][1])
     
         pyplot.legend(handles=legend_handles, labels=legend_labels)
+
+
+class AggregatedCurvePlotter(UnmaskingCurvePlotter, Aggregator):
+    """
+    Plot aggregated curves.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._aggregators = []  # type: List[Aggregator]
+        self._plotter = UnmaskingCurvePlotter()
+
+    def handle(self, name: str, event: Event, sender: type):
+        pass
+
+    def reset(self):
+        self.__init__()
+
+    def get_aggregated_curves(self) -> Dict[Any, Tuple[Any, SamplePair.Class, List[float]]]:
+        curves = {}
+        for c in self._aggregators:
+            curves.update(c.get_aggregated_curves())
+        return curves
+
+    def save(self, output_dir: str):
+        pass
+
+    def add_curve(self, identifier: str, cls: SamplePair.Class, values: List[float]):
+        pass

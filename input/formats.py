@@ -1,15 +1,64 @@
 from event.dispatch import EventBroadcaster
 from event.events import PairGenerationEvent, ProgressEvent
-from input.interfaces import Tokenizer
+from input.interfaces import SamplePair, Tokenizer
 
-from input.interfaces import CorpusParser, SamplePair
+from input.interfaces import CorpusParser
 import os
 import random
 import re
 from glob import glob
-from typing import Callable, Iterable, List
+from typing import Callable, Iterable, List, Optional
 from urllib.parse import urlparse
+from uuid import uuid5
 import xml.etree.ElementTree as etree
+
+
+class SamplePairImpl(SamplePair):
+    """
+    Concrete SamplePair implementation
+    """
+
+    def __init__(self, a: List[str], b: List[str], cls: SamplePair.Class, chunk_tokenizer: Tokenizer):
+        super().__init__(a, b, cls, chunk_tokenizer)
+
+        self._pair_id = None
+
+        group_id = ProgressEvent.generate_group_id([self.pair_id])
+        total_events = len(a) + len(b)
+        self._progress_event = ProgressEvent(group_id, 0, total_events)
+
+        EventBroadcaster.publish("onProgress", self._progress_event, self.__class__.__bases__[0])
+
+        self._chunks_a = []
+        for t in a:
+            self._chunks_a.extend(self._chunk_tokenizer.tokenize(t))
+            self._progress_event = ProgressEvent.new_event(self._progress_event)
+            EventBroadcaster.publish("onProgress", self._progress_event, self.__class__.__bases__[0])
+
+        self._chunks_b = []
+        for t in b:
+            self._chunks_b.extend(self._chunk_tokenizer.tokenize(t))
+            self._progress_event = ProgressEvent.new_event(self._progress_event)
+            EventBroadcaster.publish("onProgress", self._progress_event, self.__class__.__bases__[0])
+
+    @property
+    def cls(self) -> type:
+        return self._cls
+
+    @property
+    def pair_id(self) -> Optional[str]:
+        if self._pair_id is None:
+            self._pair_id = str(uuid5(self.SAMPLE_PAIR_NS, "\n".join(sorted(self._a) + sorted(self._b))))
+
+        return self._pair_id
+
+    @property
+    def chunks_a(self) -> List[str]:
+        return self._chunks_a
+
+    @property
+    def chunks_b(self) -> List[str]:
+        return self._chunks_b
 
 
 class BookSampleParser(CorpusParser):
@@ -37,7 +86,7 @@ class BookSampleParser(CorpusParser):
                          fired when a pair has been generated
     """
 
-    class Class(SamplePair.Class):
+    class Class(SamplePairImpl.Class):
         UNSPECIFIED = -1
         DIFFERENT_AUTHORS = 0
         SAME_AUTHOR = 1
@@ -131,7 +180,7 @@ class BookSampleParser(CorpusParser):
             if self._files[self._next1] == self._next2:
                 cls = self._parser.Class.SAME_AUTHOR
 
-            pair = SamplePair([self._current_file_contents], compare_texts, cls, self._parser.chunk_tokenizer)
+            pair = SamplePairImpl([self._current_file_contents], compare_texts, cls, self._parser.chunk_tokenizer)
             group_id = PairGenerationEvent.generate_group_id(["a:" + self._next1] + ["b:" + n for n in comp_file_names])
             EventBroadcaster.publish("onPairGenerated",
                                      PairGenerationEvent(group_id, self._pair_num,
@@ -160,7 +209,7 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
                          fired when a pair has been generated
     """
     
-    class Class(SamplePair.Class):
+    class Class(SamplePairImpl.Class):
         UNSPECIFIED = -1
         SAME_PORTAL = 0
         DIFFERENT_PORTALS = 1
@@ -281,7 +330,7 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
                 if cls1 == cls2:
                     pair_class = self.Class.SAME_PORTAL
                 
-                pair = SamplePair(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
+                pair = SamplePairImpl(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
                 group_id = PairGenerationEvent.generate_group_id([pair.pair_id])
                 EventBroadcaster.publish("onPairGenerated",
                                          PairGenerationEvent(group_id, pair_num, pair, file_names_a, file_names_b),
@@ -304,7 +353,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                          fired when a pair has been generated
     """
     
-    class PairClass(SamplePair.Class):
+    class PairClass(SamplePairImpl.Class):
         UNSPECIFIED = -1
         
         LEFT_LEFT = 0
@@ -326,7 +375,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
         FAKE_RIGHT_REAL_RIGHT = 22
         REAL_RIGHT_REAL_LEFT = 23
         
-    class SingleTextClass(SamplePair.Class):
+    class SingleTextClass(SamplePairImpl.Class):
         UNSPECIFIED = -1
         
         LEFT = 0
@@ -562,7 +611,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                     #elif pair_counter < self._samples // 2 and len(drawn_b) >= num_texts2:
                     #    drawn_b = []
                                
-                pair = SamplePair(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
+                pair = SamplePairImpl(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
                 group_id = PairGenerationEvent.generate_group_id([pair.pair_id])
                 EventBroadcaster.publish("onPairGenerated",
                                          PairGenerationEvent(group_id, pair_num, pair, file_names_a, file_names_b),
@@ -582,7 +631,7 @@ class PanParser(CorpusParser):
                          fired when a pair has been generated
     """
     
-    class Class(SamplePair.Class):
+    class Class(SamplePairImpl.Class):
         UNSPECIFIED = -1
         DIFFERENT_AUTHORS = 0
         SAME_AUTHOR = 1
@@ -623,7 +672,7 @@ class PanParser(CorpusParser):
             if case in ground_truth:
                 cls = self.Class.SAME_AUTHOR if ground_truth[case] else self.Class.DIFFERENT_AUTHORS
             
-            pair = SamplePair(chunks_a, chunks_b, cls, self.chunk_tokenizer)
+            pair = SamplePairImpl(chunks_a, chunks_b, cls, self.chunk_tokenizer)
             group_id = PairGenerationEvent.generate_group_id([pair.pair_id])
             EventBroadcaster.publish("onPairGenerated",
                                      PairGenerationEvent(group_id, pair_num, pair, [file_name_a], file_names_b),

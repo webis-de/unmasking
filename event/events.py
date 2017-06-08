@@ -1,4 +1,6 @@
 from event.interfaces import Event
+from input.interfaces import SamplePair
+from output.interfaces import Aggregator
 
 from typing import List, Optional, Tuple
 
@@ -40,12 +42,46 @@ class ProgressEvent(Event):
         return self.serial >= self._events_total
 
 
+class ConfigurationFinishedEvent(Event):
+    """
+    Event fired after a job configuration has finished execution.
+    """
+    def __init__(self, group_id: str, serial: int, aggregators: List[Aggregator]):
+        """
+        :param group_id: event group ID token
+        :param serial: event serial number
+        :param aggregators: list of curve aggregators
+        """
+        super().__init__(group_id, serial)
+        self._aggregators = aggregators
+
+    @property
+    def aggregators(self) -> List[Aggregator]:
+        """Get aggregators associated with this event"""
+        return self._aggregators
+
+    def add_aggregator(self, aggregator: Aggregator):
+        """
+        Associate aggregator with this event.
+
+        :param aggregator: aggregator to add
+        """
+        self._aggregators.append(aggregator)
+
+
+class JobFinishedEvent(ConfigurationFinishedEvent):
+    """
+    Event fired when a job has finished execution.
+    """
+    pass
+
+
 class UnmaskingTrainCurveEvent(Event):
     """
     Event for updating training curves of pairs during unmasking.
     """
     
-    def __init__(self, group_id: str, serial: int, n: int = 0, pair: "SamplePair" = None, feature_set: type = None):
+    def __init__(self, group_id: str, serial: int, n: int = 0, pair: SamplePair = None, feature_set: type = None):
         """
         :param group_id: event group ID token
         :param serial: event serial number
@@ -117,7 +153,7 @@ class PairGenerationEvent(Event):
     Event for status reports on pair generation.
     """
     
-    def __init__(self, group_id: str, serial: int, pair: "SamplePair" = None,
+    def __init__(self, group_id: str, serial: int, pair: SamplePair = None,
                  files_a: Optional[List[str]] = None, files_b: Optional[List[str]] = None):
         """
         :param group_id: event group ID token

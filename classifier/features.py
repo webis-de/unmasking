@@ -1,5 +1,6 @@
 from classifier.interfaces import FeatureSet
-from classifier.sampling import SamplePair, ChunkSampler
+from classifier.sampling import ChunkSampler
+from input.interfaces import SamplePair
 from input.interfaces import Tokenizer
 from input.tokenizers import WordTokenizer, CharNgramTokenizer, DisjunctCharNgramTokenizer
 

@@ -1,11 +1,9 @@
-from event.dispatch import EventBroadcaster
-from event.events import ProgressEvent
 from conf.interfaces import Configurable
 
 from abc import ABC, abstractmethod
 from enum import Enum, unique
 from typing import Iterable, List
-from uuid import UUID, uuid5
+from uuid import UUID
 
 
 class Tokenizer(ABC, Configurable):
@@ -27,14 +25,14 @@ class Tokenizer(ABC, Configurable):
         pass
 
 
-class SamplePair:
+class SamplePair(ABC):
     """
     Pair of sample text sets.
-    
+
     Events published by this class:
-    
-    * `onProgress`: [type: ProgressEvent]
-                    fired during chunk generation to indicate current progress
+
+    * `onProgress`:          [type ProgressEvent]
+                             fired to indicate pair chunking progress
     """
 
     SAMPLE_PAIR_NS = UUID("412bd9f0-4c61-4bb7-a7f2-c88be2f9555c")
@@ -82,53 +80,35 @@ class SamplePair:
         :param cls: class of the pair
         :param chunk_tokenizer: chunk tokenizer
         """
-
         self._cls = cls
         self._chunk_tokenizer = chunk_tokenizer
 
         self._a = a
         self._b = b
-        self._pair_id = None
-
-        group_id = ProgressEvent.generate_group_id([self.pair_id])
-        total_events = len(a) + len(b)
-        self._progress_event = ProgressEvent(group_id, 0, total_events)
-        EventBroadcaster.publish("onProgress", self._progress_event, self.__class__)
-
-        self._chunks_a = []
-        for t in a:
-            self._chunks_a.extend(self._chunk_tokenizer.tokenize(t))
-            self._progress_event = ProgressEvent.new_event(self._progress_event)
-            EventBroadcaster.publish("onProgress", self._progress_event, self.__class__)
-
-        self._chunks_b = []
-        for t in b:
-            self._chunks_b.extend(self._chunk_tokenizer.tokenize(t))
-            self._progress_event = ProgressEvent.new_event(self._progress_event)
-            EventBroadcaster.publish("onProgress", self._progress_event, self.__class__)
 
     @property
+    @abstractmethod
     def cls(self) -> Class:
         """Class (same author|different authors|unspecified)"""
-        return self._cls
+        pass
 
     @property
+    @abstractmethod
     def pair_id(self) -> str:
         """UUID string identifying a pair based on its set of texts."""
-        if self._pair_id is None:
-            self._pair_id = str(uuid5(self.SAMPLE_PAIR_NS, "\n".join(sorted(self._a) + sorted(self._b))))
-
-        return self._pair_id
+        pass
 
     @property
+    @abstractmethod
     def chunks_a(self) -> List[str]:
         """Chunks of first text (text to verify)"""
-        return self._chunks_a
+        pass
 
     @property
+    @abstractmethod
     def chunks_b(self) -> List[str]:
         """Chunks of texts to compare the first text (a) with"""
-        return self._chunks_b
+        pass
 
 
 class CorpusParser(ABC, Configurable):
