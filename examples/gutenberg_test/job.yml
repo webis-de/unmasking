@@ -39,7 +39,7 @@ job%:
           SAME_AUTHOR: ["o", "same author", "#009900"]
           DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
 
-        ylim: [0.0, 1.0]
+        # Set fixed xlim values since we know how many curve points we'll be getting
         xlim: [0, 23]
       events:
         - name: onUnmaskingRoundFinished
@@ -52,7 +52,11 @@ job%:
           senders:
             - input.interfaces.SamplePair
 
-  experiment%.configurations:
-    # Perform and aggregate two runs, one with a chunk size of
-    # 500 and one with a chunk size of 600
-    chunk_size: [500, 600]
+  experiment%:
+    configurations:
+      # Perform and aggregate two runs, one with a chunk size of
+      # 500 and one with a chunk size of 600
+      chunk_size: [500, 600]
+
+    # Repeat each configuration three times
+    repetitions: 3

@@ -53,10 +53,10 @@ class Aggregator(Output, ABC):
         pass
 
     @abstractmethod
-    def get_aggregated_curves(self) -> Dict[Any, Tuple[Any, SamplePair.Class, List[float]]]:
+    def get_aggregated_curves(self) -> Dict[str, Any]:
         """
         Return aggregated curves for each sample pair.
 
-        :return: tuple containing the identifier of the aggregated curve, its class and aggregated values
+        :return: dictionary containing aggregation keys and curve data (may be another dictionary)
         """
         pass

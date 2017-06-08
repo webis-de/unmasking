@@ -62,23 +62,29 @@ job:
   #     senders:
   #       - input.formats.BookSampleParser
   outputs:
+    # Accumulate unmasking raw and meta data
     - name: output.formats.UnmaskingStatAccumulator
       parameters: null
       events:
         - name: onPairGenerated
         - name: onUnmaskingFinished
 
+    # Visualize unmasking curves
     - name: output.formats.UnmaskingCurvePlotter
       parameters:
+        # Do not display live plot, only write final image to disk
         display: false
+
+        # Configure matplotlib markers, labels and curve colors for each
+        # curve class. If curve color is null, each individual curve will
+        # get a random color.
         markers:
           SAME_AUTHOR: ["o", "same author", "#009900"]
           DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
-
-        ylim: [0.0, 1.0]
       events:
         - name: onUnmaskingRoundFinished
 
+    # Print unmasking progress information to the terminal
     - name: output.formats.ProgressPrinter
       parameters:
         text: Chunking current pair
@@ -101,7 +107,7 @@ job:
     # Expander for experiment configurations.
     #
     # Options are:
-    # - job.configuration.SequentialExpander
+    # - job.configuration.ZipExpander
     # - job.configuration.ProductExpander
     #
     # The zip expander will generate n configurations for m vectors
@@ -123,6 +129,17 @@ job:
     # of various configurations.
     # Parameters are the same as for outputs.
     aggregators:
-      - name: output.formats.CurveAverageAggregator
+      # Aggregate curves by averaging them
+      - name: output.aggregators.CurveAverageAggregator
         events:
           - name: onUnmaskingFinished
+
+      # Visualize aggregated curves
+      - name: output.aggregators.AggregatedCurvePlotter
+        parameters:
+          display: false
+          markers:
+            SAME_AUTHOR: ["o", "same author", "#009900"]
+            DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
+        events:
+          - name: onJobFinished

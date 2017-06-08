@@ -103,7 +103,7 @@ class ExpandingExecutor(JobExecutor):
                 EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
 
             event = JobFinishedEvent(job_id, 0, self.aggregators)
-            EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
+            EventBroadcaster.publish("onJobFinished", event, self.__class__)
 
             for aggregator in self.aggregators:
                 aggregator.save(output_dir)
