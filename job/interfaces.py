@@ -135,6 +135,6 @@ class ConfigurationExpander(ABC):
         single configuration.
 
         :param configuration_vectors: input vectors with configuration values
-        :return: list of expanded configuration vectors
+        :return: generator of expanded configuration vectors
         """
         pass
