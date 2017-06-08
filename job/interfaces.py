@@ -110,11 +110,12 @@ class JobExecutor(ABC):
             self._aggregators.append(agg_obj)
     
     @abstractmethod
-    def run(self, conf: ConfigLoader):
+    def run(self, conf: ConfigLoader, output_dir: str = None):
         """
         Execute job with given job configuration.
 
         :param conf: job configuration loader
+        :param output_dir: output directory
         """
         pass
 
