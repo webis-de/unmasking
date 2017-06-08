@@ -95,12 +95,6 @@ class SentenceChunkTokenizer(Tokenizer):
         """
         self._chunk_size = chunk_size
         self._language = language
-
-        try:
-            nltk.data.find('tokenizers/punkt')
-        except LookupError:
-            print("Downloading nltk punkt tokenizer. This has to be done only once.")
-            nltk.download('punkt')
     
     @property
     def chunk_size(self) -> int:
@@ -166,6 +160,12 @@ class SentenceChunkTokenizer(Tokenizer):
 
     @lru_cache(maxsize=20)
     def _get_sent_tokenizer(self, lang: str):
+        try:
+            nltk.data.find('tokenizers/punkt')
+        except LookupError:
+            print("Downloading nltk punkt tokenizer. This has to be done only once.")
+            nltk.download('punkt')
+
         return nltk.data.load('tokenizers/punkt/{}.pickle'.format(lang))
 
 
