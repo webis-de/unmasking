@@ -23,14 +23,18 @@ class ExpandingExecutor(JobExecutor):
         super().__init__()
         self._config = None
 
-    def run(self, conf: ConfigLoader):
+    def run(self, conf: ConfigLoader, output_dir: str = None):
         self._config = conf
         
         self._load_outputs(self._config)
         self._load_aggregators(self._config)
         
         job_id = "job_" + str(int(time()))
-        output_dir = os.path.join(self._config.get("job.output_dir"), job_id)
+        if output_dir is None:
+            output_dir = self._config.get("job.output_dir")
+        else:
+            output_dir = output_dir
+        output_dir = os.path.join(output_dir, job_id)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
             

@@ -43,8 +43,8 @@ def main():
     parser.add_argument("-o", "--output",
                         metavar="DIR",
                         type=str,
-                        default="unmasking-out",
-                        help="output directory")
+                        default=None,
+                        help="override output directory")
     parser.add_argument("-w", "--wait",
                         action="store_true",
                         help="wait for user confirmation after job is done")
@@ -59,7 +59,7 @@ def main():
 
     try:
         executor = ExpandingExecutor()
-        executor.run(config_loader)
+        executor.run(config_loader, args.output)
     except KeyboardInterrupt:
         print("Exited upon user request.", file=sys.stderr)
         exit(1)
