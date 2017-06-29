@@ -87,8 +87,11 @@ class ExpandingExecutor(JobExecutor):
                 strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
                 for rep in range(0, iterations):
                     with Pool() as p:
-                        results = [p.apply_async(self._exec, (strat, pair, cfg)) for pair in parser]
-                        [result.get() for result in results]
+                        for pair in parser:
+                            p.apply_async(self._exec, (strat, pair, cfg))
+                        p.close()
+                        p.join()
+
                     #for pair in parser:
                     #    self._exec(strat, pair, cfg)
 
