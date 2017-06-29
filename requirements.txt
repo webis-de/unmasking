@@ -3,3 +3,4 @@ matplotlib
 nltk
 sklearn
 scipy
+typing
