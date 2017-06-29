@@ -8,7 +8,7 @@ from matplotlib.ticker import MaxNLocator
 
 from event.events import *
 from event.interfaces import EventHandler
-from input.interfaces import SamplePair
+from input.interfaces import SamplePairClass
 from output.interfaces import Output
 
 
@@ -112,7 +112,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     Handles events: onUnmaskingRoundFinished
     """
     
-    def __init__(self, markers: Dict[SamplePair.Class, Tuple[str, str, Optional[str]]] = None,
+    def __init__(self, markers: Dict[SamplePairClass, Tuple[str, str, Optional[str]]] = None,
                  ylim: Tuple[float, float] = (0, 1.0), display: bool = False):
         """
         :param markers: dictionary of pair classes mapped to matplotlib marker codes, a
@@ -142,12 +142,12 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             self._setup_axes()
     
     @property
-    def markers(self) -> Dict[SamplePair.Class, Tuple[str, str, Optional[str]]]:
+    def markers(self) -> Dict[SamplePairClass, Tuple[str, str, Optional[str]]]:
         """Get markers"""
         return self._markers
     
     @markers.setter
-    def markers(self, markers:  Dict[SamplePair.Class, Tuple[str, str, Optional[str]]]):
+    def markers(self, markers:  Dict[SamplePairClass, Tuple[str, str, Optional[str]]]):
         """Set markers"""
         self._markers = {}
         for m in markers:
@@ -183,11 +183,12 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     def display(self, display: bool):
         """Set whether the plot will be displayed on screen"""
         self._display = display
-    
+
     def handle(self, name: str, event: Event, sender: type):
         if not isinstance(event, UnmaskingTrainCurveEvent):
             raise TypeError("event must be of type UnmaskingTrainCurveEvent")
-
+        print(event.values)
+        return
         if event.pair.pair_id not in self._events_to_pair_ids:
             self._events_to_pair_ids[event.pair.pair_id] = self.start_new_curve()
 
@@ -212,7 +213,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         """
         self._fig.gca().set_title(title)
     
-    def plot_curve(self, values: List[float], curve_class: SamplePair.Class, curve_handle: int):
+    def plot_curve(self, values: List[float], curve_class: SamplePairClass, curve_handle: int):
         """
         Plot unmasking curve. Points from ``values`` which have been plotted earlier will not be plotted again.
         Consecutive calls with the same ``curve_handle`` append points new points to existing curve.

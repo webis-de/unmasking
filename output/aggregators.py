@@ -1,6 +1,6 @@
 from event.events import UnmaskingTrainCurveEvent, ConfigurationFinishedEvent, JobFinishedEvent
 from event.interfaces import EventHandler, Event
-from input.interfaces import SamplePair
+from input.interfaces import SamplePairClass
 from output.formats import UnmaskingCurvePlotter
 from output.interfaces import Aggregator
 
@@ -30,7 +30,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
 
         self.add_curve(event.pair.pair_id, event.pair.cls, event.values)
 
-    def add_curve(self, identifier: str, cls: SamplePair.Class, values: List[float]):
+    def add_curve(self, identifier: str, cls: SamplePairClass, values: List[float]):
         agg = str(identifier)
         if self._aggregate_by_class:
             agg = str(cls)
@@ -98,7 +98,7 @@ class AggregatedCurvePlotter(UnmaskingCurvePlotter, Aggregator):
     Plot aggregated curves.
     """
 
-    def __init__(self, markers: Dict[SamplePair.Class, Tuple[str, str, Optional[str]]] = None,
+    def __init__(self, markers: Dict[SamplePairClass, Tuple[str, str, Optional[str]]] = None,
                  ylim: Tuple[float, float] = (0, 1.0), display: bool = False):
         super().__init__(markers, ylim, display)
         self._aggregators = []
@@ -126,5 +126,5 @@ class AggregatedCurvePlotter(UnmaskingCurvePlotter, Aggregator):
             curves.update(agg.get_aggregated_curves())
         return curves
 
-    def add_curve(self, identifier: str, cls: SamplePair.Class, values: List[float]):
+    def add_curve(self, identifier: str, cls: SamplePairClass, values: List[float]):
         raise NotImplementedError()

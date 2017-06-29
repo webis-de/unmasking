@@ -1,6 +1,6 @@
 from event.dispatch import EventBroadcaster
 from event.events import PairGenerationEvent, ProgressEvent
-from input.interfaces import SamplePair, Tokenizer
+from input.interfaces import SamplePair, SamplePairClass, Tokenizer
 
 from input.interfaces import CorpusParser
 import os
@@ -18,7 +18,7 @@ class SamplePairImpl(SamplePair):
     Concrete SamplePair implementation
     """
 
-    def __init__(self, a: List[str], b: List[str], cls: SamplePair.Class, chunk_tokenizer: Tokenizer):
+    def __init__(self, a: List[str], b: List[str], cls: SamplePairClass, chunk_tokenizer: Tokenizer):
         super().__init__(a, b, cls, chunk_tokenizer)
 
         self._pair_id = None
@@ -86,7 +86,7 @@ class BookSampleParser(CorpusParser):
                          fired when a pair has been generated
     """
 
-    class Class(SamplePairImpl.Class):
+    class Class(SamplePairClass):
         UNSPECIFIED = -1
         DIFFERENT_AUTHORS = 0
         SAME_AUTHOR = 1
@@ -209,7 +209,7 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
                          fired when a pair has been generated
     """
     
-    class Class(SamplePairImpl.Class):
+    class Class(SamplePairClass):
         UNSPECIFIED = -1
         SAME_PORTAL = 0
         DIFFERENT_PORTALS = 1
@@ -353,7 +353,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                          fired when a pair has been generated
     """
     
-    class PairClass(SamplePairImpl.Class):
+    class PairClass(SamplePairClass):
         UNSPECIFIED = -1
         
         LEFT_LEFT = 0
@@ -375,7 +375,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
         FAKE_RIGHT_REAL_RIGHT = 22
         REAL_RIGHT_REAL_LEFT = 23
         
-    class SingleTextClass(SamplePairImpl.Class):
+    class SingleTextClass(SamplePairClass):
         UNSPECIFIED = -1
         
         LEFT = 0
@@ -631,7 +631,7 @@ class PanParser(CorpusParser):
                          fired when a pair has been generated
     """
     
-    class Class(SamplePairImpl.Class):
+    class Class(SamplePairClass):
         UNSPECIFIED = -1
         DIFFERENT_AUTHORS = 0
         SAME_AUTHOR = 1

@@ -1,10 +1,12 @@
 from event.interfaces import Event, EventHandler
 
+from multiprocessing import Lock
 from typing import Set
 
 
 class EventBroadcaster:
     _subscribers = {}
+    _lock = Lock()
     
     @classmethod
     def subscribe(cls, event_name: str, handler: EventHandler, senders: Set[type] = None):
@@ -17,10 +19,14 @@ class EventBroadcaster:
         :param handler: event handler
         :param senders: senders to listen to (None to subscribe to events from all senders)
         """
-        if event_name not in cls._subscribers:
-            cls._subscribers[event_name] = []
-        
-        cls._subscribers[event_name].append((senders, handler))
+        try:
+            cls._lock.acquire()
+            if event_name not in cls._subscribers:
+                cls._subscribers[event_name] = []
+
+            cls._subscribers[event_name].append((senders, handler))
+        finally:
+            cls._lock.release()
     
     @classmethod
     def unsubscribe(cls, event_name: str, handler, senders: Set[type] = None):
@@ -31,11 +37,15 @@ class EventBroadcaster:
         :param handler: event handler to unsubscribe
         :param senders: set of senders (must be the same set that was used to subscribe to the event)
         """
-        if event_name not in cls._subscribers:
-            return
-        
-        for e in cls._subscribers:
-            cls._subscribers[e] = [i for i in cls._subscribers[e] if i != (senders, handler)]
+        try:
+            cls._lock.acquire()
+            if event_name not in cls._subscribers:
+                return
+
+            for e in cls._subscribers:
+                cls._subscribers[e] = [i for i in cls._subscribers[e] if i != (senders, handler)]
+        finally:
+            cls._lock.release()
     
     @classmethod
     def publish(cls, event_name: str, event: Event, sender: type):
@@ -48,9 +58,14 @@ class EventBroadcaster:
         :param event: event to publish, which must have its :attr:`Event.name` property set
         :param sender: ``__class__`` type object of the sending class or object
         """
-        if event_name not in cls._subscribers:
-            return
-        
-        for h in cls._subscribers[event_name]:
-            if h[0] is None or sender in h[0]:
-                h[1].handle(event_name, event, sender)
+        try:
+            cls._lock.acquire()
+
+            if event_name not in cls._subscribers:
+                return
+
+            for h in cls._subscribers[event_name]:
+                if h[0] is None or sender in h[0]:
+                    h[1].handle(event_name, event, sender)
+        finally:
+            cls._lock.release()

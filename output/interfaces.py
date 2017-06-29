@@ -1,5 +1,5 @@
 from conf.interfaces import Configurable
-from input.interfaces import SamplePair
+from input.interfaces import SamplePairClass
 
 from abc import ABC, abstractmethod
 from time import time
@@ -42,7 +42,7 @@ class Aggregator(Output, ABC):
     """
 
     @abstractmethod
-    def add_curve(self, identifier: str, cls: SamplePair.Class, values: List[float]):
+    def add_curve(self, identifier: str, cls: SamplePairClass, values: List[float]):
         """
         Add curve to aggregation for given class.
 

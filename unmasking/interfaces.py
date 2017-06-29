@@ -46,10 +46,10 @@ class UnmaskingStrategy(ABC, Configurable):
         if not hasattr(clf, "fit"):
             raise ValueError("Estimator does not implement fit()")
         self._clf = clf
-    
+
     # noinspection PyPep8Naming
     def run(self, pair: SamplePair, m: int, n: int, fs: FeatureSet, relative: bool = False,
-            folds: int = 10, monotonize : bool = False):
+            folds: int = 10, monotonize: bool = False):
         """
         Run ``m`` rounds of unmasking on given parametrized feature set.
 
@@ -61,8 +61,10 @@ class UnmaskingStrategy(ABC, Configurable):
         :param folds: number of cross-validation folds
         :param monotonize: whether to monotonize curves (i.e., no point will be larger than the previous point)
         """
+        clf = LinearSVC()
         X = []
         y = []
+
         if relative:
             it = fs.get_features_relative(n)
         else:
@@ -71,7 +73,7 @@ class UnmaskingStrategy(ABC, Configurable):
             l = len(row)
             X.append(row[0:l // 2])
             X.append(row[l // 2:l])
-            
+
             # cls either "text 0" or "text 1" of a pair
             y.append(0)
             y.append(1)
@@ -83,19 +85,20 @@ class UnmaskingStrategy(ABC, Configurable):
         values = []
         for i in range(0, m):
             try:
-                self.clf.fit(X, y)
-                scores = cross_val_score(self.clf, X, y, cv=folds)
+                clf.fit(X, y)
+                scores = cross_val_score(clf, X, y, cv=folds)
                 score = max(0.0, (scores.mean() - .5) * 2)
+
                 if monotonize:
                     values.append(score)
                 else:
                     values.append(score)
                     event.values = values
 
-                if isinstance(self.clf.coef_, list):
-                    coef = numpy.array(self.clf.coef_[0])
+                if isinstance(clf.coef_, list):
+                    coef = numpy.array(clf.coef_[0])
                 else:
-                    coef = numpy.array(self.clf.coef_)
+                    coef = numpy.array(clf.coef_)
 
                 if not monotonize:
                     EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)

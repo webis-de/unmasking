@@ -9,6 +9,7 @@ from nltk import FreqDist
 
 from typing import List, Iterable
 from functools import lru_cache
+from multiprocessing import Lock
 
 
 class CachedAvgTokenCountFeatureSet(FeatureSet):
@@ -30,35 +31,43 @@ class CachedAvgTokenCountFeatureSet(FeatureSet):
 
         self.__freq_a = None
         self.__freq_b = None
+        self._chunks  = []
+
+        self.__lock = Lock()
 
     def _prepare(self):
-        if self._is_prepared:
-            return
+        try:
+            self.__lock.acquire()
 
-        freq_dist_a = FreqDist()
-        for a in self._pair.chunks_a:
-            freq_dist_a.update(self._tokenize(a))
+            if self._is_prepared:
+                return
 
-        freq_dist_b = FreqDist()
-        for b in self._pair.chunks_b:
-            freq_dist_b.update(self._tokenize(b))
+            freq_dist_a = FreqDist()
+            for a in self._pair.chunks_a:
+                freq_dist_a.update(self._tokenize(a))
 
-        self._avg_freq_dist = FreqDist()
-        n_a = freq_dist_a.N()
-        n_b = freq_dist_b.N()
-        for a in freq_dist_a:
-            self._avg_freq_dist[a] = (freq_dist_a[a] / n_a + freq_dist_b[a] / n_b) / 2.0
-        for b in freq_dist_b:
-            if self._avg_freq_dist[b] != 0.0:
-                continue
-            self._avg_freq_dist[b] = (freq_dist_a[b] / n_a + freq_dist_b[b] / n_b) / 2.0
+            freq_dist_b = FreqDist()
+            for b in self._pair.chunks_b:
+                freq_dist_b.update(self._tokenize(b))
 
-        self._chunks = self._sampler.generate_chunk_pairs(self._pair)
+            self._avg_freq_dist = FreqDist()
+            n_a = freq_dist_a.N()
+            n_b = freq_dist_b.N()
+            for a in freq_dist_a:
+                self._avg_freq_dist[a] = (freq_dist_a[a] / n_a + freq_dist_b[a] / n_b) / 2.0
+            for b in freq_dist_b:
+                if self._avg_freq_dist[b] != 0.0:
+                    continue
+                self._avg_freq_dist[b] = (freq_dist_a[b] / n_a + freq_dist_b[b] / n_b) / 2.0
 
-        self.__freq_a = None
-        self.__freq_b = None
+            self._chunks = self._sampler.generate_chunk_pairs(self._pair)
 
-        self._is_prepared = True
+            self.__freq_a = None
+            self.__freq_b = None
+
+            self._is_prepared = True
+        finally:
+            self.__lock.release()
 
     def get_features_absolute(self, n: int) -> Iterable[numpy.ndarray]:
         self._prepare()
@@ -67,24 +76,32 @@ class CachedAvgTokenCountFeatureSet(FeatureSet):
         num_top_words = len(top_n_words)
         for c in self._chunks:
             vec = numpy.zeros(2 * n)
-        
-            self.__freq_a = FreqDist(self._tokenize(c[0]))
+
+            try:
+                self.__lock.acquire()
+                self.__freq_a = FreqDist(self._tokenize(c[0]))
+            finally:
+                self.__lock.release()
+
             for i in range(0, n):
                 if i >= num_top_words:
                     break
                 vec[i] = self.__freq_a[top_n_words[i]]
-        
-            self.__freq_b = FreqDist(self._tokenize(c[1]))
+
+            try:
+                self.__lock.acquire()
+                self.__freq_b = FreqDist(self._tokenize(c[1]))
+            finally:
+                self.__lock.release()
+
             for i in range(n, 2 * n):
                 if i >= num_top_words + n:
                     break
                 vec[i] = self.__freq_b[top_n_words[i - n]]
-            
+
             yield vec
 
     def get_features_relative(self, n: int) -> Iterable[numpy.ndarray]:
-        self._prepare()
-
         features = self.get_features_absolute(n)
         for vec in features:
             n_a = self.__freq_a.N()

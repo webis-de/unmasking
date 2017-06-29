@@ -2,11 +2,14 @@ from conf.interfaces import ConfigLoader
 from conf.loader import JobConfigLoader
 from event.dispatch import EventBroadcaster
 from event.events import ConfigurationFinishedEvent, JobFinishedEvent
+from input.interfaces import SamplePair
 from job.interfaces import JobExecutor, ConfigurationExpander
 
 import os
+from multiprocessing import Pool
 from time import time
 from typing import Any, Dict, Tuple
+from unmasking.interfaces import UnmaskingStrategy
 
 
 class ExpandingExecutor(JobExecutor):
@@ -50,7 +53,7 @@ class ExpandingExecutor(JobExecutor):
             
         if not os.path.isdir(output_dir):
             raise IOError("Failed to create output directory '{}', maybe it exists already?".format(output_dir))
-        
+
         conf.save(os.path.join(output_dir, "job"))
 
         config_vectors = self._config.get("job.experiment.configurations")
@@ -65,6 +68,7 @@ class ExpandingExecutor(JobExecutor):
             expanded_vectors = config_expander.expand(config_vectors.values())
         
         start_time = time()
+
         try:
             for config_index, vector in enumerate(expanded_vectors):
                 if vector:
@@ -82,18 +86,11 @@ class ExpandingExecutor(JobExecutor):
 
                 strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
                 for rep in range(0, iterations):
-                    for i, pair in enumerate(parser):
-                        sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
-                        feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
-
-                        strat.run(
-                            pair,
-                            cfg.get("job.unmasking.iterations"),
-                            cfg.get("job.unmasking.vector_size"),
-                            feature_set,
-                            cfg.get("job.unmasking.relative"),
-                            cfg.get("job.unmasking.folds"),
-                            cfg.get("job.unmasking.monotonize"))
+                    with Pool() as p:
+                        results = [p.apply_async(self._exec, (strat, pair, cfg)) for pair in parser]
+                        [result.get() for result in results]
+                    #for pair in parser:
+                    #    self._exec(strat, pair, cfg)
 
                     for output in self.outputs:
                         output.save(config_output_dir)
@@ -110,6 +107,26 @@ class ExpandingExecutor(JobExecutor):
                 aggregator.reset()
         finally:
             print("Time taken: {:.03f} seconds.".format(time() - start_time))
+
+    def _exec(self, strat: UnmaskingStrategy, pair: SamplePair, cfg: JobConfigLoader):
+        """
+        Execute actual unmasking strategy.
+
+        :param strat: unmasking strategy to run
+        :param pair: sample pair to run on
+        :param cfg: job configuration
+        """
+        sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
+        feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
+
+        strat.run(
+            pair,
+            cfg.get("job.unmasking.iterations"),
+            cfg.get("job.unmasking.vector_size"),
+            feature_set,
+            cfg.get("job.unmasking.relative"),
+            cfg.get("job.unmasking.folds"),
+            cfg.get("job.unmasking.monotonize"))
 
     def _expand_dict(self, d: Dict[str, Any], keys: Tuple[str], values: Tuple) -> Dict[str, Any]:
         """

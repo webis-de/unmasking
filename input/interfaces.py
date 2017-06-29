@@ -25,6 +25,38 @@ class Tokenizer(ABC, Configurable):
         pass
 
 
+@unique
+class SamplePairClass(Enum):
+    """
+    Base enumeration type for pairs. Members designating specific pair classes can be
+    defined in sub-types of this enum type.
+    """
+
+    def __repr__(self):
+        return self.name
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __eq__(self, other):
+        if other is None and self.value == -1:
+            return True
+        elif isinstance(other, self.__class__):
+            return other.value == self.value
+        elif isinstance(other, str):
+            return other.upper() == self.__str__()
+        elif isinstance(other, int):
+            return other == self.value
+        elif isinstance(other, bool):
+            if self.value == -1:
+                return False
+            else:
+                return bool(self.value) == other
+
+    def __hash__(self):
+        return self.__repr__().__hash__()
+
+
 class SamplePair(ABC):
     """
     Pair of sample text sets.
@@ -37,38 +69,7 @@ class SamplePair(ABC):
 
     SAMPLE_PAIR_NS = UUID("412bd9f0-4c61-4bb7-a7f2-c88be2f9555c")
 
-    @unique
-    class Class(Enum):
-        """
-        Base enumeration type for pairs. Members designating specific pair classes can be
-        defined in sub-types of this enum type.
-        """
-
-        def __repr__(self):
-            return self.name
-
-        def __str__(self):
-            return self.__repr__()
-
-        def __eq__(self, other):
-            if other is None and self.value == -1:
-                return True
-            elif isinstance(other, self.__class__):
-                return other.value == self.value
-            elif isinstance(other, str):
-                return other.upper() == self.__str__()
-            elif isinstance(other, int):
-                return other == self.value
-            elif isinstance(other, bool):
-                if self.value == -1:
-                    return False
-                else:
-                    return bool(self.value) == other
-
-        def __hash__(self):
-            return self.__repr__().__hash__()
-
-    def __init__(self, a: List[str], b: List[str], cls: Class, chunk_tokenizer: Tokenizer):
+    def __init__(self, a: List[str], b: List[str], cls: SamplePairClass, chunk_tokenizer: Tokenizer):
         """
         Initialize pair of sample texts. Expects a set of main texts ``a`` and one
         or more texts ``b`` to compare with.
@@ -88,7 +89,7 @@ class SamplePair(ABC):
 
     @property
     @abstractmethod
-    def cls(self) -> Class:
+    def cls(self) -> SamplePairClass:
         """Class (same author|different authors|unspecified)"""
         pass
 
