@@ -2,7 +2,7 @@ from conf.interfaces import Configurable
 
 from abc import ABC, abstractmethod
 from enum import Enum, unique
-from typing import Iterable, List
+from typing import Iterable, AsyncGenerator, List
 from uuid import UUID
 
 
@@ -69,7 +69,7 @@ class SamplePair(ABC):
 
     SAMPLE_PAIR_NS = UUID("412bd9f0-4c61-4bb7-a7f2-c88be2f9555c")
 
-    def __init__(self, a: List[str], b: List[str], cls: SamplePairClass, chunk_tokenizer: Tokenizer):
+    def __init__(self, cls: SamplePairClass, chunk_tokenizer: Tokenizer):
         """
         Initialize pair of sample texts. Expects a set of main texts ``a`` and one
         or more texts ``b`` to compare with.
@@ -84,8 +84,15 @@ class SamplePair(ABC):
         self._cls = cls
         self._chunk_tokenizer = chunk_tokenizer
 
-        self._a = a
-        self._b = b
+    @abstractmethod
+    def chunk(self, a: List[str], b: List[str]):
+        """
+        Create chunks from inputs.
+
+        :param a: input texts one
+        :param b: input texts two
+        """
+        pass
 
     @property
     @abstractmethod
@@ -136,11 +143,8 @@ class CorpusParser(ABC, Configurable):
         self._corpus_path = path
 
     @abstractmethod
-    def __iter__(self) -> Iterable[SamplePair]:
+    async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
         """
-        Iterable or generator returning author pairs. This method is abstract and needs
-        to be implemented by all concrete CorpusParsers.
-
-        :return: iterable of SamplePairs
+        Asynchronous generator return parsed SamplePairs.
         """
         pass

@@ -26,6 +26,7 @@
 from conf.loader import JobConfigLoader
 from job.executors import ExpandingExecutor
 
+import asyncio
 import argparse
 import os
 import sys
@@ -59,7 +60,8 @@ def main():
 
     try:
         executor = ExpandingExecutor()
-        executor.run(config_loader, args.output)
+        future = asyncio.ensure_future(executor.run(config_loader, args.output))
+        asyncio.get_event_loop().run_until_complete(future)
     except KeyboardInterrupt:
         print("Exited upon user request.", file=sys.stderr)
         exit(1)

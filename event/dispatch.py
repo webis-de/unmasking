@@ -1,12 +1,40 @@
 from event.interfaces import Event, EventHandler
 
-from multiprocessing import Lock
+import asyncio
+from multiprocessing import Lock, Queue, current_process
+from threading import current_thread
 from typing import Set
 
 
 class EventBroadcaster:
-    _subscribers = {}
-    _lock = Lock()
+    __subscribers = {}
+    __lock = Lock()
+    __initialized = False
+    __queue = Queue()
+
+    @classmethod
+    def init_multiprocessing_queue(cls):
+        """
+        Initialize queue for multiprocess communication.
+        If you plan to send events from other threads or processes, you need to call
+        this method once from the main process.
+        """
+        if cls.__initialized:
+            return
+
+        if current_process().name != "MainProcess" and current_thread().name != "MainThread":
+            raise RuntimeError("init_multiprocessing_queue() must only be called from main process")
+
+        asyncio.ensure_future(cls.__wait_for_queue(asyncio.get_event_loop()))
+
+    @classmethod
+    async def __wait_for_queue(cls, loop: asyncio.AbstractEventLoop):
+        """
+        Coroutine to wait for multiprocessing Queue.
+        """
+        while True:
+            params = await loop.run_in_executor(None, cls.__queue.get, True)
+            await cls.publish(*params)
     
     @classmethod
     def subscribe(cls, event_name: str, handler: EventHandler, senders: Set[type] = None):
@@ -19,14 +47,10 @@ class EventBroadcaster:
         :param handler: event handler
         :param senders: senders to listen to (None to subscribe to events from all senders)
         """
-        try:
-            cls._lock.acquire()
-            if event_name not in cls._subscribers:
-                cls._subscribers[event_name] = []
+        if event_name not in cls.__subscribers:
+            cls.__subscribers[event_name] = []
 
-            cls._subscribers[event_name].append((senders, handler))
-        finally:
-            cls._lock.release()
+        cls.__subscribers[event_name].append((senders, handler))
     
     @classmethod
     def unsubscribe(cls, event_name: str, handler, senders: Set[type] = None):
@@ -37,20 +61,18 @@ class EventBroadcaster:
         :param handler: event handler to unsubscribe
         :param senders: set of senders (must be the same set that was used to subscribe to the event)
         """
-        try:
-            cls._lock.acquire()
-            if event_name not in cls._subscribers:
-                return
+        if event_name not in cls.__subscribers:
+            return
 
-            for e in cls._subscribers:
-                cls._subscribers[e] = [i for i in cls._subscribers[e] if i != (senders, handler)]
-        finally:
-            cls._lock.release()
+        for e in cls.__subscribers:
+            cls.__subscribers[e] = [i for i in cls.__subscribers[e] if i != (senders, handler)]
     
     @classmethod
-    def publish(cls, event_name: str, event: Event, sender: type):
+    async def publish(cls, event_name: str, event: Event, sender: type):
         """
         Publish the given event and notify all subscribed :class:`EventHandler`s.
+        This method is thread-safe. If this method is called from a worker process,
+        calls will be delegated to the main process.
         
         :param event_name: name of this event (e.g. 'onProgress')
                            The name can be freely chosen, but should start with 'on' and
@@ -59,13 +81,17 @@ class EventBroadcaster:
         :param sender: ``__class__`` type object of the sending class or object
         """
         try:
-            cls._lock.acquire()
+            cls.__lock.acquire()
 
-            if event_name not in cls._subscribers:
+            if current_process().name != "MainProcess":
+                cls.__queue.put((event_name, event, sender))
                 return
 
-            for h in cls._subscribers[event_name]:
+            if event_name not in cls.__subscribers:
+                return
+
+            for h in cls.__subscribers[event_name]:
                 if h[0] is None or sender in h[0]:
-                    h[1].handle(event_name, event, sender)
+                    await h[1].handle(event_name, event, sender)
         finally:
-            cls._lock.release()
+            cls.__lock.release()

@@ -5,6 +5,7 @@ from event.events import ConfigurationFinishedEvent, JobFinishedEvent
 from input.interfaces import SamplePair
 from job.interfaces import JobExecutor, ConfigurationExpander
 
+import asyncio
 import os
 from multiprocessing import Pool
 from time import time
@@ -36,7 +37,7 @@ class ExpandingExecutor(JobExecutor):
         super().__init__()
         self._config = None
 
-    def run(self, conf: ConfigLoader, output_dir: str = None):
+    async def run(self, conf: ConfigLoader, output_dir: str = None):
         self._config = conf
         
         self._load_outputs(self._config)
@@ -68,6 +69,7 @@ class ExpandingExecutor(JobExecutor):
             expanded_vectors = config_expander.expand(config_vectors.values())
         
         start_time = time()
+        EventBroadcaster.init_multiprocessing_queue()
 
         try:
             for config_index, vector in enumerate(expanded_vectors):
@@ -87,7 +89,7 @@ class ExpandingExecutor(JobExecutor):
                 strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
                 for rep in range(0, iterations):
                     with Pool() as p:
-                        for pair in parser:
+                        async for pair in parser:
                             p.apply_async(self._exec, (strat, pair, cfg))
                         p.close()
                         p.join()
@@ -100,10 +102,10 @@ class ExpandingExecutor(JobExecutor):
                         output.reset()
 
                 event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
-                EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
+                await EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
 
             event = JobFinishedEvent(job_id, 0, self.aggregators)
-            EventBroadcaster.publish("onJobFinished", event, self.__class__)
+            await EventBroadcaster.publish("onJobFinished", event, self.__class__)
 
             for aggregator in self.aggregators:
                 aggregator.save(output_dir)
@@ -122,14 +124,14 @@ class ExpandingExecutor(JobExecutor):
         sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
         feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
 
-        strat.run(
+        asyncio.ensure_future(strat.run(
             pair,
             cfg.get("job.unmasking.iterations"),
             cfg.get("job.unmasking.vector_size"),
             feature_set,
             cfg.get("job.unmasking.relative"),
             cfg.get("job.unmasking.folds"),
-            cfg.get("job.unmasking.monotonize"))
+            cfg.get("job.unmasking.monotonize")))
 
     def _expand_dict(self, d: Dict[str, Any], keys: Tuple[str], values: Tuple) -> Dict[str, Any]:
         """

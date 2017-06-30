@@ -7,7 +7,7 @@ import os
 import random
 import re
 from glob import glob
-from typing import Callable, Iterable, List, Optional
+from typing import Callable, AsyncGenerator, List, Optional
 from urllib.parse import urlparse
 from uuid import uuid5
 import xml.etree.ElementTree as etree
@@ -18,28 +18,35 @@ class SamplePairImpl(SamplePair):
     Concrete SamplePair implementation
     """
 
-    def __init__(self, a: List[str], b: List[str], cls: SamplePairClass, chunk_tokenizer: Tokenizer):
-        super().__init__(a, b, cls, chunk_tokenizer)
+    def __init__(self, cls: SamplePairClass, chunk_tokenizer: Tokenizer):
+        super().__init__(cls, chunk_tokenizer)
 
         self._pair_id = None
+        self._chunks_a = []
+        self._chunks_b = []
+        self._progress_event = None
+        self._a = None
+        self._b = None
+
+    async def chunk(self, a: List[str], b: List[str]):
+        self._a = a
+        self._b = b
 
         group_id = ProgressEvent.generate_group_id([self.pair_id])
         total_events = len(a) + len(b)
         self._progress_event = ProgressEvent(group_id, 0, total_events)
 
-        EventBroadcaster.publish("onProgress", self._progress_event, self.__class__.__bases__[0])
+        await EventBroadcaster.publish("onProgress", self._progress_event, self.__class__.__bases__[0])
 
-        self._chunks_a = []
         for t in a:
             self._chunks_a.extend(self._chunk_tokenizer.tokenize(t))
             self._progress_event = ProgressEvent.new_event(self._progress_event)
-            EventBroadcaster.publish("onProgress", self._progress_event, self.__class__.__bases__[0])
+            await EventBroadcaster.publish("onProgress", self._progress_event, self.__class__.__bases__[0])
 
-        self._chunks_b = []
         for t in b:
             self._chunks_b.extend(self._chunk_tokenizer.tokenize(t))
             self._progress_event = ProgressEvent.new_event(self._progress_event)
-            EventBroadcaster.publish("onProgress", self._progress_event, self.__class__.__bases__[0])
+            await EventBroadcaster.publish("onProgress", self._progress_event, self.__class__.__bases__[0])
 
     @property
     def cls(self) -> type:
@@ -94,23 +101,23 @@ class BookSampleParser(CorpusParser):
     class BookSampleParserIterator:
         def __init__(self, parser):
             self._parser = parser
-            
+
             # file -> author
             self._files = {}
             self._iterator1 = None
             self._next1 = None
             self._current_file_contents = None
-            
+
             # author -> files
             self._authors = {}
             self._iterator2 = None
             self._next2 = None
-            
+
             # de-duplication of single-text pairs
             self._single_text_pairs = []
 
             self._pair_num = 0
-            
+
             # read in all directory and file names and build
             # file -> author and author -> files maps
             if not os.path.isdir(self._parser.corpus_path):
@@ -120,7 +127,7 @@ class BookSampleParser(CorpusParser):
                 dir_path = os.path.join(self._parser.corpus_path, d)
                 if not os.path.isdir(dir_path):
                     continue
-                
+
                 files = sorted(os.listdir(dir_path))
                 self._authors[d] = []
                 for f in files:
@@ -129,16 +136,16 @@ class BookSampleParser(CorpusParser):
                         continue
                     self._files[file_path] = d
                     self._authors[d].append(file_path)
-            
+
             self._iterator1 = iter(self._files)
 
             # progress publisher
             self._progress_event = ProgressEvent(ProgressEvent.generate_group_id(self._files), 0, len(self._files))
         
-        def __next__(self) -> SamplePair:
+        async def __anext__(self) -> SamplePair:
             # next text
             if self._next2 is None:
-                EventBroadcaster.publish("onProgress", self._progress_event, self._parser.__class__)
+                await EventBroadcaster.publish("onProgress", self._progress_event, self._parser.__class__)
                 self._next1 = next(self._iterator1)
                 self._iterator2 = iter(self._authors)
                 self._progress_event = ProgressEvent.new_event(self._progress_event)
@@ -150,7 +157,7 @@ class BookSampleParser(CorpusParser):
                 self._next2 = next(self._iterator2)
             except StopIteration:
                 self._next2 = None
-                return self.__next__()
+                return self.__anext__()
             
             compare_texts = []
             last_filename = None
@@ -168,28 +175,29 @@ class BookSampleParser(CorpusParser):
             num_comp_texts = len(compare_texts)
             if num_comp_texts == 0:
                 # if there is only one text of this author, we can't build a pair
-                return self.__next__()
+                return self.__anext__()
             elif num_comp_texts == 1:
                 # make sure we don't have the same pair of single texts twice
                 pair_set = {self._next1, last_filename}
                 if pair_set in self._single_text_pairs:
-                    return self.__next__()
+                    return self.__anext__()
                 self._single_text_pairs.append(pair_set)
             
             cls = self._parser.Class.DIFFERENT_AUTHORS
             if self._files[self._next1] == self._next2:
                 cls = self._parser.Class.SAME_AUTHOR
 
-            pair = SamplePairImpl([self._current_file_contents], compare_texts, cls, self._parser.chunk_tokenizer)
+            pair = SamplePairImpl(cls, self._parser.chunk_tokenizer)
+            await pair.chunk([self._current_file_contents], compare_texts)
             group_id = PairGenerationEvent.generate_group_id(["a:" + self._next1] + ["b:" + n for n in comp_file_names])
-            EventBroadcaster.publish("onPairGenerated",
-                                     PairGenerationEvent(group_id, self._pair_num,
-                                                         pair, [self._next1], comp_file_names),
-                                     self._parser.__class__)
+            await EventBroadcaster.publish("onPairGenerated",
+                                           PairGenerationEvent(group_id, self._pair_num,
+                                                               pair, [self._next1], comp_file_names),
+                                           self._parser.__class__)
             self._pair_num += 1
             return pair
     
-    def __iter__(self) -> BookSampleParserIterator:
+    async def __aiter__(self) -> BookSampleParserIterator:
         return self.BookSampleParserIterator(self)
 
 
@@ -225,7 +233,7 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
         self._datasets = datasets
         self._samples = samples
 
-    def __iter__(self) -> Iterable[SamplePair]:
+    async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
         texts_by_portals = {}
         
         for ds in self._datasets:
@@ -330,11 +338,12 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
                 if cls1 == cls2:
                     pair_class = self.Class.SAME_PORTAL
                 
-                pair = SamplePairImpl(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
+                pair = SamplePairImpl(pair_class, self.chunk_tokenizer)
+                await pair.chunk(chunks_a, chunks_b)
                 group_id = PairGenerationEvent.generate_group_id([pair.pair_id])
-                EventBroadcaster.publish("onPairGenerated",
-                                         PairGenerationEvent(group_id, pair_num, pair, file_names_a, file_names_b),
-                                         self.__class__)
+                await EventBroadcaster.publish("onPairGenerated",
+                                               PairGenerationEvent(group_id, pair_num, pair, file_names_a, file_names_b),
+                                               self.__class__)
                 pair_num += 1
                 yield pair
         
@@ -503,7 +512,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
         
         return e.UNSPECIFIED
         
-    def __iter__(self) -> Iterable[SamplePair]:
+    async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
         texts_by_class = {}
         for ds in self._datasets:
             ds_path = os.path.join(self.corpus_path, ds)
@@ -611,11 +620,12 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                     #elif pair_counter < self._samples // 2 and len(drawn_b) >= num_texts2:
                     #    drawn_b = []
                                
-                pair = SamplePairImpl(chunks_a, chunks_b, pair_class, self.chunk_tokenizer)
+                pair = SamplePairImpl(pair_class, self.chunk_tokenizer)
+                await pair.chunk(chunks_a, chunks_b)
                 group_id = PairGenerationEvent.generate_group_id([pair.pair_id])
-                EventBroadcaster.publish("onPairGenerated",
-                                         PairGenerationEvent(group_id, pair_num, pair, file_names_a, file_names_b),
-                                         self.__class__)
+                await EventBroadcaster.publish("onPairGenerated",
+                                               PairGenerationEvent(group_id, pair_num, pair, file_names_a, file_names_b),
+                                               self.__class__)
                 pair_num += 1
                 yield pair
 
@@ -636,7 +646,7 @@ class PanParser(CorpusParser):
         DIFFERENT_AUTHORS = 0
         SAME_AUTHOR = 1
 
-    def __iter__(self) -> Iterable[SamplePair]:
+    async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
         # parse ground truth if it exists
         ground_truth = {}
         if os.path.isfile(self.corpus_path + "/truth.txt"):
@@ -672,10 +682,11 @@ class PanParser(CorpusParser):
             if case in ground_truth:
                 cls = self.Class.SAME_AUTHOR if ground_truth[case] else self.Class.DIFFERENT_AUTHORS
             
-            pair = SamplePairImpl(chunks_a, chunks_b, cls, self.chunk_tokenizer)
+            pair = SamplePairImpl(cls, self.chunk_tokenizer)
+            await pair.chunk(chunks_a, chunks_b)
             group_id = PairGenerationEvent.generate_group_id([pair.pair_id])
-            EventBroadcaster.publish("onPairGenerated",
-                                     PairGenerationEvent(group_id, pair_num, pair, [file_name_a], file_names_b),
-                                     self.__class__)
+            await EventBroadcaster.publish("onPairGenerated",
+                                           PairGenerationEvent(group_id, pair_num, pair, [file_name_a], file_names_b),
+                                           self.__class__)
             pair_num += 1
             yield pair

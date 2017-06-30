@@ -33,7 +33,7 @@ class ProgressPrinter(EventHandler, Output):
         """Set display text"""
         self._text = text
     
-    def handle(self, name: str, event: ProgressEvent, sender: type):
+    async def handle(self, name: str, event: ProgressEvent, sender: type):
         print("{}: {:.2f}%".format(self._text, event.percent_done))
 
     def save(self, output_dir: str):
@@ -60,7 +60,7 @@ class UnmaskingStatAccumulator(EventHandler, Output):
         }
 
     # noinspection PyUnresolvedReferences,PyTypeChecker
-    def handle(self, name: str, event: Event, sender: type):
+    async def handle(self, name: str, event: Event, sender: type):
         if isinstance(event, UnmaskingTrainCurveEvent) and isinstance(event, PairGenerationEvent):
             raise TypeError("event must be of type UnmaskingTrainCurveEvent or PairGenerationEvent")
         
@@ -122,7 +122,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         :param display: whether to display an interactive plot window
         """
         super().__init__()
-        self._fig = pyplot.figure()
+        self._fig = None
         self._colors = {}
         self._markers = None
         if markers is not None:
@@ -131,15 +131,13 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._is_being_displayed = False
         self._ylim = ylim
         self._xlim = None
+        self._axes_need_update = True
         
         self._next_curve_id = 0
         self._curve_ids = []
         self._events_to_pair_ids = {}
         
         self._last_points = {}
-        
-        if self._markers is not None:
-            self._setup_axes()
     
     @property
     def markers(self) -> Dict[SamplePairClass, Tuple[str, str, Optional[str]]]:
@@ -152,7 +150,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._markers = {}
         for m in markers:
             self._markers[str(m)] = markers[m]
-        self._setup_axes()
+        self._axes_need_update = True
     
     @property
     def ylim(self):
@@ -184,13 +182,14 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         """Set whether the plot will be displayed on screen"""
         self._display = display
 
-    def handle(self, name: str, event: Event, sender: type):
+    async def handle(self, name: str, event: Event, sender: type):
         if not isinstance(event, UnmaskingTrainCurveEvent):
             raise TypeError("event must be of type UnmaskingTrainCurveEvent")
-        print(event.values)
-        return
+
         if event.pair.pair_id not in self._events_to_pair_ids:
             self._events_to_pair_ids[event.pair.pair_id] = self.start_new_curve()
+
+        print(event.values)
 
         self.plot_curve(event.values, event.pair.cls, self._events_to_pair_ids[event.pair.pair_id])
     
@@ -224,6 +223,12 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         :param curve_class: class of the curve
         :param curve_handle: curve handle from :method:`start_new_curve()`
         """
+        if self._fig is None:
+            self.reset()
+
+        if self._axes_need_update:
+            self._setup_axes()
+
         if curve_handle not in self._curve_ids:
             raise ValueError("Invalid curve ID")
         
@@ -320,3 +325,5 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             legend_labels.append(self._markers[m][1])
     
         axes.legend(handles=legend_handles, labels=legend_labels)
+
+        self._axes_need_update = False

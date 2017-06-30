@@ -79,9 +79,9 @@ class EventHandler(ABC):
     """
     
     @abstractmethod
-    def handle(self, name: str, event: Event, sender: type):
+    async def handle(self, name: str, event: Event, sender: type):
         """
-        Handle the given event.
+        Handle the given event asynchronously.
         
         :param name: name of the fired event
         :param event: the fired event itself

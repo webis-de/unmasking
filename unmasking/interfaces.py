@@ -48,7 +48,7 @@ class UnmaskingStrategy(ABC, Configurable):
         self._clf = clf
 
     # noinspection PyPep8Naming
-    def run(self, pair: SamplePair, m: int, n: int, fs: FeatureSet, relative: bool = False,
+    async def run(self, pair: SamplePair, m: int, n: int, fs: FeatureSet, relative: bool = False,
             folds: int = 10, monotonize: bool = False):
         """
         Run ``m`` rounds of unmasking on given parametrized feature set.
@@ -101,7 +101,7 @@ class UnmaskingStrategy(ABC, Configurable):
                     coef = numpy.array(clf.coef_)
 
                 if not monotonize:
-                    EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
+                    await EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
                     event = UnmaskingTrainCurveEvent.new_event(event)
 
                 if i < m - 1:
@@ -111,9 +111,9 @@ class UnmaskingStrategy(ABC, Configurable):
 
         if monotonize:
             event.values = self._monotonize(values)
-            EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
+            await EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
         event = UnmaskingTrainCurveEvent.new_event(event)
-        EventBroadcaster.publish("onUnmaskingFinished", event, self.__class__)
+        await EventBroadcaster.publish("onUnmaskingFinished", event, self.__class__)
 
     def _monotonize(self, values: List[float]):
         # monotonize from the left
