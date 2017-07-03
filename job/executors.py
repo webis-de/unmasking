@@ -123,20 +123,21 @@ class ExpandingExecutor(JobExecutor):
         :param pair: sample pair to run on
         :param cfg: job configuration
         """
-        current_process().daemon = True
-
         sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
         feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
 
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(strat.run(
-            pair,
-            cfg.get("job.unmasking.iterations"),
-            cfg.get("job.unmasking.vector_size"),
-            feature_set,
-            cfg.get("job.unmasking.relative"),
-            cfg.get("job.unmasking.folds"),
-            cfg.get("job.unmasking.monotonize")))
+        try:
+            loop.run_until_complete(strat.run(
+                pair,
+                cfg.get("job.unmasking.iterations"),
+                cfg.get("job.unmasking.vector_size"),
+                feature_set,
+                cfg.get("job.unmasking.relative"),
+                cfg.get("job.unmasking.folds"),
+                cfg.get("job.unmasking.monotonize")))
+        finally:
+            loop.stop()
 
     def _expand_dict(self, d: Dict[str, Any], keys: Tuple[str], values: Tuple) -> Dict[str, Any]:
         """

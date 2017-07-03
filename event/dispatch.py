@@ -105,23 +105,24 @@ class _MultiProcessEventContextType(type):
         executor = ThreadPoolExecutor(max_workers=1)
 
         while loop.is_running():
-            f = loop.run_in_executor(executor, self.__wait_queue)
+            f = loop.run_in_executor(executor, self.__wait_queue, self.queue)
 
-            await f
+            await asyncio.wait_for(f, 1)
 
             if f.result() is None:
                 return
 
             await EventBroadcaster.publish(*f.result())
 
-    def __wait_queue(self):
+    def __wait_queue(self, q):
         """
         Get value of the queue. This method should be called in a separate thread,
         since it blocks until there is an item in the queue.
 
+        :param q: multiprocessing queue
         :return: queue entry
         """
-        return self.queue.get(block=True)
+        return q.get(block=True)
 
 
 class MultiProcessEventContext(metaclass=_MultiProcessEventContextType):
