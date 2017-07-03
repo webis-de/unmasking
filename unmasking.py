@@ -29,6 +29,7 @@ from job.executors import ExpandingExecutor
 import asyncio
 import argparse
 import os
+import signal
 import sys
 
 
@@ -58,16 +59,25 @@ def main():
     config_loader = JobConfigLoader()
     config_loader.load(args.config)
 
+    loop = asyncio.get_event_loop()
+    loop.add_signal_handler(signal.SIGTERM, terminate)
+    loop.add_signal_handler(signal.SIGINT, terminate)
+    loop.add_signal_handler(signal.SIGHUP, terminate)
+
     try:
         executor = ExpandingExecutor()
         future = asyncio.ensure_future(executor.run(config_loader, args.output))
-        asyncio.get_event_loop().run_until_complete(future)
+        loop.run_until_complete(future)
     except KeyboardInterrupt:
-        print("Exited upon user request.", file=sys.stderr)
-        exit(1)
+        terminate()
 
     if args.wait:
         input("Press enter to terminate...")
+
+
+def terminate():
+    print("Exited upon user request.", file=sys.stderr)
+    exit(1)
 
 if __name__ == "__main__":
     main()
