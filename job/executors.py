@@ -97,9 +97,6 @@ class ExpandingExecutor(JobExecutor):
                             futures.append(loop.run_in_executor(executor, self._exec, strat, pair, cfg))
                         await asyncio.wait(futures)
 
-                    #for pair in parser:
-                    #    self._exec(strat, pair, cfg)
-
                     for output in self.outputs:
                         output.save(config_output_dir)
                         output.reset()

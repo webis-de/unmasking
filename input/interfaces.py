@@ -2,6 +2,7 @@ from conf.interfaces import Configurable
 
 from abc import ABC, abstractmethod
 from enum import Enum, unique
+from functools import lru_cache
 from typing import Iterable, AsyncGenerator, List
 from uuid import UUID
 
@@ -148,3 +149,23 @@ class CorpusParser(ABC, Configurable):
         Asynchronous generator return parsed SamplePairs.
         """
         pass
+
+    async def await_file(self, file_name) -> str:
+        """
+        Caching helper coroutine for reading a file.
+
+        :param file_name: name of the file
+        :return: its contents
+        """
+        return self._read_file(file_name)
+
+    @lru_cache(maxsize=50)
+    def _read_file(self, file_name) -> str:
+        """
+        Caching helper method for reading a file.
+
+        :param file_name: name of the file
+        :return: its contents
+        """
+        with open(file_name, "r", encoding="utf-8", errors="ignore") as f:
+            return f.read()

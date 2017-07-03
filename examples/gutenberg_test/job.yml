@@ -8,7 +8,7 @@ job%:
   input:
     # Corpus parser class
     parser:
-      name: input.formats.BookSampleParser
+      name: input.formats.AuthorPairParser
       parameters:
         corpus_path: examples/gutenberg_test/corpus
 
