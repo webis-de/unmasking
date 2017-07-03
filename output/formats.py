@@ -3,9 +3,10 @@ import os
 from random import randint
 from typing import Any, Dict
 
+import asyncio
 import matplotlib.pyplot as pyplot
-from matplotlib.ticker import MaxNLocator
 
+from matplotlib.ticker import MaxNLocator
 from event.events import *
 from event.interfaces import EventHandler
 from input.interfaces import SamplePairClass
@@ -214,6 +215,14 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         :param title: plot title
         """
         self._fig.gca().set_title(title)
+
+    async def _flush_gui_events(self):
+        """
+        Helper coroutine for keeping the plot GUI responsive.
+        """
+        while self._is_being_displayed and self._fig is not None:
+            self._fig.canvas.flush_events()
+            await asyncio.sleep(0)
     
     def plot_curve(self, values: List[float], curve_class: SamplePairClass, curve_handle: int):
         """
@@ -267,8 +276,8 @@ class UnmaskingCurvePlotter(EventHandler, Output):
 
         if self._display:
             self.show()
-            self._fig.canvas.blit()
             self._fig.canvas.flush_events()
+            self._fig.canvas.blit()
     
     def show(self):
         """Show plot area on screen."""
@@ -276,8 +285,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             pyplot.ion()
             self._fig.show()
             self._is_being_displayed = True
-
-        self._fig.canvas.flush_events()
+            asyncio.ensure_future(self._flush_gui_events())
     
     def close(self):
         """Close an open plot window."""
