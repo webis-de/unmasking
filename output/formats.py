@@ -220,7 +220,8 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         """
         Helper coroutine for keeping the plot GUI responsive.
         """
-        while self._is_being_displayed and self._fig is not None:
+        loop = asyncio.get_event_loop()
+        while loop.is_running() and self._is_being_displayed and self._fig is not None:
             self._fig.canvas.flush_events()
             await asyncio.sleep(0)
     

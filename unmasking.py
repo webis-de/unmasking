@@ -29,7 +29,6 @@ from job.executors import ExpandingExecutor
 import asyncio
 import argparse
 import os
-import signal
 import sys
 
 
@@ -60,16 +59,15 @@ def main():
     config_loader.load(args.config)
 
     loop = asyncio.get_event_loop()
-    loop.add_signal_handler(signal.SIGTERM, terminate)
-    loop.add_signal_handler(signal.SIGINT, terminate)
-    loop.add_signal_handler(signal.SIGHUP, terminate)
-
     try:
         executor = ExpandingExecutor()
         future = asyncio.ensure_future(executor.run(config_loader, args.output))
         loop.run_until_complete(future)
     except KeyboardInterrupt:
         terminate()
+    finally:
+        loop.shutdown_asyncgens()
+        loop.stop()
 
     if args.wait:
         input("Press enter to terminate...")

@@ -104,7 +104,7 @@ class _MultiProcessEventContextType(type):
         loop = asyncio.get_event_loop()
         executor = ThreadPoolExecutor(max_workers=1)
 
-        while True:
+        while loop.is_running():
             f = loop.run_in_executor(executor, self.__wait_queue)
 
             await f
