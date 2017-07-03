@@ -9,6 +9,7 @@ from unmasking.interfaces import UnmaskingStrategy
 import asyncio
 import os
 from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import current_process
 from time import time
 from typing import Any, Dict, Tuple
 
@@ -122,6 +123,7 @@ class ExpandingExecutor(JobExecutor):
         :param pair: sample pair to run on
         :param cfg: job configuration
         """
+        current_process().daemon = True
 
         sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
         feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
