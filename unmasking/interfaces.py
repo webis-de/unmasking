@@ -49,7 +49,7 @@ class UnmaskingStrategy(ABC, Configurable):
 
     # noinspection PyPep8Naming
     async def run(self, pair: SamplePair, m: int, n: int, fs: FeatureSet, relative: bool = False,
-            folds: int = 10, monotonize: bool = False):
+                  folds: int = 10, monotonize: bool = False):
         """
         Run ``m`` rounds of unmasking on given parametrized feature set.
 
@@ -105,7 +105,7 @@ class UnmaskingStrategy(ABC, Configurable):
                     event = UnmaskingTrainCurveEvent.new_event(event)
 
                 if i < m - 1:
-                    X = self.transform(X, coef)
+                    X = await self.transform(X, coef)
             except ValueError:
                 continue
 
@@ -140,7 +140,7 @@ class UnmaskingStrategy(ABC, Configurable):
         return list(values_r)
 
     @abstractmethod
-    def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
+    async def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
         """
         Transform the input tensor according to the chosen unmasking strategy.
         

@@ -146,7 +146,10 @@ class BookSampleParser(CorpusParser):
             # next text
             if self._next2 is None:
                 await EventBroadcaster.publish("onProgress", self._progress_event, self._parser.__class__)
-                self._next1 = next(self._iterator1)
+                try:
+                    self._next1 = next(self._iterator1)
+                except StopIteration:
+                    raise StopAsyncIteration
                 self._iterator2 = iter(self._authors)
                 self._progress_event = ProgressEvent.new_event(self._progress_event)
                 with open(self._next1, "r", encoding="utf-8", errors="ignore") as handle:
@@ -157,7 +160,7 @@ class BookSampleParser(CorpusParser):
                 self._next2 = next(self._iterator2)
             except StopIteration:
                 self._next2 = None
-                return self.__anext__()
+                return await self.__anext__()
             
             compare_texts = []
             last_filename = None
@@ -175,12 +178,12 @@ class BookSampleParser(CorpusParser):
             num_comp_texts = len(compare_texts)
             if num_comp_texts == 0:
                 # if there is only one text of this author, we can't build a pair
-                return self.__anext__()
+                return await self.__anext__()
             elif num_comp_texts == 1:
                 # make sure we don't have the same pair of single texts twice
                 pair_set = {self._next1, last_filename}
                 if pair_set in self._single_text_pairs:
-                    return self.__anext__()
+                    return await self.__anext__()
                 self._single_text_pairs.append(pair_set)
             
             cls = self._parser.Class.DIFFERENT_AUTHORS

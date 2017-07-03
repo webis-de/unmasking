@@ -1,40 +1,14 @@
 from event.interfaces import Event, EventHandler
 
 import asyncio
-from multiprocessing import Lock, Queue, current_process
+from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import Queue, current_process
 from threading import current_thread
 from typing import Set
 
 
 class EventBroadcaster:
     __subscribers = {}
-    __lock = Lock()
-    __initialized = False
-    __queue = Queue()
-
-    @classmethod
-    def init_multiprocessing_queue(cls):
-        """
-        Initialize queue for multiprocess communication.
-        If you plan to send events from other threads or processes, you need to call
-        this method once from the main process.
-        """
-        if cls.__initialized:
-            return
-
-        if current_process().name != "MainProcess" and current_thread().name != "MainThread":
-            raise RuntimeError("init_multiprocessing_queue() must only be called from main process")
-
-        asyncio.ensure_future(cls.__wait_for_queue(asyncio.get_event_loop()))
-
-    @classmethod
-    async def __wait_for_queue(cls, loop: asyncio.AbstractEventLoop):
-        """
-        Coroutine to wait for multiprocessing Queue.
-        """
-        while True:
-            params = await loop.run_in_executor(None, cls.__queue.get, True)
-            await cls.publish(*params)
     
     @classmethod
     def subscribe(cls, event_name: str, handler: EventHandler, senders: Set[type] = None):
@@ -80,18 +54,83 @@ class EventBroadcaster:
         :param event: event to publish, which must have its :attr:`Event.name` property set
         :param sender: ``__class__`` type object of the sending class or object
         """
-        try:
-            cls.__lock.acquire()
+        if current_process().name != "MainProcess" or current_thread().name != "MainThread":
+            _MultiProcessEventContextType.queue.put((event_name, event, sender))
+            return
 
-            if current_process().name != "MainProcess":
-                cls.__queue.put((event_name, event, sender))
+        if event_name not in cls.__subscribers:
+            return
+
+        for h in cls.__subscribers[event_name]:
+            if h[0] is None or sender in h[0]:
+                await h[1].handle(event_name, event, sender)
+
+
+class _MultiProcessEventContextType(type):
+    """
+    Internal type for providing a multiprocess event manager context.
+    """
+
+    queue = Queue()
+
+    __initialized = False
+
+    def __enter__(self):
+        """
+        Initialize queue watcher for multiprocess communication.
+        """
+        if self.__initialized:
+            return
+
+        if current_process().name != "MainProcess" and current_thread().name != "MainThread":
+            raise RuntimeError("MultiProcessEventContext must only be opened from main process / thread")
+
+        asyncio.ensure_future(self.__await_queue())
+        self.__initialized = True
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Signal multiprocess queue watcher to exit.
+        """
+        self.queue.put(None)
+        self.__initialized = False
+
+        if exc_type is not None:
+            raise exc_type(exc_val)
+
+    async def __await_queue(self):
+        loop = asyncio.get_event_loop()
+        executor = ThreadPoolExecutor(max_workers=1)
+
+        while True:
+            f = loop.run_in_executor(executor, self.__wait_queue)
+
+            await f
+
+            if f.result() is None:
                 return
 
-            if event_name not in cls.__subscribers:
-                return
+            await EventBroadcaster.publish(*f.result())
 
-            for h in cls.__subscribers[event_name]:
-                if h[0] is None or sender in h[0]:
-                    await h[1].handle(event_name, event, sender)
-        finally:
-            cls.__lock.release()
+    def __wait_queue(self):
+        """
+        Get value of the queue. This method should be called in a separate thread,
+        since it blocks until there is an item in the queue.
+
+        :return: queue entry
+        """
+        return self.queue.get(block=True)
+
+
+class MultiProcessEventContext(metaclass=_MultiProcessEventContextType):
+    """
+    Context manager for multiprocess event communication.
+    Use this in a with statement around any multiprocessing or multithreading
+    code to ensure events are properly delegated to the main process / thread.
+
+    You should make sure to "await" as soon as possible after creating the
+    context to allow the initializing code to be executed.
+    """
+    pass

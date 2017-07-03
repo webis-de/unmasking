@@ -1,16 +1,16 @@
 from conf.interfaces import ConfigLoader
 from conf.loader import JobConfigLoader
-from event.dispatch import EventBroadcaster
+from event.dispatch import EventBroadcaster, MultiProcessEventContext
 from event.events import ConfigurationFinishedEvent, JobFinishedEvent
 from input.interfaces import SamplePair
 from job.interfaces import JobExecutor, ConfigurationExpander
+from unmasking.interfaces import UnmaskingStrategy
 
 import asyncio
 import os
-from multiprocessing import Pool
+from concurrent.futures import ProcessPoolExecutor
 from time import time
 from typing import Any, Dict, Tuple
-from unmasking.interfaces import UnmaskingStrategy
 
 
 class ExpandingExecutor(JobExecutor):
@@ -67,10 +67,8 @@ class ExpandingExecutor(JobExecutor):
 
             config_variables = config_vectors.keys()
             expanded_vectors = config_expander.expand(config_vectors.values())
-        
-        start_time = time()
-        EventBroadcaster.init_multiprocessing_queue()
 
+        start_time = time()
         try:
             for config_index, vector in enumerate(expanded_vectors):
                 if vector:
@@ -87,12 +85,17 @@ class ExpandingExecutor(JobExecutor):
                 iterations = cfg.get("job.experiment.repetitions")
 
                 strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
+                loop = asyncio.get_event_loop()
+                executor = ProcessPoolExecutor()
                 for rep in range(0, iterations):
-                    with Pool() as p:
+                    with MultiProcessEventContext:
+                        # allow multiprocessing event context to initialize
+                        await asyncio.sleep(0)
+
+                        futures = []
                         async for pair in parser:
-                            p.apply_async(self._exec, (strat, pair, cfg))
-                        p.close()
-                        p.join()
+                            futures.append(loop.run_in_executor(executor, self._exec, strat, pair, cfg))
+                        await asyncio.wait(futures)
 
                     #for pair in parser:
                     #    self._exec(strat, pair, cfg)
@@ -116,15 +119,18 @@ class ExpandingExecutor(JobExecutor):
     def _exec(self, strat: UnmaskingStrategy, pair: SamplePair, cfg: JobConfigLoader):
         """
         Execute actual unmasking strategy.
+        This method should be run in a separate process.
 
         :param strat: unmasking strategy to run
         :param pair: sample pair to run on
         :param cfg: job configuration
         """
+
         sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
         feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
 
-        asyncio.ensure_future(strat.run(
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(strat.run(
             pair,
             cfg.get("job.unmasking.iterations"),
             cfg.get("job.unmasking.vector_size"),

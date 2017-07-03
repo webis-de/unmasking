@@ -189,8 +189,6 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         if event.pair.pair_id not in self._events_to_pair_ids:
             self._events_to_pair_ids[event.pair.pair_id] = self.start_new_curve()
 
-        print(event.values)
-
         self.plot_curve(event.values, event.pair.cls, self._events_to_pair_ids[event.pair.pair_id])
     
     def start_new_curve(self) -> int:
@@ -199,9 +197,14 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         
         :return: handle to the new curve, needed to append further points
         """
+
+        if self._fig is None:
+            self.reset()
+
         self._curve_ids.append(self._next_curve_id)
         self._last_points[self._next_curve_id] = (0, 0)
         self._next_curve_id += 1
+
         return self._next_curve_id - 1
     
     def set_plot_title(self, title: str):
@@ -223,9 +226,6 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         :param curve_class: class of the curve
         :param curve_handle: curve handle from :method:`start_new_curve()`
         """
-        if self._fig is None:
-            self.reset()
-
         if self._axes_need_update:
             self._setup_axes()
 
@@ -286,7 +286,8 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self.reset()
     
     def save(self, output_dir: str):
-        self._fig.savefig(os.path.join(output_dir, self._get_output_filename_base() + ".svg"))
+        if self._fig is not None:
+            self._fig.savefig(os.path.join(output_dir, self._get_output_filename_base() + ".svg"))
 
     def reset(self):
         self._next_curve_id = 0
