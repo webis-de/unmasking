@@ -190,6 +190,10 @@ class AuthorPairParser(TextPairParser):
         for a1, a2 in combinations_with_replacement(self._input_authors.keys(), 2):
             for f1 in self._input_authors[a1]:
                 f2 = [f for f in self._input_authors[a2] if f != f1]
+                if not f2:
+                    # skip if author has only one file
+                    continue
+
                 f1_contents = await self.await_file(f1)
                 f2_contents = [await self.await_file(f) for f in f2]
 
