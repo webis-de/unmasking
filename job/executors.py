@@ -137,6 +137,7 @@ class ExpandingExecutor(JobExecutor):
                 cfg.get("job.unmasking.folds"),
                 cfg.get("job.unmasking.monotonize")))
         finally:
+            loop.run_until_complete(loop.shutdown_asyncgens())
             loop.stop()
 
     def _expand_dict(self, d: Dict[str, Any], keys: Tuple[str], values: Tuple) -> Dict[str, Any]:

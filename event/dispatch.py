@@ -107,14 +107,15 @@ class _MultiProcessEventContextType(type):
         while loop.is_running():
             f = loop.run_in_executor(executor, self.__wait_queue, self.queue)
 
-            await asyncio.wait_for(f, 1)
+            await f
 
             if f.result() is None:
                 return
 
             await EventBroadcaster.publish(*f.result())
 
-    def __wait_queue(self, q):
+    @staticmethod
+    def __wait_queue(q):
         """
         Get value of the queue. This method should be called in a separate thread,
         since it blocks until there is an item in the queue.

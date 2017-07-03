@@ -66,7 +66,7 @@ def main():
     except KeyboardInterrupt:
         terminate()
     finally:
-        loop.shutdown_asyncgens()
+        loop.run_until_complete(loop.shutdown_asyncgens())
         loop.stop()
 
     if args.wait:
