@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 #
 # General-purpose unmasking framework
 # Copyright (C) 2017 Janek Bevendorff, Webis Group
@@ -35,8 +35,9 @@ import sys
 
 class SoftKeyboardInterrupt(Exception):
     """
-    Replacement for KeyboardInterrupt that inherits from Exceptions instead of
-    BaseException, to avoid uncatchable stack traces when a KeyboardInterrupt happens.
+    Replacement for KeyboardInterrupt that inherits from :class:: Exception instead of
+    :class:: BaseException, to avoid uncatchable stack traces when a :class:: KeyboardInterrupt
+    happens within a coroutine.
     See: https://github.com/python/asyncio/issues/341
     """
     pass
