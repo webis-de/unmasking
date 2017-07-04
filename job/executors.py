@@ -9,7 +9,6 @@ from unmasking.interfaces import UnmaskingStrategy
 import asyncio
 import os
 from concurrent.futures import ProcessPoolExecutor
-from multiprocessing import active_children
 from time import time
 from typing import Any, Dict, Tuple
 
