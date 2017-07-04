@@ -70,6 +70,7 @@ class ExpandingExecutor(JobExecutor):
             expanded_vectors = config_expander.expand(config_vectors.values())
 
         start_time = time()
+        executor = ProcessPoolExecutor()
         try:
             for config_index, vector in enumerate(expanded_vectors):
                 if vector:
@@ -87,12 +88,8 @@ class ExpandingExecutor(JobExecutor):
 
                 strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
                 loop = asyncio.get_event_loop()
-                executor = ProcessPoolExecutor()
                 for rep in range(0, iterations):
-                    with MultiProcessEventContext:
-                        # allow multiprocessing event context to initialize
-                        await asyncio.sleep(0)
-
+                    async with MultiProcessEventContext:
                         futures = []
 
                         async for pair in parser:
@@ -114,6 +111,7 @@ class ExpandingExecutor(JobExecutor):
                 aggregator.save(output_dir)
                 aggregator.reset()
         finally:
+            executor.shutdown()
             print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
     def _exec(self, strat: UnmaskingStrategy, pair: SamplePair, cfg: JobConfigLoader):

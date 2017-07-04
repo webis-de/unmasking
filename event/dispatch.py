@@ -2,7 +2,7 @@ from event.interfaces import Event, EventHandler
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from multiprocessing import Event, Queue, current_process
+from multiprocessing import Event, JoinableQueue, current_process
 from queue import Empty
 from sys import stderr
 from threading import current_thread
@@ -57,7 +57,7 @@ class EventBroadcaster:
         :param sender: ``__class__`` type object of the sending class or object
         """
         if MultiProcessEventContext.terminate_event.is_set():
-            # application is about to terminate, don't accept any more events
+            # application is about to terminate, don't accept any new events
             return
 
         if current_process().name != "MainProcess" or current_thread().name != "MainThread":
@@ -78,32 +78,50 @@ class _MultiProcessEventContextType(type):
     Internal type for providing a multiprocess event manager context.
     """
 
-    queue = Queue()
+    queue = JoinableQueue()
     terminate_event = Event()
 
     _initialized = False
 
-    def __enter__(self):
+    async def __aenter__(self):
         """
-        Initialize queue watcher for multiprocess communication.
+        Initialize event queue consumer thread for multiprocess event handling.
         """
+
         if self._initialized:
             return
 
         if current_process().name != "MainProcess" and current_thread().name != "MainThread":
             raise RuntimeError("MultiProcessEventContext must only be opened from main process / thread")
 
-        asyncio.ensure_future(self.__await_queue())
         self._initialized = True
         self.terminate_event.clear()
 
+        self._await_queue_future = asyncio.ensure_future(self.__await_queue())
+
+        # allow multiprocessing event context to initialize
+        await asyncio.sleep(0)
+
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         """
-        Signal multiprocess queue watcher to exit.
+        Process any remaining events and signal queue consumer thread to exit.
         """
+
+        # wait for remaining events to be processes before exiting the context
+        loop = asyncio.get_event_loop()
+        executor = ThreadPoolExecutor(max_workers=1)
+        await loop.run_in_executor(executor, self.queue.join)
+
+        # don't accept new events
+        self.terminate_event.set()
+
+        # terminate queue consumer loop (unfortunately, multiprocessing queues don't
+        # guarantee proper ordering, so this extra step is necessary)
         self.queue.put(None)
+        await asyncio.sleep(0)
+
         self._initialized = False
 
     async def __await_queue(self):
@@ -114,6 +132,7 @@ class _MultiProcessEventContextType(type):
             f = loop.run_in_executor(executor, self.__wait_queue, self.queue)
 
             await f
+            self.queue.task_done()
 
             if f.result() is None:
                 return
@@ -161,4 +180,5 @@ class MultiProcessEventContext(metaclass=_MultiProcessEventContextType):
                 MultiProcessEventContext.queue.get(False)
         except Empty:
             pass
+
         MultiProcessEventContext.queue.put(None)
