@@ -2,7 +2,9 @@ from event.interfaces import Event, EventHandler
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from multiprocessing import Queue, current_process
+from multiprocessing import Event, Queue, current_process
+from queue import Empty
+from sys import stderr
 from threading import current_thread
 from typing import Set
 
@@ -54,8 +56,13 @@ class EventBroadcaster:
         :param event: event to publish, which must have its :attr:`Event.name` property set
         :param sender: ``__class__`` type object of the sending class or object
         """
+        if MultiProcessEventContext.terminate_event.is_set():
+            # application is about to terminate, don't accept any more events
+            return
+
         if current_process().name != "MainProcess" or current_thread().name != "MainThread":
-            _MultiProcessEventContextType.queue.put((event_name, event, sender))
+            # We are in a worker process, delegate events to main process
+            MultiProcessEventContext.queue.put((event_name, event, sender))
             return
 
         if event_name not in cls.__subscribers:
@@ -72,21 +79,23 @@ class _MultiProcessEventContextType(type):
     """
 
     queue = Queue()
+    terminate_event = Event()
 
-    __initialized = False
+    _initialized = False
 
     def __enter__(self):
         """
         Initialize queue watcher for multiprocess communication.
         """
-        if self.__initialized:
+        if self._initialized:
             return
 
         if current_process().name != "MainProcess" and current_thread().name != "MainThread":
             raise RuntimeError("MultiProcessEventContext must only be opened from main process / thread")
 
         asyncio.ensure_future(self.__await_queue())
-        self.__initialized = True
+        self._initialized = True
+        self.terminate_event.clear()
 
         return self
 
@@ -95,10 +104,7 @@ class _MultiProcessEventContextType(type):
         Signal multiprocess queue watcher to exit.
         """
         self.queue.put(None)
-        self.__initialized = False
-
-        if exc_type is not None:
-            raise exc_type(exc_val)
+        self._initialized = False
 
     async def __await_queue(self):
         loop = asyncio.get_event_loop()
@@ -135,4 +141,24 @@ class MultiProcessEventContext(metaclass=_MultiProcessEventContextType):
     You should make sure to "await" as soon as possible after creating the
     context to allow the initializing code to be executed.
     """
-    pass
+
+    @staticmethod
+    def cleanup():
+        """
+        Cleanup method to ensure all event queues are cleared and worker processes
+        are signaled to shut down.
+
+        This method should be called once when shutting down the application.
+        """
+        # noinspection PyProtectedMember
+        if MultiProcessEventContext._initialized:
+            print("Shutting down worker processes...", file=stderr)
+
+        MultiProcessEventContext.terminate_event.set()
+
+        try:
+            while not MultiProcessEventContext.queue.empty():
+                MultiProcessEventContext.queue.get(False)
+        except Empty:
+            pass
+        MultiProcessEventContext.queue.put(None)

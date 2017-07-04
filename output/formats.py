@@ -223,7 +223,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         loop = asyncio.get_event_loop()
         while loop.is_running() and self._is_being_displayed and self._fig is not None:
             self._fig.canvas.flush_events()
-            await asyncio.sleep(0)
+            await asyncio.sleep(0.001)
     
     def plot_curve(self, values: List[float], curve_class: SamplePairClass, curve_handle: int):
         """

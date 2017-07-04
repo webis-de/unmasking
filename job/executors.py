@@ -9,7 +9,7 @@ from unmasking.interfaces import UnmaskingStrategy
 import asyncio
 import os
 from concurrent.futures import ProcessPoolExecutor
-from multiprocessing import current_process
+from multiprocessing import active_children
 from time import time
 from typing import Any, Dict, Tuple
 
@@ -94,8 +94,10 @@ class ExpandingExecutor(JobExecutor):
                         await asyncio.sleep(0)
 
                         futures = []
+
                         async for pair in parser:
                             futures.append(loop.run_in_executor(executor, self._exec, strat, pair, cfg))
+
                         await asyncio.wait(futures)
 
                     for output in self.outputs:

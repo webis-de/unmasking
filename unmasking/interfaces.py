@@ -1,5 +1,5 @@
 from classifier.interfaces import FeatureSet
-from event.dispatch import EventBroadcaster
+from event.dispatch import EventBroadcaster, MultiProcessEventContext
 from event.events import UnmaskingTrainCurveEvent
 from conf.interfaces import Configurable
 from input.interfaces import SamplePair
@@ -83,7 +83,10 @@ class UnmaskingStrategy(ABC, Configurable):
         group_id = UnmaskingTrainCurveEvent.generate_group_id([self.__class__.__name__ + ":" + pair.pair_id])
         event = UnmaskingTrainCurveEvent(group_id, 0, m, fs.pair, fs.__class__)
         values = []
-        for i in range(0, m):
+        for i in range(m):
+            if MultiProcessEventContext.terminate_event.is_set():
+                return
+
             try:
                 clf.fit(X, y)
                 scores = cross_val_score(clf, X, y, cv=folds)
