@@ -97,7 +97,7 @@ class _MultiProcessEventContextType(type):
         self._initialized = True
         self.terminate_event.clear()
 
-        self._await_queue_future = asyncio.ensure_future(self.__await_queue())
+        asyncio.ensure_future(self.__await_queue())
 
         # allow multiprocessing event context to initialize
         await asyncio.sleep(0)
