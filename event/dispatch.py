@@ -56,11 +56,11 @@ class EventBroadcaster:
         :param event: event to publish, which must have its :attr:`Event.name` property set
         :param sender: ``__class__`` type object of the sending class or object
         """
-        if MultiProcessEventContext.terminate_event.is_set():
-            # application is about to terminate, don't accept any new events
-            return
-
         if current_process().name != "MainProcess" or current_thread().name != "MainThread":
+            if MultiProcessEventContext.terminate_event.is_set():
+                # application is about to terminate, don't accept any new events from workers
+                return
+
             # We are in a worker process, delegate events to main process
             MultiProcessEventContext.queue.put((event_name, event, sender))
             return
