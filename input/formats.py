@@ -641,8 +641,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
 
 class PanParser(CorpusParser):
     """
-    Corpus parser for PAN-style authroship verification corpora.
-    This parser will build no new pairs, since the corpus format already consists of pairs.
+    Corpus parser for PAN-style authorship verification corpora.
 
     * `onPairGenerated`: [type PairBuildingProgressEvent]
                          fired when a pair has been generated
@@ -665,28 +664,24 @@ class PanParser(CorpusParser):
                     ground_truth[tmp[0]] = (tmp[1].upper() == "Y")
 
         pair_num = 0
+        total_num_pairs = len(ground_truth)
 
-        dir_list = []
         for case_dir in glob(self.corpus_path + "/*"):
             if not os.path.isdir(case_dir) or \
                not os.path.isfile(case_dir + "/unknown.txt") or \
                not os.path.isfile(case_dir + "/known01.txt"):
                 continue
-            dir_list.append(case_dir)
 
-        for case_dir in dir_list:
             case = os.path.basename(case_dir)
 
             chunks_a = []
             file_name_a = self.corpus_path + "/" + case + "/unknown.txt"
-            with open(file_name_a, "r", encoding="utf-8", errors="ignore") as f:
-                chunks_a.append(f.read())
+            chunks_a.append(await self.await_file(file_name_a))
 
             chunks_b = []
-            file_names_b = glob(self.corpus_path + "/" + case + "/known??.txt")
-            for t in file_names_b:
-                with open(t, "r", encoding="utf-8", errors="ignore") as f:
-                    chunks_b.append(f.read())
+            file_names_b = sorted(glob(self.corpus_path + "/" + case + "/known??.txt"))
+            for b in file_names_b:
+                chunks_b.append(await self.await_file(b))
 
             cls = self.Class.UNSPECIFIED
             if case in ground_truth:
@@ -696,8 +691,9 @@ class PanParser(CorpusParser):
             await pair.chunk(chunks_a, chunks_b)
             group_id = PairBuildingProgressEvent.generate_group_id([pair.pair_id])
             await EventBroadcaster.publish("onPairGenerated",
-                                           PairBuildingProgressEvent(group_id, pair_num, len(case_dir),
+                                           PairBuildingProgressEvent(group_id, pair_num, total_num_pairs,
                                                                      pair, [file_name_a], file_names_b),
                                            self.__class__)
-            pair_num += 1
+
             yield pair
+            pair_num += 1
