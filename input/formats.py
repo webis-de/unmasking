@@ -186,13 +186,21 @@ class AuthorPairParser(TextPairParser):
 
         progress_event = ProgressEvent(ProgressEvent.generate_group_id(self._input_authors), 0, num_combinations)
         pair_num = 0
+        single_file_sets = []
 
         for a1, a2 in combinations_with_replacement(self._input_authors.keys(), 2):
             for f1 in self._input_authors[a1]:
-                f2 = [f for f in self._input_authors[a2] if f != f1]
+                f2 = sorted([f for f in self._input_authors[a2] if f != f1])
                 if not f2:
                     # skip if author has only one file
                     continue
+
+                if len(f2) == 1:
+                    fs = {f1, f2[0]}
+                    if fs in single_file_sets:
+                        # We already compared these two texts
+                        continue
+                    single_file_sets.append(fs)
 
                 f1_contents = await self.await_file(f1)
                 f2_contents = [await self.await_file(f) for f in f2]
@@ -209,6 +217,7 @@ class AuthorPairParser(TextPairParser):
                                                PairGenerationEvent(group_id, pair_num,
                                                                    pair, [f1_contents], f2_contents),
                                                self.__class__)
+
                 yield pair
                 pair_num += 1
 

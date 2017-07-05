@@ -112,6 +112,7 @@ class _MultiProcessEventContextType(type):
         # wait for remaining events to be processes before exiting the context
         loop = asyncio.get_event_loop()
         executor = ThreadPoolExecutor(max_workers=1)
+
         await loop.run_in_executor(executor, self.queue.join)
 
         # don't accept new events

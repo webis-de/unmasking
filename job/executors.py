@@ -5,12 +5,13 @@ from event.events import ConfigurationFinishedEvent, JobFinishedEvent
 from input.interfaces import SamplePair
 from job.interfaces import JobExecutor, ConfigurationExpander
 from unmasking.interfaces import UnmaskingStrategy
+from util.util import clear_lru_caches
 
 import asyncio
 import os
 from concurrent.futures import ProcessPoolExecutor
 from time import time
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Dict, Tuple
 
 
 class ExpandingExecutor(JobExecutor):
@@ -123,8 +124,11 @@ class ExpandingExecutor(JobExecutor):
                     output.save(config_output_dir)
                     output.reset()
 
+            clear_lru_caches()
+
             event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
             await EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
+
         finally:
             executor.shutdown()
 
