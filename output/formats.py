@@ -42,7 +42,6 @@ class ProgressPrinter(EventHandler, Output):
             - ProgressEvent
         """
         if not isinstance(event, ProgressEvent):
-            print(type(event))
             raise RuntimeError("event must be of type ProgressEvent")
 
         if self._text is None:
