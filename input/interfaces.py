@@ -168,4 +168,4 @@ class CorpusParser(ABC, Configurable):
         :return: its contents
         """
         with open(file_name, "r", encoding="utf-8", errors="ignore") as f:
-            return f.read()
+            return f.read().replace("\ufeff", "")
