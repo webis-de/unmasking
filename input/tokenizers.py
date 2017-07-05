@@ -15,11 +15,13 @@ class WordTokenizer(Tokenizer):
     punctuation = [".", ",", ";", ":", "!", "?", "+", "-", "*", "/", "^", "°", "=", "~", "$", "%",
                    "(", ")", "[", "]", "{", "}", "<", ">",
                    "`", "``", "'", "''", "--", "---"]
-    
+
+    def __init__(self):
+        self._tokenizer = nltk.tokenize.TreebankWordTokenizer()
+
     @lru_cache(maxsize=10000)
     def tokenize(self, text: str) -> Iterable[str]:
-        word_tokenizer = nltk.tokenize.TreebankWordTokenizer()
-        return (t for t in word_tokenizer.tokenize(text) if t not in self.punctuation)
+        return [t for t in self._tokenizer.tokenize(text) if t not in self.punctuation]
 
 
 class CharNgramTokenizer(Tokenizer):
@@ -58,7 +60,7 @@ class DisjunctCharNgramTokenizer(CharNgramTokenizer):
     If the input text length is not a multiple of the given n-gram order, the last n-gram will be discarded.
     E.g. "hello world" will become ["hel", "lo ", "wor"]
     """
-    
+
     def tokenize(self, text: str) -> Iterable[str]:
         text_len = len(text)
         for i in range(0, text_len, self._order):
@@ -75,7 +77,7 @@ class PassthroughTokenizer(Tokenizer):
     """
     
     def tokenize(self, text: str) -> Iterable[str]:
-        return [text]
+        yield text
 
 
 class SentenceChunkTokenizer(Tokenizer):
@@ -125,7 +127,7 @@ class SentenceChunkTokenizer(Tokenizer):
 
         sent_tokenizer = self._get_sent_tokenizer(self._language)
         sentences = sent_tokenizer.tokenize(text)
-        
+
         chunks = []
         current_chunk = ""
         current_chunk_size = 0
@@ -184,6 +186,7 @@ class RandomWordChunkTokenizer(WordTokenizer):
         :param with_replacement: whether to draw with replacement or without and
                                  full refill once all words have been drawn
         """
+        super().__init__()
         self._chunk_size = chunk_size
         self._num_chunks = num_chunks
         self._with_replacement = with_replacement

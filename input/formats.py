@@ -45,13 +45,15 @@ class SamplePairImpl(SamplePair):
 
         await EventBroadcaster.publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
 
-        for t in a:
-            self._chunks_a.extend(self._chunk_tokenizer.tokenize(t))
+        for text in a:
+            async for tokens in self._chunk_tokenizer.await_tokens(text):
+                self._chunks_a.append(tokens)
             self._progress_event = PairChunkingProgressEvent.new_event(self._progress_event)
             await EventBroadcaster.publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
 
-        for t in b:
-            self._chunks_b.extend(self._chunk_tokenizer.tokenize(t))
+        for text in b:
+            async for tokens in self._chunk_tokenizer.await_tokens(text):
+                self._chunks_b.append(tokens)
             self._progress_event = PairChunkingProgressEvent.new_event(self._progress_event)
             await EventBroadcaster.publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
 
