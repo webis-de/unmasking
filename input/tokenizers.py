@@ -97,6 +97,7 @@ class SentenceChunkTokenizer(Tokenizer):
         """
         self._chunk_size = chunk_size
         self._language = language
+        self._word_tokenizer = WordTokenizer()
     
     @property
     def chunk_size(self) -> int:
@@ -120,8 +121,10 @@ class SentenceChunkTokenizer(Tokenizer):
 
     @lru_cache(maxsize=10000)
     def tokenize(self, text: str) -> Iterable[str]:
-        word_tokenizer = WordTokenizer()
-        total_words = len(list(word_tokenizer.tokenize(text)))
+        word_tokens = self._word_tokenizer.tokenize(text)
+        assert type(word_tokens) is list
+        # noinspection PyTypeChecker
+        total_words = len(word_tokens)
         num_chunks = total_words // self._chunk_size
         ideal_chunk_size = max(total_words // max(num_chunks, 1), self._chunk_size)
 
@@ -132,7 +135,8 @@ class SentenceChunkTokenizer(Tokenizer):
         current_chunk = ""
         current_chunk_size = 0
         for s in sentences:
-            num_words = len(list(word_tokenizer.tokenize(s)))
+            # noinspection PyTypeChecker
+            num_words = len(self._word_tokenizer.tokenize(s))
             current_chunk_size += num_words
         
             if current_chunk_size >= ideal_chunk_size:
@@ -153,7 +157,8 @@ class SentenceChunkTokenizer(Tokenizer):
 
             # combine last two chunks if the last chunk is too small
             if len(chunks) >= 2:
-                last_chunk_len = len(list(word_tokenizer.tokenize(chunks[-1])))
+                # noinspection PyTypeChecker
+                last_chunk_len = len(self._word_tokenizer.tokenize(chunks[-1]))
                 if last_chunk_len < self._chunk_size:
                     chunks[-2] += " " + chunks[-1]
                     del chunks[-1]
@@ -190,19 +195,22 @@ class RandomWordChunkTokenizer(WordTokenizer):
         self._chunk_size = chunk_size
         self._num_chunks = num_chunks
         self._with_replacement = with_replacement
-    
+
     def tokenize(self, text: str) -> Iterable[str]:
-        words = self._get_words(text)
+        words = super().tokenize(text)
+        assert type(words) is list
         word_freq = nltk.FreqDist(words)
+        # noinspection PyTypeChecker
         num_words = len(words)
         drawn = {}
         num_drawn = 0
-        
+
         for i in range(0, self._num_chunks):
             chunk = ""
             cur_chunk_size = 0
             
             while cur_chunk_size < self._chunk_size:
+                # noinspection PyUnresolvedReferences
                 word = words[randint(0, num_words - 1)]
 
                 if not self._with_replacement:
@@ -221,10 +229,6 @@ class RandomWordChunkTokenizer(WordTokenizer):
                 cur_chunk_size += 1
             
             yield chunk
-
-    @lru_cache(maxsize=10000)
-    def _get_words(self, text: str):
-        return list(super().tokenize(text))
     
     @property
     def chunk_size(self) -> int:
