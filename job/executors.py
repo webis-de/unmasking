@@ -9,7 +9,7 @@ from util.util import clear_lru_caches
 
 import asyncio
 import os
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import Executor, ProcessPoolExecutor
 from time import time
 from typing import Any, Dict, Tuple
 
@@ -85,8 +85,8 @@ class ExpandingExecutor(JobExecutor):
             executor.shutdown()
             print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
-    async def _run_configuration(self, executor, config_index: int, vector: Tuple, config_variables: Tuple[str],
-                                 job_id: str, output_dir: str):
+    async def _run_configuration(self, executor: Executor, config_index: int, vector: Tuple,
+                                 config_variables: Tuple[str], job_id: str, output_dir: str):
         """
         Run a single configuration in multiple parallel processes.
 
