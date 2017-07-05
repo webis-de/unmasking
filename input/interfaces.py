@@ -146,7 +146,7 @@ class CorpusParser(ABC, Configurable):
     @abstractmethod
     async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
         """
-        Asynchronous generator return parsed SamplePairs.
+        Asynchronous generator for parsed SamplePairs.
         """
         pass
 
