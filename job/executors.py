@@ -10,7 +10,7 @@ import asyncio
 import os
 from concurrent.futures import ProcessPoolExecutor
 from time import time
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Iterable, Tuple
 
 
 class ExpandingExecutor(JobExecutor):
@@ -69,39 +69,9 @@ class ExpandingExecutor(JobExecutor):
             expanded_vectors = config_expander.expand(config_vectors.values())
 
         start_time = time()
-        executor = ProcessPoolExecutor()
         try:
             for config_index, vector in enumerate(expanded_vectors):
-                if vector:
-                    config_output_dir = os.path.join(output_dir, "config_{:05d}".format(config_index))
-                    cfg = JobConfigLoader(self._expand_dict(self._config.get(), config_variables, vector))
-                    os.makedirs(config_output_dir)
-                    cfg.save(os.path.join(config_output_dir, "job_expanded"))
-                else:
-                    config_output_dir = output_dir
-                    cfg = JobConfigLoader(self._config.get())
-
-                chunk_tokenizer = self._configure_instance(cfg.get("job.input.tokenizer"))
-                parser = self._configure_instance(cfg.get("job.input.parser"), chunk_tokenizer)
-                iterations = cfg.get("job.experiment.repetitions")
-
-                strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
-                loop = asyncio.get_event_loop()
-                for rep in range(0, iterations):
-                    async with MultiProcessEventContext:
-                        futures = []
-
-                        async for pair in parser:
-                            futures.append(loop.run_in_executor(executor, self._exec, strat, pair, cfg))
-
-                        await asyncio.wait(futures)
-
-                    for output in self.outputs:
-                        output.save(config_output_dir)
-                        output.reset()
-
-                event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
-                await EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
+                await self._run_configuration(config_index, vector, config_variables, job_id, output_dir)
 
             event = JobFinishedEvent(job_id, 0, self.aggregators)
             await EventBroadcaster.publish("onJobFinished", event, self.__class__)
@@ -110,8 +80,53 @@ class ExpandingExecutor(JobExecutor):
                 aggregator.save(output_dir)
                 aggregator.reset()
         finally:
-            executor.shutdown()
             print("Time taken: {:.03f} seconds.".format(time() - start_time))
+
+    async def _run_configuration(self, config_index: int, vector: Tuple, config_variables: Tuple[str],
+                                 job_id: str, output_dir: str):
+        """
+        Run a single configuration in multiple parallel processes.
+
+        :param config_index: index number of the current configuration
+        :param vector: vector of expansion values
+        :param config_variables: variables to expand with the values from vector
+        :param job_id: string id of the running job
+        :param output_dir: output directory
+        """
+        executor = ProcessPoolExecutor()
+        try:
+            if vector:
+                config_output_dir = os.path.join(output_dir, "config_{:05d}".format(config_index))
+                cfg = JobConfigLoader(self._expand_dict(self._config.get(), config_variables, vector))
+                os.makedirs(config_output_dir)
+                cfg.save(os.path.join(config_output_dir, "job_expanded"))
+            else:
+                config_output_dir = output_dir
+                cfg = JobConfigLoader(self._config.get())
+
+            chunk_tokenizer = self._configure_instance(cfg.get("job.input.tokenizer"))
+            parser = self._configure_instance(cfg.get("job.input.parser"), chunk_tokenizer)
+            iterations = cfg.get("job.experiment.repetitions")
+
+            strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
+            loop = asyncio.get_event_loop()
+            for rep in range(iterations):
+                async with MultiProcessEventContext:
+                    futures = []
+
+                    async for pair in parser:
+                        futures.append(loop.run_in_executor(executor, self._exec, strat, pair, cfg))
+
+                    await asyncio.wait(futures)
+
+                for output in self.outputs:
+                    output.save(config_output_dir)
+                    output.reset()
+
+            event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
+            await EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
+        finally:
+            executor.shutdown()
 
     def _exec(self, strat: UnmaskingStrategy, pair: SamplePair, cfg: JobConfigLoader):
         """
