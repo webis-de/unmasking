@@ -88,7 +88,7 @@ class ExpandingExecutor(JobExecutor):
         Run a single configuration in multiple parallel processes.
 
         :param config_index: index number of the current configuration
-        :param vector: vector of expansion values
+        :param vector: vector of expansion values (may be empty)
         :param config_variables: variables to expand with the values from vector
         :param job_id: string id of the running job
         :param output_dir: output directory
@@ -106,11 +106,11 @@ class ExpandingExecutor(JobExecutor):
 
             chunk_tokenizer = self._configure_instance(cfg.get("job.input.tokenizer"))
             parser = self._configure_instance(cfg.get("job.input.parser"), chunk_tokenizer)
-            iterations = cfg.get("job.experiment.repetitions")
+            repetitions = cfg.get("job.experiment.repetitions")
 
             strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
             loop = asyncio.get_event_loop()
-            for rep in range(iterations):
+            for _ in range(repetitions):
                 async with MultiProcessEventContext:
                     futures = []
 
