@@ -47,7 +47,9 @@ class ProgressPrinter(EventHandler, Output):
         if self._text is None:
             print(event.text)
         else:
-            print(self._text.format(event.serial, event.events_total, event.percent_done))
+            total = event.events_total if event.events_total is not None else "unknown"
+            percent_done = event.percent_done if event.percent_done is not None else "unknown"
+            print(self._text.format(event.serial, total, percent_done))
 
     def save(self, output_dir: str):
         pass
@@ -199,7 +201,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     async def handle(self, name: str, event: Event, sender: type):
         """
         Accepts events:
-            - UnmaskingTraingCurveEvent
+            - UnmaskingTrainCurveEvent
         """
         if not isinstance(event, UnmaskingTrainCurveEvent):
             raise TypeError("event must be of type UnmaskingTrainCurveEvent")
