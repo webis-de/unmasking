@@ -3,12 +3,12 @@ from classifier.sampling import ChunkSampler
 from input.interfaces import SamplePair
 from input.interfaces import Tokenizer
 from input.tokenizers import WordTokenizer, CharNgramTokenizer, DisjunctCharNgramTokenizer
+from util.util import lru_cache
 
 import numpy
 from nltk import FreqDist
 
 from typing import List, Iterable
-from functools import lru_cache
 
 
 class CachedAvgTokenCountFeatureSet(FeatureSet):
@@ -30,6 +30,7 @@ class CachedAvgTokenCountFeatureSet(FeatureSet):
 
         self.__freq_a = None
         self.__freq_b = None
+        self._chunks  = []
 
     def _prepare(self):
         if self._is_prepared:
@@ -67,24 +68,24 @@ class CachedAvgTokenCountFeatureSet(FeatureSet):
         num_top_words = len(top_n_words)
         for c in self._chunks:
             vec = numpy.zeros(2 * n)
-        
+
             self.__freq_a = FreqDist(self._tokenize(c[0]))
+
             for i in range(0, n):
                 if i >= num_top_words:
                     break
                 vec[i] = self.__freq_a[top_n_words[i]]
-        
+
             self.__freq_b = FreqDist(self._tokenize(c[1]))
+
             for i in range(n, 2 * n):
                 if i >= num_top_words + n:
                     break
                 vec[i] = self.__freq_b[top_n_words[i - n]]
-            
+
             yield vec
 
     def get_features_relative(self, n: int) -> Iterable[numpy.ndarray]:
-        self._prepare()
-
         features = self.get_features_absolute(n)
         for vec in features:
             n_a = self.__freq_a.N()

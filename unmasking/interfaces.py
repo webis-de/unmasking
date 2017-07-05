@@ -1,5 +1,5 @@
 from classifier.interfaces import FeatureSet
-from event.dispatch import EventBroadcaster
+from event.dispatch import EventBroadcaster, MultiProcessEventContext
 from event.events import UnmaskingTrainCurveEvent
 from conf.interfaces import Configurable
 from input.interfaces import SamplePair
@@ -46,10 +46,10 @@ class UnmaskingStrategy(ABC, Configurable):
         if not hasattr(clf, "fit"):
             raise ValueError("Estimator does not implement fit()")
         self._clf = clf
-    
+
     # noinspection PyPep8Naming
-    def run(self, pair: SamplePair, m: int, n: int, fs: FeatureSet, relative: bool = False,
-            folds: int = 10, monotonize : bool = False):
+    async def run(self, pair: SamplePair, m: int, n: int, fs: FeatureSet, relative: bool = False,
+                  folds: int = 10, monotonize: bool = False):
         """
         Run ``m`` rounds of unmasking on given parametrized feature set.
 
@@ -61,8 +61,10 @@ class UnmaskingStrategy(ABC, Configurable):
         :param folds: number of cross-validation folds
         :param monotonize: whether to monotonize curves (i.e., no point will be larger than the previous point)
         """
+        clf = LinearSVC()
         X = []
         y = []
+
         if relative:
             it = fs.get_features_relative(n)
         else:
@@ -71,7 +73,7 @@ class UnmaskingStrategy(ABC, Configurable):
             l = len(row)
             X.append(row[0:l // 2])
             X.append(row[l // 2:l])
-            
+
             # cls either "text 0" or "text 1" of a pair
             y.append(0)
             y.append(1)
@@ -81,36 +83,40 @@ class UnmaskingStrategy(ABC, Configurable):
         group_id = UnmaskingTrainCurveEvent.generate_group_id([self.__class__.__name__ + ":" + pair.pair_id])
         event = UnmaskingTrainCurveEvent(group_id, 0, m, fs.pair, fs.__class__)
         values = []
-        for i in range(0, m):
+        for i in range(m):
+            if MultiProcessEventContext.terminate_event.is_set():
+                return
+
             try:
-                self.clf.fit(X, y)
-                scores = cross_val_score(self.clf, X, y, cv=folds)
+                clf.fit(X, y)
+                scores = cross_val_score(clf, X, y, cv=folds)
                 score = max(0.0, (scores.mean() - .5) * 2)
+
                 if monotonize:
                     values.append(score)
                 else:
                     values.append(score)
                     event.values = values
 
-                if isinstance(self.clf.coef_, list):
-                    coef = numpy.array(self.clf.coef_[0])
+                if isinstance(clf.coef_, list):
+                    coef = numpy.array(clf.coef_[0])
                 else:
-                    coef = numpy.array(self.clf.coef_)
+                    coef = numpy.array(clf.coef_)
 
                 if not monotonize:
-                    EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
+                    await EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
                     event = UnmaskingTrainCurveEvent.new_event(event)
 
                 if i < m - 1:
-                    X = self.transform(X, coef)
+                    X = await self.transform(X, coef)
             except ValueError:
                 continue
 
         if monotonize:
             event.values = self._monotonize(values)
-            EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
+            await EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
         event = UnmaskingTrainCurveEvent.new_event(event)
-        EventBroadcaster.publish("onUnmaskingFinished", event, self.__class__)
+        await EventBroadcaster.publish("onUnmaskingFinished", event, self.__class__)
 
     def _monotonize(self, values: List[float]):
         # monotonize from the left
@@ -137,7 +143,7 @@ class UnmaskingStrategy(ABC, Configurable):
         return list(values_r)
 
     @abstractmethod
-    def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
+    async def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
         """
         Transform the input tensor according to the chosen unmasking strategy.
         

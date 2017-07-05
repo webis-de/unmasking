@@ -10,7 +10,7 @@ class ProgressEvent(Event):
     Event for indicating progress of an operation with a fixed number of steps to be performed.
     """
     
-    def __init__(self, group_id: str, serial: int, events_total: int = 1):
+    def __init__(self, group_id: str, serial: int, events_total: Optional[int] = None):
         """
         :param group_id: event group ID token
         :param serial: event serial number
@@ -18,28 +18,105 @@ class ProgressEvent(Event):
         """
         super().__init__(group_id, serial)
         
-        if events_total < 1:
+        if events_total is not None and events_total < 1:
             raise AttributeError("events_total must be greater than 0")
 
         self._events_total = events_total
 
     def clone(self) -> Event:
-        return ProgressEvent(self.group_id, self.serial, self._events_total)
-    
+        return self.__class__(self.group_id, self.serial, self._events_total)
+
     @property
-    def events_total(self) -> int:
+    def text(self) -> str:
+        """Get user-readable textural representation of this event."""
+        if self._events_total is None:
+            return "Progress: {}".format(self.serial)
+
+        return "Progress: {}/{} ({:.2f}%)".format(self.serial + 1, self.events_total, self.percent_done)
+
+    @property
+    def events_total(self) -> Optional[int]:
         """Get total number of events that will be sent in this event group."""
         return self._events_total
-    
+
     @property
-    def percent_done(self) -> float:
-        """Total progress in percent."""
+    def percent_done(self) -> Optional[float]:
+        """Total progress in percent (None if total process is unknown)."""
+        if self._events_total is None:
+            return None
+
         return (float(self.serial) / self.events_total) * 100.0
-    
+
     @property
     def finished(self) -> bool:
         """True if all operations have finished."""
-        return self.serial >= self._events_total
+        return self._events_total is not None and self.serial >= self._events_total
+
+
+class PairChunkingProgressEvent(ProgressEvent):
+    """
+    Event for indicating pair chunking progress.
+    """
+
+    @property
+    def text(self) -> str:
+        """Get user-readable textural representation of this event."""
+        if self.percent_done is not None:
+            return "Chunking current pair: ({:.2f}%)".format(self.percent_done)
+
+        return "Chunking current pair..."
+
+
+class PairBuildingProgressEvent(ProgressEvent):
+    """
+    Event for status reports on pair generation.
+    """
+
+    def __init__(self, group_id: str, serial: int, pairs_total: Optional[int] = None, pair: SamplePair = None,
+                 files_a: Optional[List[str]] = None, files_b: Optional[List[str]] = None):
+        """
+        :param group_id: event group ID token
+        :param serial: event serial number
+        :param pair: pair for which this event is emitted
+        :param files_a: participating files for chunk set a
+        :param files_b: participating files for chunk set b
+        """
+        super().__init__(group_id, serial, pairs_total)
+        self._pair = pair
+        self._files_a = [] if files_a is None else files_a
+        self._files_b = [] if files_b is None else files_b
+
+    def clone(self) -> Event:
+        return self.__class__(self.group_id, self.serial, self._events_total,
+                              self._pair, self._files_a, self._files_b)
+
+    @property
+    def pair(self):
+        """Pair for which this event is emitted"""
+        return self._pair
+
+    @property
+    def files(self) -> Tuple[List[str], List[str]]:
+        """Lists of input files participating in this pair's generation of chunk sets a and b"""
+        return self._files_a, self._files_b
+
+    @files.setter
+    def files(self, files: Tuple[List[str], List[str]]):
+        """
+        Set files participating in this pair's generation.
+
+        :param files: participating files for chunk sets a and b as tuple of lists
+        """
+        self._files_a = files[0]
+        self._files_b = files[1]
+
+    @property
+    def text(self) -> str:
+        """Get user-readable textural representation of this event."""
+        if self.events_total is None:
+            return "Generated pair {}.".format(self.serial)
+
+        return "Generated pair {} of {}.".format(self.serial + 1, self.events_total)
 
 
 class ConfigurationFinishedEvent(Event):
@@ -146,46 +223,3 @@ class UnmaskingTrainCurveEvent(Event):
     def feature_set(self, fs: type):
         """Set feature set class used for generating this curve."""
         self._feature_set = fs
-
-
-class PairGenerationEvent(Event):
-    """
-    Event for status reports on pair generation.
-    """
-    
-    def __init__(self, group_id: str, serial: int, pair: SamplePair = None,
-                 files_a: Optional[List[str]] = None, files_b: Optional[List[str]] = None):
-        """
-        :param group_id: event group ID token
-        :param serial: event serial number
-        :param pair: pair for which this event is emitted
-        :param files_a: participating files for chunk set a
-        :param files_b: participating files for chunk set b
-        """
-        super().__init__(group_id, serial)
-        self._pair = pair
-        self._files_a = [] if files_a is None else files_a
-        self._files_b = [] if files_b is None else files_b
-
-    def clone(self) -> Event:
-        return PairGenerationEvent(self.group_id, self.serial, self._pair, self._files_a, self._files_b)
-    
-    @property
-    def pair(self):
-        """Pair for which this event is emitted"""
-        return self._pair
-    
-    @property
-    def files(self) -> Tuple[List[str], List[str]]:
-        """Lists of input files participating in this pair's generation of chunk sets a and b"""
-        return self._files_a, self._files_b
-    
-    @files.setter
-    def files(self, files: Tuple[List[str], List[str]]):
-        """
-        Set files participating in this pair's generation.
-        
-        :param files: participating files for chunk sets a and b as tuple of lists
-        """
-        self._files_a = files[0]
-        self._files_b = files[1]

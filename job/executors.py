@@ -1,10 +1,15 @@
 from conf.interfaces import ConfigLoader
 from conf.loader import JobConfigLoader
-from event.dispatch import EventBroadcaster
+from event.dispatch import EventBroadcaster, MultiProcessEventContext
 from event.events import ConfigurationFinishedEvent, JobFinishedEvent
+from input.interfaces import SamplePair
 from job.interfaces import JobExecutor, ConfigurationExpander
+from unmasking.interfaces import UnmaskingStrategy
+from util.util import clear_lru_caches
 
+import asyncio
 import os
+from concurrent.futures import Executor, ProcessPoolExecutor
 from time import time
 from typing import Any, Dict, Tuple
 
@@ -33,7 +38,7 @@ class ExpandingExecutor(JobExecutor):
         super().__init__()
         self._config = None
 
-    def run(self, conf: ConfigLoader, output_dir: str = None):
+    async def run(self, conf: ConfigLoader, output_dir: str = None):
         self._config = conf
         
         self._load_outputs(self._config)
@@ -50,7 +55,7 @@ class ExpandingExecutor(JobExecutor):
             
         if not os.path.isdir(output_dir):
             raise IOError("Failed to create output directory '{}', maybe it exists already?".format(output_dir))
-        
+
         conf.save(os.path.join(output_dir, "job"))
 
         config_vectors = self._config.get("job.experiment.configurations")
@@ -63,53 +68,93 @@ class ExpandingExecutor(JobExecutor):
 
             config_variables = config_vectors.keys()
             expanded_vectors = config_expander.expand(config_vectors.values())
-        
+
         start_time = time()
+        executor = ProcessPoolExecutor()
         try:
             for config_index, vector in enumerate(expanded_vectors):
-                if vector:
-                    config_output_dir = os.path.join(output_dir, "config_{:05d}".format(config_index))
-                    cfg = JobConfigLoader(self._expand_dict(self._config.get(), config_variables, vector))
-                    os.makedirs(config_output_dir)
-                    cfg.save(os.path.join(config_output_dir, "job_expanded"))
-                else:
-                    config_output_dir = output_dir
-                    cfg = JobConfigLoader(self._config.get())
-
-                chunk_tokenizer = self._configure_instance(cfg.get("job.input.tokenizer"))
-                parser = self._configure_instance(cfg.get("job.input.parser"), chunk_tokenizer)
-                iterations = cfg.get("job.experiment.repetitions")
-
-                strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
-                for rep in range(0, iterations):
-                    for i, pair in enumerate(parser):
-                        sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
-                        feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
-
-                        strat.run(
-                            pair,
-                            cfg.get("job.unmasking.iterations"),
-                            cfg.get("job.unmasking.vector_size"),
-                            feature_set,
-                            cfg.get("job.unmasking.relative"),
-                            cfg.get("job.unmasking.folds"),
-                            cfg.get("job.unmasking.monotonize"))
-
-                    for output in self.outputs:
-                        output.save(config_output_dir)
-                        output.reset()
-
-                event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
-                EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
+                await self._run_configuration(executor, config_index, vector, config_variables, job_id, output_dir)
 
             event = JobFinishedEvent(job_id, 0, self.aggregators)
-            EventBroadcaster.publish("onJobFinished", event, self.__class__)
+            await EventBroadcaster.publish("onJobFinished", event, self.__class__)
 
             for aggregator in self.aggregators:
                 aggregator.save(output_dir)
                 aggregator.reset()
         finally:
+            executor.shutdown()
             print("Time taken: {:.03f} seconds.".format(time() - start_time))
+
+    async def _run_configuration(self, executor: Executor, config_index: int, vector: Tuple,
+                                 config_variables: Tuple[str], job_id: str, output_dir: str):
+        """
+        Run a single configuration in multiple parallel processes.
+
+        :param executor: ProcessPoolExecutor (or ThreadPoolExecutor) to run the configurations
+        :param config_index: index number of the current configuration
+        :param vector: vector of expansion values (may be empty)
+        :param config_variables: variables to expand with the values from vector
+        :param job_id: string id of the running job
+        :param output_dir: output directory
+        """
+        if vector:
+            config_output_dir = os.path.join(output_dir, "config_{:05d}".format(config_index))
+            cfg = JobConfigLoader(self._expand_dict(self._config.get(), config_variables, vector))
+            os.makedirs(config_output_dir)
+            cfg.save(os.path.join(config_output_dir, "job_expanded"))
+        else:
+            config_output_dir = output_dir
+            cfg = JobConfigLoader(self._config.get())
+
+        chunk_tokenizer = self._configure_instance(cfg.get("job.input.tokenizer"))
+        parser = self._configure_instance(cfg.get("job.input.parser"), chunk_tokenizer)
+        repetitions = cfg.get("job.experiment.repetitions")
+
+        strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
+        loop = asyncio.get_event_loop()
+        for _ in range(repetitions):
+            async with MultiProcessEventContext:
+                futures = []
+
+                async for pair in parser:
+                    futures.append(loop.run_in_executor(executor, self._exec, strat, pair, cfg))
+
+                await asyncio.wait(futures)
+
+            for output in self.outputs:
+                output.save(config_output_dir)
+                output.reset()
+
+        clear_lru_caches()
+
+        event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
+        await EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
+
+    def _exec(self, strat: UnmaskingStrategy, pair: SamplePair, cfg: JobConfigLoader):
+        """
+        Execute actual unmasking strategy.
+        This method should be run in a separate process.
+
+        :param strat: unmasking strategy to run
+        :param pair: sample pair to run on
+        :param cfg: job configuration
+        """
+        sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
+        feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(strat.run(
+                pair,
+                cfg.get("job.unmasking.iterations"),
+                cfg.get("job.unmasking.vector_size"),
+                feature_set,
+                cfg.get("job.unmasking.relative"),
+                cfg.get("job.unmasking.folds"),
+                cfg.get("job.unmasking.monotonize")))
+        finally:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+            loop.stop()
 
     def _expand_dict(self, d: Dict[str, Any], keys: Tuple[str], values: Tuple) -> Dict[str, Any]:
         """

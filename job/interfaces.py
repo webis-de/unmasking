@@ -98,15 +98,15 @@ class JobExecutor(ABC):
         """
         aggs = conf.get("job.experiment.aggregators")
     
-        for output in aggs:
-            agg_obj = self._configure_instance(output)
+        for agg in aggs:
+            agg_obj = self._configure_instance(agg)
             if not isinstance(agg_obj, Aggregator):
-                raise ValueError("'{}' is not an Aggregator".format(output["name"]))
+                raise ValueError("'{}' is not an Aggregator".format(agg["name"]))
             
-            if "events" in output:
+            if "events" in agg:
                 # noinspection PyTypeChecker
-                self._subscribe_to_events(agg_obj, output["events"])
-            
+                self._subscribe_to_events(agg_obj, agg["events"])
+
             self._aggregators.append(agg_obj)
     
     @abstractmethod

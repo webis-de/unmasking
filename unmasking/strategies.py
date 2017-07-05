@@ -1,5 +1,6 @@
 from unmasking.interfaces import UnmaskingStrategy
 
+import asyncio
 import numpy
 
 
@@ -25,7 +26,7 @@ class FeatureRemoval(UnmaskingStrategy):
         """Set number of eliminations per round"""
         self._num_eliminate = num_eliminate
 
-    def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
+    async def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
         coef = numpy.absolute(coef)
         
         for i in range(0, self._num_eliminate):
@@ -35,5 +36,7 @@ class FeatureRemoval(UnmaskingStrategy):
             index = numpy.argmax(coef)
             coef  = numpy.delete(coef, index)
             data  = numpy.delete(data, index, 1)
+
+            await asyncio.sleep(0)
         
         return data

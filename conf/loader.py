@@ -72,7 +72,7 @@ class JobConfigLoader(YamlLoader):
 
     _default_config = None
 
-    def __init__(self, cfg : Dict[str, Any] = None):
+    def __init__(self, cfg: Dict[str, Any] = None):
         """
         :param cfg: optional configuration dict to construct configuration from
         """

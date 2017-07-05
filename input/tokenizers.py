@@ -1,9 +1,9 @@
 from input.interfaces import Tokenizer
+from util.util import lru_cache
 
 import nltk
 
 from typing import Iterable
-from functools import lru_cache
 from random import randint
 
 

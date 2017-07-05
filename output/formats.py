@@ -3,20 +3,19 @@ import os
 from random import randint
 from typing import Any, Dict
 
+import asyncio
 import matplotlib.pyplot as pyplot
-from matplotlib.ticker import MaxNLocator
 
+from matplotlib.ticker import MaxNLocator
 from event.events import *
 from event.interfaces import EventHandler
-from input.interfaces import SamplePair
+from input.interfaces import SamplePairClass
 from output.interfaces import Output
 
 
 class ProgressPrinter(EventHandler, Output):
     """
     Print progress events to the console.
-    
-    Handles events: onProgress
     """
 
     def __init__(self, text: str = None):
@@ -25,16 +24,31 @@ class ProgressPrinter(EventHandler, Output):
     
     @property
     def text(self) -> str:
-        """Get display text"""
+        """Get custom display text"""
         return self._text
     
     @text.setter
     def text(self, text: str):
-        """Set display text"""
+        """
+        Set custom display text (overrides the native event text).
+        You can use the placeholders {0}, {1} and {2} for current event number, total number
+        of events and progress percentage. The usual python format string parameters are accepted.
+        """
         self._text = text
     
-    def handle(self, name: str, event: ProgressEvent, sender: type):
-        print("{}: {:.2f}%".format(self._text, event.percent_done))
+    async def handle(self, name: str, event: Event, sender: type):
+        """
+        Accepts events:
+            - ProgressEvent
+        """
+        if not isinstance(event, ProgressEvent):
+            print(type(event))
+            raise RuntimeError("event must be of type ProgressEvent")
+
+        if self._text is None:
+            print(event.text)
+        else:
+            print(self._text.format(event.serial, event.events_total, event.percent_done))
 
     def save(self, output_dir: str):
         pass
@@ -46,8 +60,6 @@ class ProgressPrinter(EventHandler, Output):
 class UnmaskingStatAccumulator(EventHandler, Output):
     """
     Accumulate various statistics about a running experiment.
-    
-    Handles events: onPairGenerated, onUnmaskingFinished
     """
 
     def __init__(self, meta_data: Optional[Dict[str, Any]] = None):
@@ -60,8 +72,13 @@ class UnmaskingStatAccumulator(EventHandler, Output):
         }
 
     # noinspection PyUnresolvedReferences,PyTypeChecker
-    def handle(self, name: str, event: Event, sender: type):
-        if isinstance(event, UnmaskingTrainCurveEvent) and isinstance(event, PairGenerationEvent):
+    async def handle(self, name: str, event: Event, sender: type):
+        """
+        Accepts events:
+            - UnmaskingTrainCurveEvent
+            - PairGenerationEvent
+        """
+        if isinstance(event, UnmaskingTrainCurveEvent) and isinstance(event, PairBuildingProgressEvent):
             raise TypeError("event must be of type UnmaskingTrainCurveEvent or PairGenerationEvent")
         
         pair = event.pair
@@ -108,11 +125,9 @@ class UnmaskingStatAccumulator(EventHandler, Output):
 class UnmaskingCurvePlotter(EventHandler, Output):
     """
     Plot unmasking curves.
-    
-    Handles events: onUnmaskingRoundFinished
     """
     
-    def __init__(self, markers: Dict[SamplePair.Class, Tuple[str, str, Optional[str]]] = None,
+    def __init__(self, markers: Dict[SamplePairClass, Tuple[str, str, Optional[str]]] = None,
                  ylim: Tuple[float, float] = (0, 1.0), display: bool = False):
         """
         :param markers: dictionary of pair classes mapped to matplotlib marker codes, a
@@ -122,7 +137,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         :param display: whether to display an interactive plot window
         """
         super().__init__()
-        self._fig = pyplot.figure()
+        self._fig = None
         self._colors = {}
         self._markers = None
         if markers is not None:
@@ -131,28 +146,26 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._is_being_displayed = False
         self._ylim = ylim
         self._xlim = None
+        self._axes_need_update = True
         
         self._next_curve_id = 0
         self._curve_ids = []
         self._events_to_pair_ids = {}
         
         self._last_points = {}
-        
-        if self._markers is not None:
-            self._setup_axes()
     
     @property
-    def markers(self) -> Dict[SamplePair.Class, Tuple[str, str, Optional[str]]]:
+    def markers(self) -> Dict[SamplePairClass, Tuple[str, str, Optional[str]]]:
         """Get markers"""
         return self._markers
     
     @markers.setter
-    def markers(self, markers:  Dict[SamplePair.Class, Tuple[str, str, Optional[str]]]):
+    def markers(self, markers:  Dict[SamplePairClass, Tuple[str, str, Optional[str]]]):
         """Set markers"""
         self._markers = {}
         for m in markers:
             self._markers[str(m)] = markers[m]
-        self._setup_axes()
+        self._axes_need_update = True
     
     @property
     def ylim(self):
@@ -183,8 +196,12 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     def display(self, display: bool):
         """Set whether the plot will be displayed on screen"""
         self._display = display
-    
-    def handle(self, name: str, event: Event, sender: type):
+
+    async def handle(self, name: str, event: Event, sender: type):
+        """
+        Accepts events:
+            - UnmaskingTraingCurveEvent
+        """
         if not isinstance(event, UnmaskingTrainCurveEvent):
             raise TypeError("event must be of type UnmaskingTrainCurveEvent")
 
@@ -199,9 +216,14 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         
         :return: handle to the new curve, needed to append further points
         """
+
+        if self._fig is None:
+            self.reset()
+
         self._curve_ids.append(self._next_curve_id)
         self._last_points[self._next_curve_id] = (0, 0)
         self._next_curve_id += 1
+
         return self._next_curve_id - 1
     
     def set_plot_title(self, title: str):
@@ -211,8 +233,17 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         :param title: plot title
         """
         self._fig.gca().set_title(title)
+
+    async def _flush_gui_events(self):
+        """
+        Helper coroutine for keeping the plot GUI responsive.
+        """
+        loop = asyncio.get_event_loop()
+        while loop.is_running() and self._is_being_displayed and self._fig is not None:
+            self._fig.canvas.flush_events()
+            await asyncio.sleep(0.0001)
     
-    def plot_curve(self, values: List[float], curve_class: SamplePair.Class, curve_handle: int):
+    def plot_curve(self, values: List[float], curve_class: SamplePairClass, curve_handle: int):
         """
         Plot unmasking curve. Points from ``values`` which have been plotted earlier will not be plotted again.
         Consecutive calls with the same ``curve_handle`` append points new points to existing curve.
@@ -223,6 +254,9 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         :param curve_class: class of the curve
         :param curve_handle: curve handle from :method:`start_new_curve()`
         """
+        if self._axes_need_update:
+            self._setup_axes()
+
         if curve_handle not in self._curve_ids:
             raise ValueError("Invalid curve ID")
         
@@ -261,8 +295,8 @@ class UnmaskingCurvePlotter(EventHandler, Output):
 
         if self._display:
             self.show()
-            self._fig.canvas.blit()
             self._fig.canvas.flush_events()
+            self._fig.canvas.blit()
     
     def show(self):
         """Show plot area on screen."""
@@ -270,8 +304,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             pyplot.ion()
             self._fig.show()
             self._is_being_displayed = True
-
-        self._fig.canvas.flush_events()
+            asyncio.ensure_future(self._flush_gui_events())
     
     def close(self):
         """Close an open plot window."""
@@ -280,7 +313,8 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self.reset()
     
     def save(self, output_dir: str):
-        self._fig.savefig(os.path.join(output_dir, self._get_output_filename_base() + ".svg"))
+        if self._fig is not None:
+            self._fig.savefig(os.path.join(output_dir, self._get_output_filename_base() + ".svg"))
 
     def reset(self):
         self._next_curve_id = 0
@@ -319,3 +353,5 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             legend_labels.append(self._markers[m][1])
     
         axes.legend(handles=legend_handles, labels=legend_labels)
+
+        self._axes_need_update = False

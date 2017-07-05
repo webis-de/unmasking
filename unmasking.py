@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 #
 # General-purpose unmasking framework
 # Copyright (C) 2017 Janek Bevendorff, Webis Group
@@ -24,11 +24,37 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 from conf.loader import JobConfigLoader
+from event.dispatch import MultiProcessEventContext
 from job.executors import ExpandingExecutor
 
+import asyncio
 import argparse
 import os
 import sys
+
+
+class SoftKeyboardInterrupt(Exception):
+    """
+    Replacement for KeyboardInterrupt that inherits from :class:: Exception instead of
+    :class:: BaseException, to avoid uncatchable stack traces when a :class:: KeyboardInterrupt
+    happens within a coroutine.
+    See: https://github.com/python/asyncio/issues/341
+    """
+    pass
+
+
+async def base_coroutine(cr):
+    """
+    Base coroutine that wraps and waits another coroutine and catches KeyboardInterrupts.
+    Caught keyboardInterrupts are re-raised as SoftKeyboardInterrupts.
+
+    :param cr: coroutine to wrap
+    :return: Return value of the wrapped coroutine
+    """
+    try:
+        return await cr
+    except KeyboardInterrupt as k:
+        raise SoftKeyboardInterrupt() from k
 
 
 def main():
@@ -52,20 +78,31 @@ def main():
 
     if not os.path.exists(args.config):
         print("ERROR: Configuration file '{}' does not exist.".format(args.config), file=sys.stderr)
-        exit(1)
+        sys.exit(1)
 
     config_loader = JobConfigLoader()
     config_loader.load(args.config)
 
+    loop = asyncio.get_event_loop()
     try:
         executor = ExpandingExecutor()
-        executor.run(config_loader, args.output)
-    except KeyboardInterrupt:
-        print("Exited upon user request.", file=sys.stderr)
-        exit(1)
+        future = asyncio.ensure_future(base_coroutine(executor.run(config_loader, args.output)))
+        loop.run_until_complete(future)
+    finally:
+        loop.run_until_complete(base_coroutine(loop.shutdown_asyncgens()))
+        loop.stop()
+        MultiProcessEventContext.cleanup()
 
     if args.wait:
         input("Press enter to terminate...")
 
+
+def terminate():
+    print("Exited upon user request.", file=sys.stderr)
+    sys.exit(1)
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (KeyboardInterrupt, SoftKeyboardInterrupt):
+        terminate()

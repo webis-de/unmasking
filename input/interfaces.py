@@ -1,8 +1,9 @@
 from conf.interfaces import Configurable
+from util.util import lru_cache
 
 from abc import ABC, abstractmethod
 from enum import Enum, unique
-from typing import Iterable, List
+from typing import Iterable, AsyncGenerator, List
 from uuid import UUID
 
 
@@ -25,6 +26,38 @@ class Tokenizer(ABC, Configurable):
         pass
 
 
+@unique
+class SamplePairClass(Enum):
+    """
+    Base enumeration type for pairs. Members designating specific pair classes can be
+    defined in sub-types of this enum type.
+    """
+
+    def __repr__(self):
+        return self.name
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __eq__(self, other):
+        if other is None and self.value == -1:
+            return True
+        elif isinstance(other, self.__class__):
+            return other.value == self.value
+        elif isinstance(other, str):
+            return other.upper() == self.__str__()
+        elif isinstance(other, int):
+            return other == self.value
+        elif isinstance(other, bool):
+            if self.value == -1:
+                return False
+            else:
+                return bool(self.value) == other
+
+    def __hash__(self):
+        return self.__repr__().__hash__()
+
+
 class SamplePair(ABC):
     """
     Pair of sample text sets.
@@ -37,38 +70,7 @@ class SamplePair(ABC):
 
     SAMPLE_PAIR_NS = UUID("412bd9f0-4c61-4bb7-a7f2-c88be2f9555c")
 
-    @unique
-    class Class(Enum):
-        """
-        Base enumeration type for pairs. Members designating specific pair classes can be
-        defined in sub-types of this enum type.
-        """
-
-        def __repr__(self):
-            return self.name
-
-        def __str__(self):
-            return self.__repr__()
-
-        def __eq__(self, other):
-            if other is None and self.value == -1:
-                return True
-            elif isinstance(other, self.__class__):
-                return other.value == self.value
-            elif isinstance(other, str):
-                return other.upper() == self.__str__()
-            elif isinstance(other, int):
-                return other == self.value
-            elif isinstance(other, bool):
-                if self.value == -1:
-                    return False
-                else:
-                    return bool(self.value) == other
-
-        def __hash__(self):
-            return self.__repr__().__hash__()
-
-    def __init__(self, a: List[str], b: List[str], cls: Class, chunk_tokenizer: Tokenizer):
+    def __init__(self, cls: SamplePairClass, chunk_tokenizer: Tokenizer):
         """
         Initialize pair of sample texts. Expects a set of main texts ``a`` and one
         or more texts ``b`` to compare with.
@@ -83,12 +85,19 @@ class SamplePair(ABC):
         self._cls = cls
         self._chunk_tokenizer = chunk_tokenizer
 
-        self._a = a
-        self._b = b
+    @abstractmethod
+    def chunk(self, a: List[str], b: List[str]):
+        """
+        Create chunks from inputs.
+
+        :param a: input texts one
+        :param b: input texts two
+        """
+        pass
 
     @property
     @abstractmethod
-    def cls(self) -> Class:
+    def cls(self) -> SamplePairClass:
         """Class (same author|different authors|unspecified)"""
         pass
 
@@ -135,11 +144,28 @@ class CorpusParser(ABC, Configurable):
         self._corpus_path = path
 
     @abstractmethod
-    def __iter__(self) -> Iterable[SamplePair]:
+    async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
         """
-        Iterable or generator returning author pairs. This method is abstract and needs
-        to be implemented by all concrete CorpusParsers.
-
-        :return: iterable of SamplePairs
+        Asynchronous generator return parsed SamplePairs.
         """
         pass
+
+    async def await_file(self, file_name) -> str:
+        """
+        Caching helper coroutine for reading a file.
+
+        :param file_name: name of the file
+        :return: its contents
+        """
+        return self._read_file(file_name)
+
+    @lru_cache(maxsize=50)
+    def _read_file(self, file_name) -> str:
+        """
+        Caching helper method for reading a file.
+
+        :param file_name: name of the file
+        :return: its contents
+        """
+        with open(file_name, "r", encoding="utf-8", errors="ignore") as f:
+            return f.read().replace("\ufeff", "")
