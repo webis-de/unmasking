@@ -84,14 +84,11 @@ job:
       events:
         - name: onUnmaskingRoundFinished
 
-    # Print unmasking progress information to the terminal
+    # Print pair building and chunking progress
     - name: output.formats.ProgressPrinter
-      parameters:
-        text: Chunking current pair
       events:
-        - name: onProgress
-          senders:
-            - input.interfaces.SamplePair
+        - name: onChunkingProgress
+        - name: onPairGenerated
 
   # Output directory
   output_dir: out

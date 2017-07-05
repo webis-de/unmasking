@@ -25,6 +25,10 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         self._aggregate_by_class = False
 
     async def handle(self, name: str, event: Event, sender: type):
+        """
+        Accepts events:
+            - UnmaskingTrainCurveEvent
+        """
         if not isinstance(event, UnmaskingTrainCurveEvent):
             raise TypeError("event must be of type UnmaskingTrainCurveEvent")
 
@@ -104,6 +108,11 @@ class AggregatedCurvePlotter(UnmaskingCurvePlotter, Aggregator):
         self._aggregators = []
 
     async def handle(self, name: str, event: Event, sender: type):
+        """
+        Accepts events:
+            - ConfigurationFinishedEvent
+            - JobFinishedEvent
+        """
         if not isinstance(event, ConfigurationFinishedEvent) and not isinstance(event, JobFinishedEvent):
             raise TypeError("event must be of type ConfigurationFinishedEvent or JobFinishedEvent")
 

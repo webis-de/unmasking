@@ -16,8 +16,6 @@ from output.interfaces import Output
 class ProgressPrinter(EventHandler, Output):
     """
     Print progress events to the console.
-    
-    Handles events: onProgress
     """
 
     def __init__(self, text: str = None):
@@ -26,16 +24,31 @@ class ProgressPrinter(EventHandler, Output):
     
     @property
     def text(self) -> str:
-        """Get display text"""
+        """Get custom display text"""
         return self._text
     
     @text.setter
     def text(self, text: str):
-        """Set display text"""
+        """
+        Set custom display text (overrides the native event text).
+        You can use the placeholders {0}, {1} and {2} for current event number, total number
+        of events and progress percentage. The usual python format string parameters are accepted.
+        """
         self._text = text
     
-    async def handle(self, name: str, event: ProgressEvent, sender: type):
-        print("{}: {:.2f}%".format(self._text, event.percent_done))
+    async def handle(self, name: str, event: Event, sender: type):
+        """
+        Accepts events:
+            - ProgressEvent
+        """
+        if not isinstance(event, ProgressEvent):
+            print(type(event))
+            raise RuntimeError("event must be of type ProgressEvent")
+
+        if self._text is None:
+            print(event.text)
+        else:
+            print(self._text.format(event.serial, event.events_total, event.percent_done))
 
     def save(self, output_dir: str):
         pass
@@ -47,8 +60,6 @@ class ProgressPrinter(EventHandler, Output):
 class UnmaskingStatAccumulator(EventHandler, Output):
     """
     Accumulate various statistics about a running experiment.
-    
-    Handles events: onPairGenerated, onUnmaskingFinished
     """
 
     def __init__(self, meta_data: Optional[Dict[str, Any]] = None):
@@ -62,7 +73,12 @@ class UnmaskingStatAccumulator(EventHandler, Output):
 
     # noinspection PyUnresolvedReferences,PyTypeChecker
     async def handle(self, name: str, event: Event, sender: type):
-        if isinstance(event, UnmaskingTrainCurveEvent) and isinstance(event, PairGenerationEvent):
+        """
+        Accepts events:
+            - UnmaskingTrainCurveEvent
+            - PairGenerationEvent
+        """
+        if isinstance(event, UnmaskingTrainCurveEvent) and isinstance(event, PairBuildingProgressEvent):
             raise TypeError("event must be of type UnmaskingTrainCurveEvent or PairGenerationEvent")
         
         pair = event.pair
@@ -109,8 +125,6 @@ class UnmaskingStatAccumulator(EventHandler, Output):
 class UnmaskingCurvePlotter(EventHandler, Output):
     """
     Plot unmasking curves.
-    
-    Handles events: onUnmaskingRoundFinished
     """
     
     def __init__(self, markers: Dict[SamplePairClass, Tuple[str, str, Optional[str]]] = None,
@@ -184,6 +198,10 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._display = display
 
     async def handle(self, name: str, event: Event, sender: type):
+        """
+        Accepts events:
+            - UnmaskingTraingCurveEvent
+        """
         if not isinstance(event, UnmaskingTrainCurveEvent):
             raise TypeError("event must be of type UnmaskingTrainCurveEvent")
 

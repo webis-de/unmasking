@@ -45,12 +45,9 @@ job%:
         - name: onUnmaskingRoundFinished
 
     - name: output.formats.ProgressPrinter
-      parameters:
-        text: Chunking current pair
       events:
-        - name: onProgress
-          senders:
-            - input.interfaces.SamplePair
+        - name: onChunkingProgress
+        - name: onPairGenerated
 
   experiment%:
     configurations:
@@ -59,4 +56,4 @@ job%:
       chunk_size: [500, 600]
 
     # Repeat each configuration three times
-    repetitions: 3
+    repetitions: 2
