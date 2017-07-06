@@ -42,7 +42,7 @@ class WordTokenizer(Tokenizer):
     def __init__(self):
         self._tokenizer = nltk.tokenize.TreebankWordTokenizer()
 
-    @lru_cache(maxsize=10000)
+    @lru_cache(maxsize=700)
     def tokenize(self, text: str) -> Iterable[str]:
         return [t for t in self._tokenizer.tokenize(text) if t not in self.punctuation]
 
@@ -142,7 +142,7 @@ class SentenceChunkTokenizer(Tokenizer):
         """Set language"""
         self._language = language
 
-    @lru_cache(maxsize=10000)
+    @lru_cache(maxsize=500)
     def tokenize(self, text: str) -> Iterable[str]:
         word_tokens = self._word_tokenizer.tokenize(text)
         assert type(word_tokens) is list
