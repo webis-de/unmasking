@@ -185,7 +185,7 @@ class TextPairParser(CorpusParser):
             group_id = PairBuildingProgressEvent.generate_group_id(["a:" + f1] + ["b:" + f2])
             await EventBroadcaster.publish("onPairGenerated",
                                            PairBuildingProgressEvent(group_id, pair_num, num_combinations,
-                                                                     pair, [f1_contents], [f2_contents]),
+                                                                     pair, [f1], [f2]),
                                            self.__class__)
             yield pair
             pair_num += 1
@@ -230,7 +230,7 @@ class AuthorPairParser(TextPairParser):
                 group_id = PairBuildingProgressEvent.generate_group_id(["a:" + f1] + ["b:" + ",".join(f2)])
                 await EventBroadcaster.publish("onPairGenerated",
                                                PairBuildingProgressEvent(group_id, pair_num, None,
-                                                                         pair, [f1_contents], f2_contents),
+                                                                         pair, [f1], f2),
                                                self.__class__)
 
                 yield pair
