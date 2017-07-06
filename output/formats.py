@@ -109,13 +109,13 @@ class UnmaskingStatAccumulator(EventHandler, Output):
         pair_id = pair.pair_id
         if event.pair is not None and pair_id not in self._stats["curves"]:
             self._stats["curves"][pair_id] = {}
-        
-        if name == "onPairGenerated":
+
+        if isinstance(event, PairBuildingProgressEvent):
             fa, fb = event.files
             self._stats["curves"][pair_id]["cls"] = str(pair.cls)
             self._stats["curves"][pair_id]["files_a"] = fa
             self._stats["curves"][pair_id]["files_b"] = fb
-        elif name == "onUnmaskingFinished":
+        elif isinstance(event, UnmaskingTrainCurveEvent):
             self._stats["curves"][pair_id]["curve"] = event.values
             self._stats["curves"][pair_id]["fs"] = event.feature_set.__name__
     
