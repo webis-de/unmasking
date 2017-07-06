@@ -66,6 +66,10 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         if agg not in self._curves:
             self._curves[agg] = []
 
+        if len(self._curves[agg]) > 0:
+            # aggregating values across classes is always a mistake
+            assert str(cls) == self._curves[agg][0][1]
+
         self._curves[agg].append((str(identifier), str(cls), values))
 
     def get_aggregated_curves(self) -> Dict[str, Any]:
