@@ -115,7 +115,7 @@ class TextPairParser(CorpusParser):
         self._input_authors = {}
         self._is_prepared = False
 
-    def _prepare(self):
+    async def _prepare(self):
         """
         Prepare file and author lists to be parsed.
         """
@@ -145,7 +145,7 @@ class TextPairParser(CorpusParser):
         self._is_prepared = True
 
     async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
-        self._prepare()
+        await self._prepare()
 
         num_combinations = math.factorial(len(self._input_files)) // 2 // math.factorial(len(self._input_files) - 2)
         pair_num = 0
@@ -178,7 +178,7 @@ class AuthorPairParser(TextPairParser):
     """
 
     async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
-        self._prepare()
+        await self._prepare()
 
         pair_num = 0
         single_file_sets = []

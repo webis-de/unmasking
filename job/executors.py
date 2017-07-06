@@ -118,6 +118,7 @@ class ExpandingExecutor(JobExecutor):
 
                 async for pair in parser:
                     futures.append(loop.run_in_executor(executor, self._exec, strat, pair, cfg))
+                    await asyncio.sleep(0)
 
                 await asyncio.wait(futures)
 
