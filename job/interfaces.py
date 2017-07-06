@@ -120,18 +120,20 @@ class JobExecutor(ABC):
         :param conf: job configuration
         """
         aggs = conf.get("job.experiment.aggregators")
-    
+
         for agg in aggs:
             agg_obj = self._configure_instance(agg)
             if not isinstance(agg_obj, Aggregator):
                 raise ValueError("'{}' is not an Aggregator".format(agg["name"]))
-            
+
             if "events" in agg:
-                # noinspection PyTypeChecker
+                if not isinstance(agg_obj, EventHandler):
+                    raise ValueError("Aggregator '{}' is not an EventHandler".format(agg["name]"]))
+
                 self._subscribe_to_events(agg_obj, agg["events"])
 
             self._aggregators.append(agg_obj)
-    
+
     @abstractmethod
     def run(self, conf: ConfigLoader, output_dir: str = None):
         """

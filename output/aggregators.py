@@ -21,7 +21,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-from event.events import UnmaskingTrainCurveEvent, ConfigurationFinishedEvent, JobFinishedEvent
+from event.events import *
 from event.interfaces import EventHandler, Event
 from input.interfaces import SamplePairClass
 from output.formats import UnmaskingCurvePlotter
@@ -44,6 +44,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         :param meta_data: dict with experiment meta data
         """
         self._curves = {}
+        self._curve_files = {}
         self._meta_data = meta_data if meta_data is not None else {}
         self._aggregate_by_class = False
 
@@ -52,10 +53,18 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         Accepts events:
             - UnmaskingTrainCurveEvent
         """
-        if not isinstance(event, UnmaskingTrainCurveEvent):
-            raise TypeError("event must be of type UnmaskingTrainCurveEvent")
+        if not isinstance(event, UnmaskingTrainCurveEvent) and not isinstance(event, PairBuildingProgressEvent):
+            raise TypeError("event must be of type UnmaskingTrainCurveEvent or PairBuildingProgressEvent")
 
-        self.add_curve(event.pair.pair_id, event.pair.cls, event.values)
+        if isinstance(event, UnmaskingTrainCurveEvent):
+            self.add_curve(event.pair.pair_id, event.pair.cls, event.values)
+
+        if isinstance(event, PairBuildingProgressEvent):
+            agg = str(event.pair.cls) if self._aggregate_by_class else str(event.pair.pair_id)
+            if event.pair.pair_id not in self._curve_files:
+                self._curve_files[agg] = set()
+            self._curve_files[agg].update(event.files[0])
+            self._curve_files[agg].update(event.files[1])
 
     def add_curve(self, identifier: str, cls: SamplePairClass, values: List[float]):
         agg = str(identifier)
@@ -80,6 +89,8 @@ class CurveAverageAggregator(EventHandler, Aggregator):
                 avg_curves[c]["curve_id"] = self._curves[c][-1][0]
             else:
                 avg_curves[c]["cls"] = self._curves[c][-1][1]
+
+            avg_curves[c]["files"] = list(self._curve_files.get(c, []))
 
             curves = [x for x in zip(*self._curves[c])][2]
             avg_curves[c]["curve"] = [sum(x) / len(x) for x in zip(*curves)]

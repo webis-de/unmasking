@@ -130,6 +130,7 @@ job:
       - name: output.aggregators.CurveAverageAggregator
         events:
           - name: onUnmaskingFinished
+          - name: onPairGenerated
 
       # Visualize aggregated curves
       - name: output.aggregators.AggregatedCurvePlotter
