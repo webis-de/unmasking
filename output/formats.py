@@ -102,8 +102,8 @@ class UnmaskingStatAccumulator(EventHandler, Output):
             - UnmaskingTrainCurveEvent
             - PairGenerationEvent
         """
-        if isinstance(event, UnmaskingTrainCurveEvent) and isinstance(event, PairBuildingProgressEvent):
-            raise TypeError("event must be of type UnmaskingTrainCurveEvent or PairGenerationEvent")
+        if not isinstance(event, UnmaskingTrainCurveEvent) and not isinstance(event, PairBuildingProgressEvent):
+            raise TypeError("event must be of type UnmaskingTrainCurveEvent or PairBuildingProgressEvent")
         
         pair = event.pair
         pair_id = pair.pair_id
