@@ -171,10 +171,10 @@ class CorpusParser(ABC, Configurable):
         :param file_name: name of the file
         :return: its contents
         """
-        return self._read_file(file_name)
+        return self.read_file(file_name)
 
-    @lru_cache(maxsize=50)
-    def _read_file(self, file_name) -> str:
+    @lru_cache(protected=True, maxsize=50)
+    def read_file(self, file_name) -> str:
         """
         Caching helper method for reading a file.
 
