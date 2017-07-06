@@ -233,7 +233,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             self._events_to_pair_ids[event.pair.pair_id] = self.start_new_curve()
 
         self.plot_curve(event.values, event.pair.cls, self._events_to_pair_ids[event.pair.pair_id])
-    
+
     def start_new_curve(self) -> int:
         """
         Start a new curve and retrieve its handle.
@@ -249,7 +249,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._next_curve_id += 1
 
         return self._next_curve_id - 1
-    
+
     def set_plot_title(self, title: str):
         """
         Set plot title.
@@ -266,7 +266,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         while loop.is_running() and self._is_being_displayed and self._fig is not None:
             self._fig.canvas.flush_events()
             await asyncio.sleep(0.0001)
-    
+
     def plot_curve(self, values: List[float], curve_class: SamplePairClass, curve_handle: int):
         """
         Plot unmasking curve. Points from ``values`` which have been plotted earlier will not be plotted again.
@@ -283,7 +283,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
 
         if curve_handle not in self._curve_ids:
             raise ValueError("Invalid curve ID")
-        
+
         if curve_handle not in self._colors:
             if self._markers[str(curve_class)][2] is not None:
                 self._colors[curve_handle] = self._markers[str(curve_class)][2]
@@ -341,6 +341,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             self._fig.savefig(os.path.join(output_dir, self._get_output_filename_base() + ".svg"))
 
     def reset(self):
+        self._colors = {}
         self._next_curve_id = 0
         self._curve_ids = []
         self._events_to_pair_ids = {}
