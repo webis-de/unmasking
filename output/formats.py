@@ -97,10 +97,14 @@ class UnmaskingStatAccumulator(EventHandler, Output):
         """
         :param meta_data: dict with experiment meta data
         """
+        self._initial_meta_data = meta_data if meta_data is not None else {}
+
         self._stats = {
-            "meta": meta_data if meta_data is not None else {},
+            "meta": self._initial_meta_data,
             "curves": {}
         }
+
+        self._classes = set()
 
     # noinspection PyUnresolvedReferences,PyTypeChecker
     async def handle(self, name: str, event: Event, sender: type):
@@ -117,9 +121,12 @@ class UnmaskingStatAccumulator(EventHandler, Output):
         if event.pair is not None and pair_id not in self._stats["curves"]:
             self._stats["curves"][pair_id] = {}
 
+        str_cls = str(pair.cls)
+        self._classes.add(str_cls)
+
         if isinstance(event, PairBuildingProgressEvent):
             fa, fb = event.files
-            self._stats["curves"][pair_id]["cls"] = str(pair.cls)
+            self._stats["curves"][pair_id]["cls"] = str_cls
             self._stats["curves"][pair_id]["files_a"] = fa
             self._stats["curves"][pair_id]["files_b"] = fb
         elif isinstance(event, UnmaskingTrainCurveEvent):
@@ -133,13 +140,13 @@ class UnmaskingStatAccumulator(EventHandler, Output):
         """
 
         file_name = os.path.join(output_dir, self._get_output_filename_base() + ".json")
+        self._stats["meta"]["classes"] = sorted(self._classes)
         with open(file_name, "w") as f:
             json.dump(self._stats, f, indent=2)
 
     def reset(self):
-        meta_data = self._stats["meta"]
-        self.__init__(meta_data)
-    
+        self.__init__(self._initial_meta_data)
+
     @property
     def meta_data(self) -> Dict[str, Any]:
         """Get experiment meta data"""

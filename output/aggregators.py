@@ -46,6 +46,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         self._curves = {}
         self._curve_files = {}
         self._meta_data = meta_data if meta_data is not None else {}
+        self._classes = set()
         self._aggregate_by_class = False
 
     async def handle(self, name: str, event: Event, sender: type):
@@ -59,8 +60,11 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         if isinstance(event, UnmaskingTrainCurveEvent):
             self.add_curve(event.pair.pair_id, event.pair.cls, event.values)
 
+        str_cls = str(event.pair.cls)
+        self._classes.add(str_cls)
+
         if isinstance(event, PairBuildingProgressEvent):
-            agg = str(event.pair.cls) if self._aggregate_by_class else str(event.pair.pair_id)
+            agg = str_cls if self._aggregate_by_class else str(event.pair.pair_id)
             if event.pair.pair_id not in self._curve_files:
                 self._curve_files[agg] = set()
             self._curve_files[agg].update(event.files[0])
@@ -106,6 +110,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         file_name = os.path.join(output_dir, self._get_output_filename_base() + ".json")
         with open(file_name, "w") as f:
             self._meta_data["aggregate_key"] = "class" if self._aggregate_by_class else "curve_id"
+            self._meta_data["classes"] = sorted(self._classes)
             stats = {
                 "meta": self._meta_data,
                 "curves": self.get_aggregated_curves()
