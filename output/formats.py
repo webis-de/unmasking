@@ -27,13 +27,20 @@ from random import randint
 from typing import Any, Dict
 
 import asyncio
-import matplotlib.pyplot as pyplot
+import matplotlib
+import sys
 
 from matplotlib.ticker import MaxNLocator
 from event.events import *
 from event.interfaces import EventHandler
 from input.interfaces import SamplePairClass
 from output.interfaces import Output
+
+# don't use default Qt backend if we are operating without a display server
+if sys.platform == "linux" and os.environ.get("DISPLAY") is None:
+    matplotlib.use("Agg")
+
+import matplotlib.pyplot as pyplot
 
 
 class ProgressPrinter(EventHandler, Output):
