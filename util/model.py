@@ -100,8 +100,8 @@ def train(input_file: str, threshold: float):
 
     # eliminate samples below threshold
     dist = clf1.decision_function(X)
-    X = np.fromiter((x for i, x in enumerate(X) if abs(dist[i]) >= threshold), dtype=float)
-    y = np.fromiter((y for i, y in enumerate(y) if abs(dist[i]) >= threshold), dtype=[("", float), ("", float)])
+    X = np.fromiter((x for i, x in enumerate(X) if abs(dist[i]) >= threshold), dtype=[("", float), ("", float)])
+    y = np.fromiter((y for i, y in enumerate(y) if abs(dist[i]) >= threshold), dtype=float)
 
     # re-train classifier
     clf2 = LinearSVC()
