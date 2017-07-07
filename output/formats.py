@@ -32,6 +32,7 @@ from typing import Any, Dict
 import asyncio
 import json
 import matplotlib
+import matplotlib.ticker
 import os
 import sys
 
@@ -368,7 +369,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         axes.set_ylabel("accuracy")
     
         # force integer ticks on x axis
-        axes.xaxis.set_major_locator(matplotlib.MaxNLocator(integer=True))
+        axes.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
     
         if self._ylim[0] < 0.0:
             axes.axhline(0.0, linewidth=1.0, linestyle="dashed", color="#aaaaaa")
