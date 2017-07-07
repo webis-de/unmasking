@@ -21,20 +21,19 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-import json
-import os
-from random import randint
-from typing import Any, Dict
-
-import asyncio
-import matplotlib
-import sys
-
-from matplotlib.ticker import MaxNLocator
 from event.events import *
 from event.interfaces import EventHandler
 from input.interfaces import SamplePairClass
 from output.interfaces import Output
+
+from random import randint
+from typing import Any, Dict
+
+import asyncio
+import json
+import matplotlib
+import os
+import sys
 
 # don't use default Qt backend if we are operating without a display server
 if sys.platform == "linux" and os.environ.get("DISPLAY") is None:
@@ -369,7 +368,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         axes.set_ylabel("accuracy")
     
         # force integer ticks on x axis
-        axes.xaxis.set_major_locator(MaxNLocator(integer=True))
+        axes.xaxis.set_major_locator(matplotlib.MaxNLocator(integer=True))
     
         if self._ylim[0] < 0.0:
             axes.axhline(0.0, linewidth=1.0, linestyle="dashed", color="#aaaaaa")
