@@ -27,43 +27,56 @@ import numpy as np
 from sklearn.svm import LinearSVC
 
 
-def load_unmasking_results(*file_names: str):
+def load_unmasking_results(file_name: str):
     """
     Load unmasking result curves from the given input files.
     Feature vectors will contain raw curve data and their gradients.
 
-    :param file_names: files to load curves from
-    :return: numpy matrix of curve data and array of labels (None if not all data have labels)
+    :param file_name: file to load curves from
+    :return: (1) numpy matrix of curve data, (2) array of labels (None if not all data have labels)
+             and (3) dictionary mapping the string curve classes to integers
     """
     X = None
     y = None
 
     none_labels = False
-    for file_name in file_names:
-        with open(file_name) as f:
-            json_data = json.load(f)
+    with open(file_name) as f:
+        json_data = json.load(f)
 
-        if X is None:
-            X = [0.0] * len(json_data["curves"])
-            y = [0] * len(json_data["curves"])
+    if "meta" not in json_data:
+        raise ValueError("No meta section")
 
-        for i, c in enumerate(json_data["curves"]):
-            if not json_data["curves"][c]["curve"]:
-                continue
+    if "curves" not in json_data:
+        raise ValueError("No curves section")
 
-            data = np.array(json_data["curves"][c]["curve"])
-            X[i] = np.add(X[i], np.concatenate((data, np.gradient(data))))
+    meta = json_data["meta"]
+    if "classes" not in meta:
+        classes = set()
+        for c in json_data["curves"]:
+            classes.add(c["cls"])
+    else:
+        classes = meta["classes"]
 
-            if none_labels or "cls" not in json_data["curves"][c]:
-                none_labels = True
-                continue
+    classes = {k: i for i, k in enumerate(sorted(classes))}
 
-            y[i] = int(json_data["curves"][c]["cls"] == "SAME_AUTHOR")
+    if X is None:
+        X = [0.0] * len(json_data["curves"])
+        y = [0] * len(json_data["curves"])
 
-    for i, x in enumerate(X):
-        X[i] = np.divide(x, len(file_names))
+    for i, c in enumerate(json_data["curves"]):
+        if not json_data["curves"][c]["curve"]:
+            continue
 
-    return np.array(X), (np.array(y) if not none_labels else None)
+        data = np.array(json_data["curves"][c]["curve"])
+        X[i] = np.add(X[i], np.concatenate((data, np.gradient(data))))
+
+        if none_labels or "cls" not in json_data["curves"][c]:
+            none_labels = True
+            continue
+
+        y[i] = classes[json_data["curves"][c]["cls"]]
+
+    return np.array(X), (np.array(y) if not none_labels else None), classes
 
 
 def train(input_file: str, threshold: float):
@@ -73,10 +86,11 @@ def train(input_file: str, threshold: float):
 
     :param input_file: input file name
     :param threshold: uncertainty threshold
-    :return: trained classifiers for determining which samples to classify (1) and for
-             actually classifying the filtered curves (2)
+    :return: trained classifiers for (1) determining which samples to classify and
+             (2) for actually classifying the filtered curves and (3) dictionary mapping
+             string curve labels to integers
     """
-    X, y = load_unmasking_results(input_file)
+    X, y, classes = load_unmasking_results(input_file)
 
     if y is None:
         raise ValueError("Training data must have labels")
@@ -84,14 +98,13 @@ def train(input_file: str, threshold: float):
     clf1 = LinearSVC()
     clf1.fit(X, y)
 
-    dist = clf1.decision_function(X)
-
     # eliminate samples below threshold
+    dist = clf1.decision_function(X)
     X = np.fromiter((x for i, x in enumerate(X) if abs(dist[i]) >= threshold), float)
     y = np.fromiter((y for i, y in enumerate(y) if abs(dist[i]) >= threshold), float)
 
-    # retrain classifier
+    # re-train classifier
     clf2 = LinearSVC()
     clf2.fit(X, y)
 
-    return clf1, clf2
+    return clf1, clf2, classes
