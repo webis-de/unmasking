@@ -97,16 +97,18 @@ class JobConfigLoader(YamlLoader):
 
     _default_config = None
 
-    def __init__(self, cfg: Dict[str, Any] = None):
+    def __init__(self, cfg: Dict[str, Any] = None, defaults_file: str = None):
         """
         :param cfg: optional configuration dict to construct configuration from
+        :param defaults_file: parent configuration file from which to load defaults (default: etc/defaults.yml)
         """
         super().__init__()
 
         if self._default_config is None:
             self._default_config = YamlLoader()
-            default_file = os.path.join(get_base_path(), "etc", "defaults.yml")
-            self._default_config.load(default_file)
+            if defaults_file is None:
+                defaults_file = os.path.join(get_base_path(), "etc", "defaults.yml")
+            self._default_config.load(defaults_file)
 
         if cfg is not None:
             self.set(cfg)
@@ -115,7 +117,7 @@ class JobConfigLoader(YamlLoader):
         super().load(filename)
         self._config.update(self._resolve_inheritance(self._config))
 
-    def set(self, cfg : Dict[str, Any]):
+    def set(self, cfg: Dict[str, Any]):
         super().set(cfg)
         self._config.update(self._resolve_inheritance(self._config))
     
