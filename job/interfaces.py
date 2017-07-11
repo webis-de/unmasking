@@ -94,14 +94,12 @@ class JobExecutor(ABC):
                 senders = {self._load_class(s) if type(s) is str else s for s in event["senders"]}
             EventBroadcaster.subscribe(event["name"], obj, senders)
 
-    def _load_outputs(self, conf: ConfigLoader):
+    def _load_outputs(self, outputs: List[Dict[str, Any]]):
         """
         Load job output modules.
         
-        :param conf: job configuration
+        :param outputs: output settings list
         """
-        outputs = conf.get("job.outputs")
-    
         for output in outputs:
             output_obj = self._configure_instance(output)
             if not isinstance(output_obj, Output):
@@ -113,14 +111,12 @@ class JobExecutor(ABC):
             
             self._outputs.append(output_obj)
             
-    def _load_aggregators(self, conf: ConfigLoader):
+    def _load_aggregators(self, aggs: List[Dict[str, Any]]):
         """
         Load job aggregator modules.
         
-        :param conf: job configuration
+        :param aggs: aggregator settings list
         """
-        aggs = conf.get("job.experiment.aggregators")
-
         for agg in aggs:
             agg_obj = self._configure_instance(agg)
             if not isinstance(agg_obj, Aggregator):

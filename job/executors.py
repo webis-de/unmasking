@@ -64,8 +64,8 @@ class ExpandingExecutor(JobExecutor):
     async def run(self, conf: ConfigLoader, output_dir: str = None):
         self._config = conf
         
-        self._load_outputs(self._config)
-        self._load_aggregators(self._config)
+        self._load_outputs(self._config.get("job.outputs"))
+        self._load_aggregators(self._config.get("job.experiment.aggregators"))
         
         job_id = "job_" + str(int(time()))
         if output_dir is None:
