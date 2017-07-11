@@ -435,6 +435,9 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         legend_handles = []
         legend_labels = []
         for m in self._markers:
+            if not self._markers[m][1]:
+                continue
+
             if len(self._markers[m]) > 2 and self._markers[m][2] is None:
                 color = "#777777"
             else:
