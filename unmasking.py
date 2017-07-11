@@ -27,6 +27,8 @@ from conf.loader import JobConfigLoader
 from event.dispatch import MultiProcessEventContext
 from job.executors import ExpandingExecutor
 
+from concurrent.futures import ThreadPoolExecutor
+
 import asyncio
 import argparse
 import os
@@ -84,6 +86,7 @@ def main():
     config_loader.load(args.config)
 
     loop = asyncio.get_event_loop()
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=8))
     try:
         executor = ExpandingExecutor()
         future = asyncio.ensure_future(base_coroutine(executor.run(config_loader, args.output)))
