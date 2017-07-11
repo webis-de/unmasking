@@ -342,11 +342,18 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         if curve_handle not in self._curve_ids:
             raise ValueError("Invalid curve ID")
 
+        str_curve_class = str(curve_class)
         if curve_handle not in self._colors:
-            if self._markers[str(curve_class)][2] is not None:
-                self._colors[curve_handle] = self._markers[str(curve_class)][2]
+            if self._markers is None:
+                self._markers = {}
+
+            if str_curve_class in self._markers and self._markers[str_curve_class][2] is not None:
+                self._colors[curve_handle] = self._markers[str_curve_class][2]
             else:
-                self._colors[curve_handle] = "#{:02X}{:02X}{:02X}".format(randint(0, 255), randint(0, 255), randint(0, 255))
+                self._colors[curve_handle] = "#{:02X}{:02X}{:02X}".format(
+                    randint(0, 255), randint(0, 255), randint(0, 255))
+                if str_curve_class not in self._markers:
+                    self._markers[str_curve_class] = [".", "", None]
 
         num_values = len(values)
         axes = self._fig.gca()
@@ -359,7 +366,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         else:
             axes.set_xlim(0, max(1, max(num_values - 1, axes.get_xlim()[1])))
 
-        marker = self._markers[str(curve_class)][0]
+        marker = self._markers[str_curve_class][0]
 
         last_point = self._last_points[curve_handle]
         points_to_draw = values[last_point[0]:len(values)]
