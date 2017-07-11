@@ -290,7 +290,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         """
         Flush GUI events once.
         """
-        if not self._is_being_displayed:
+        if not self._is_being_displayed or self._fig is None:
             return
 
         try:
