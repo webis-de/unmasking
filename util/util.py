@@ -22,6 +22,8 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 import functools
+import os
+import sys
 
 
 __cached_functions = []
@@ -64,3 +66,12 @@ def clear_lru_caches(clear_protected: bool = False):
         for func in __protected_cached_functions:
             func.cache_clear()
         __protected_cached_functions.clear()
+
+
+def get_base_path():
+    """
+    Get application base path.
+
+    :return: absolute path to application directory
+    """
+    return os.path.realpath(os.path.dirname(sys.argv[0]))

@@ -25,6 +25,7 @@ from event.events import *
 from event.interfaces import EventHandler
 from input.interfaces import SamplePairClass
 from output.interfaces import Output
+from util.util import get_base_path
 
 from random import randint
 from typing import Any, Dict
@@ -35,12 +36,17 @@ import matplotlib
 import matplotlib.ticker
 import os
 import sys
+import yaml
 
 # don't use default Qt backend if we are operating without a display server
 if sys.platform == "linux" and os.environ.get("DISPLAY") is None:
     matplotlib.use("Agg")
 
-import matplotlib.pyplot as pyplot
+try:
+    import matplotlib.pyplot as pyplot
+except (ModuleNotFoundError, ImportError):
+    matplotlib.use("Agg", warn=False, force=True)
+    import matplotlib.pyplot as pyplot
 
 
 class ProgressPrinter(EventHandler, Output):
@@ -175,6 +181,8 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         :param display: whether to display an interactive plot window
         """
         super().__init__()
+
+        self._rc_file = None
         self._fig = None
         self._colors = {}
         self._markers = None
@@ -193,12 +201,31 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._events_to_pair_ids = {}
         
         self._last_points = {}
-    
+
+    @property
+    def rc_file(self) -> str:
+        """Get plot RC file"""
+        return self._rc_file
+
+    @rc_file.setter
+    def rc_file(self, rc_file: str):
+        """Set and parse plot RC file"""
+        rc_file = os.path.join(get_base_path(), rc_file)
+        self._rc_file = rc_file
+        with open(rc_file, "r") as f:
+            rc_contents = yaml.safe_load(f)
+
+        self.markers = rc_contents.get("markers", {})
+        pyplot.style.use(rc_contents.get("styles", []))
+        rc_params = rc_contents.get("rc_params", {})
+        for rc in rc_params:
+            matplotlib.rcParams[rc] = rc_params[rc]
+
     @property
     def markers(self) -> Dict[SamplePairClass, Tuple[str, str, Optional[str]]]:
         """Get markers"""
         return self._markers
-    
+
     @markers.setter
     def markers(self, markers:  Dict[SamplePairClass, Tuple[str, str, Optional[str]]]):
         """Set markers"""
@@ -206,12 +233,12 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         for m in markers:
             self._markers[str(m)] = markers[m]
         self._axes_need_update = True
-    
+
     @property
     def ylim(self):
         """Get y axis limits"""
         return self._ylim
-    
+
     @ylim.setter
     def ylim(self, ylim: Tuple[float, float]):
         """Set y axis limits"""

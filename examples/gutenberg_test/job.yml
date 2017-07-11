@@ -10,6 +10,7 @@ job%:
     parser:
       name: input.formats.AuthorPairParser
       parameters:
+        # Corpus path relative to the application directory
         corpus_path: examples/gutenberg_test/corpus
 
     # Tokenizer for creating chunks from input texts
@@ -34,10 +35,11 @@ job%:
 
     - name: output.formats.UnmaskingCurvePlotter
       parameters:
+        # Show live plot
         display: true
-        markers:
-          SAME_AUTHOR: ["o", "same author", "#009900"]
-          DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
+
+        # Plot RC file relative to the application directory
+        rc_file: etc/plot_rc.yml
 
         # Set fixed xlim values since we know how many curve points we'll be getting
         xlim: [0, 23]

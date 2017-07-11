@@ -22,12 +22,14 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 from conf.interfaces import Configurable
-from util.util import lru_cache
+from util.util import lru_cache, get_base_path
 
 from abc import ABC, abstractmethod
 from enum import Enum, unique
 from typing import AsyncGenerator, Iterable, List
 from uuid import UUID
+
+import os
 
 
 class Tokenizer(ABC, Configurable):
@@ -167,7 +169,8 @@ class CorpusParser(ABC, Configurable):
         :param corpus_path: path to the corpus directory
         :param chunk_tokenizer: chunk tokenizer
         """
-        self._corpus_path = corpus_path
+        self._corpus_path = None
+        self.corpus_path = corpus_path
         self.chunk_tokenizer = chunk_tokenizer
 
     @property
@@ -178,7 +181,10 @@ class CorpusParser(ABC, Configurable):
     @corpus_path.setter
     def corpus_path(self, path: str):
         """Set corpus path"""
-        self._corpus_path = path
+        if path is not None:
+            self._corpus_path = os.path.join(get_base_path(), path)
+        else:
+            self._corpus_path = None
 
     @abstractmethod
     async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:

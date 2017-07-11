@@ -75,12 +75,11 @@ job:
         # Do not display live plot, only write final image to disk
         display: false
 
-        # Configure matplotlib markers, labels and curve colors for each
-        # curve class. If curve color is null, each individual curve will
-        # get a random color.
-        markers:
-          SAME_AUTHOR: ["o", "same author", "#009900"]
-          DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
+        # Plot RC file path relative to the application directory.
+        # This configures basic plot parameters such as used markers and colors
+        # or dynamic matplotlib settings.
+        rc_file: etc/plot_rc.yml
+
       events:
         - name: onUnmaskingRoundFinished
 

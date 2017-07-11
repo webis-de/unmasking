@@ -1,0 +1,22 @@
+# Plot configuration
+
+# Plot markers for each class.
+# Dictionary mapping classes to a list of
+#
+#   1. matplotlib marker symbol
+#   2. legend label
+#   3. curve color
+#
+# If curve color is null, each individual curve will
+# get a random color.
+markers:
+  SAME_AUTHOR: ["o", "same author", "#FFBF00"]
+  DIFFERENT_AUTHORS: ["x", "different authors", "#7A16FF"]
+
+# List of pyplot styles to apply
+# See https://matplotlib.org/users/customizing.html#using-style-sheets
+styles: []
+
+# Additional dynamic matplotlib RC params
+# See https://matplotlib.org/users/customizing.html#dynamic-rc-settings
+rc_params: {}

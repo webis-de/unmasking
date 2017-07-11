@@ -22,8 +22,10 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 from conf.interfaces import ConfigLoader
+from util.util import get_base_path
 
 from typing import Any, Dict
+import os
 import yaml
 
 
@@ -103,7 +105,8 @@ class JobConfigLoader(YamlLoader):
 
         if self._default_config is None:
             self._default_config = YamlLoader()
-            self._default_config.load("etc/defaults.yml")
+            default_file = os.path.join(get_base_path(), "etc", "defaults.yml")
+            self._default_config.load(default_file)
 
         if cfg is not None:
             self.set(cfg)
