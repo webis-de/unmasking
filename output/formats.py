@@ -180,11 +180,13 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._markers = None
         if markers is not None:
             self.markers = markers
-        self._display = display
+        self._display = False
         self._is_being_displayed = False
         self._ylim = ylim
         self._xlim = None
         self._axes_need_update = True
+
+        self.display = display
         
         self._next_curve_id = 0
         self._curve_ids = []
@@ -233,7 +235,10 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     @display.setter
     def display(self, display: bool):
         """Set whether the plot will be displayed on screen"""
-        self._display = display
+        if matplotlib.get_backend().lower() != "agg":
+            self._display = display
+        else:
+            self._display = False
 
     async def handle(self, name: str, event: Event, sender: type):
         """
@@ -272,14 +277,26 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         """
         self._fig.gca().set_title(title)
 
-    async def _flush_gui_events(self):
+    async def _flush_events_loop(self):
         """
         Helper coroutine for keeping the plot GUI responsive.
         """
         loop = asyncio.get_event_loop()
         while loop.is_running() and self._is_being_displayed and self._fig is not None:
-            self._fig.canvas.flush_events()
+            self._flush_events()
             await asyncio.sleep(0.0001)
+
+    def _flush_events(self):
+        """
+        Flush GUI events once.
+        """
+        if not self._is_being_displayed:
+            return
+
+        try:
+            self._fig.canvas.flush_events()
+        except (AttributeError, NotImplementedError):
+            pass
 
     def plot_curve(self, values: List[float], curve_class: SamplePairClass, curve_handle: int):
         """
@@ -333,7 +350,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
 
         if self._display:
             self.show()
-            self._fig.canvas.flush_events()
+            self._flush_events()
             self._fig.canvas.blit()
     
     def show(self):
@@ -342,14 +359,15 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             pyplot.ion()
             self._fig.show()
             self._is_being_displayed = True
-            asyncio.ensure_future(self._flush_gui_events())
-    
+            asyncio.ensure_future(self._flush_events_loop())
+
     def close(self):
         """Close an open plot window."""
         pyplot.close(self._fig)
         self._fig = None
+        self._is_being_displayed = False
         self.reset()
-    
+
     def save(self, output_dir: str):
         if self._fig is not None:
             self._fig.savefig(os.path.join(output_dir, self._get_output_filename_base() + ".svg"))
@@ -360,7 +378,6 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._curve_ids = []
         self._events_to_pair_ids = {}
         self._last_points = {}
-        self._is_being_displayed = False
 
         if self._fig is None:
             self._fig = pyplot.figure()
@@ -368,7 +385,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._fig.clear()
         if self._markers is not None:
             self._setup_axes()
-    
+
     def _setup_axes(self):
         axes = self._fig.gca()
         axes.set_ylim(self._ylim)
@@ -377,10 +394,10 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     
         # force integer ticks on x axis
         axes.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
-    
+
         if self._ylim[0] < 0.0:
             axes.axhline(0.0, linewidth=1.0, linestyle="dashed", color="#aaaaaa")
-    
+
         legend_handles = []
         legend_labels = []
         for m in self._markers:

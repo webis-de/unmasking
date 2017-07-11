@@ -4,4 +4,3 @@ nltk
 sklearn
 scipy
 typing
-pyqt5
