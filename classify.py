@@ -24,6 +24,7 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 import argparse
+import os
 import sys
 
 
@@ -53,7 +54,7 @@ def main():
     apply_parser.add_argument("-p", "--plot-file", help="save plot of filtered curves to file",
                               required=False, default=None, metavar="FILE")
     apply_parser.add_argument("-r", "--plot-rc", help="plot RC file",
-                              required=False, default="etc/plot_rc.yml", metavar="FILE")
+                              required=False, default=os.path.join("etc", "plot_rc.yml"), metavar="FILE")
     apply_parser.add_argument("-d", "--display", help="display plot on screen",
                               required=False, default=False, action="store_true")
 
@@ -69,7 +70,7 @@ def main():
     eval_parser.add_argument("-p", "--plot-file", help="save plot of filtered curves to file",
                              required=False, default=None, metavar="FILE")
     eval_parser.add_argument("-r", "--plot-rc", help="plot RC file",
-                             required=False, default="etc/plot_rc.yml", metavar="FILE")
+                             required=False, default=os.path.join("etc", "plot_rc.yml"), metavar="FILE")
     eval_parser.add_argument("-d", "--display", help="display plot on screen",
                              required=False, default=False, action="store_true")
 
