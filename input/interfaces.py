@@ -35,7 +35,7 @@ import os
 class Tokenizer(ABC, Configurable):
     """
     Base class for tokenizers.
-    
+
     Tokenizer properties with setters defined via @property.setter
     can be set at runtime via job configuration.
     """

@@ -141,6 +141,13 @@ class JobExecutor(ABC):
         pass
 
 
+class MetaClassificationExecutor(JobExecutor, ABC):
+    """
+    Base class for meta classification executors.
+    """
+    pass
+
+
 class ConfigurationExpander(ABC):
     """
     Base class for configuration expanders.
