@@ -20,7 +20,7 @@ job:
   # You can also specify an optional dictionary of parameters for
   # configuring properties of this feature set.
   classifier.feature_set:
-    name: features.features.AvgWordFreqFeatureSet
+    name: features.feature_sets.AvgWordFreqFeatureSet
     parameters: null
 
   # Default samplers for generating chunk pairs.
