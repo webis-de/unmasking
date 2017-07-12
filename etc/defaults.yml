@@ -20,7 +20,7 @@ job:
   # You can also specify an optional dictionary of parameters for
   # configuring properties of this feature set.
   classifier.feature_set:
-    name: classifier.features.AvgWordFreqFeatureSet
+    name: features.features.AvgWordFreqFeatureSet
     parameters: null
 
   # Default samplers for generating chunk pairs.
@@ -28,7 +28,7 @@ job:
   # You can also specify an optional dictionary of parameters for
   # configuring properties of this feature set.
   classifier.sampler:
-    name: classifier.sampling.RandomOversampler
+    name: features.sampling.RandomOversampler
     parameters: null
 
   # Default unmasking strategy to be applied.

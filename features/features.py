@@ -21,8 +21,8 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-from classifier.interfaces import FeatureSet
-from classifier.sampling import ChunkSampler
+from features.interfaces import FeatureSet
+from features.sampling import ChunkSampler
 from input.interfaces import SamplePair
 from input.interfaces import Tokenizer
 from input.tokenizers import WordTokenizer, CharNgramTokenizer, DisjunctCharNgramTokenizer
