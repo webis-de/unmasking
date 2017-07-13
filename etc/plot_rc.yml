@@ -13,6 +13,9 @@ markers:
   SAME_AUTHOR: ["o", "same author", "#FFBF00"]
   DIFFERENT_AUTHORS: ["x", "different authors", "#7A16FF"]
 
+# Output file formats
+output_formats: ["svg", "png"]
+
 # List of pyplot styles to apply
 # See https://matplotlib.org/users/customizing.html#using-style-sheets
 styles: []

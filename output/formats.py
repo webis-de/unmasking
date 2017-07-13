@@ -294,6 +294,8 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         
         self._last_points = {}
 
+        self._output_file_ext = ["svg"]
+
     @property
     def rc_file(self) -> str:
         """Get plot RC file"""
@@ -312,6 +314,8 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         rc_params = rc_contents.get("rc_params", {})
         for rc in rc_params:
             matplotlib.rcParams[rc] = rc_params[rc]
+
+        self.output_formats = rc_contents.get("output_formats", self.output_formats)
 
     @property
     def markers(self) -> Dict[SamplePairClass, Tuple[str, str, Optional[str]]]:
@@ -358,6 +362,16 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             self._display = display
         else:
             self._display = False
+
+    @property
+    def output_formats(self) -> List[str]:
+        """Get output formats (default: svg)."""
+        return self._output_file_ext
+
+    @output_formats.setter
+    def output_formats(self, ext: List[str]):
+        """Set output formats."""
+        self._output_file_ext = ext
 
     async def handle(self, name: str, event: Event, sender: type):
         """
@@ -499,8 +513,12 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             return
 
         if file_name is None:
-            file_name = self._generate_output_basename() + ".svg"
-        self._fig.savefig(os.path.join(output_dir, file_name))
+            file_name = self._generate_output_basename()
+        for ext in self._output_file_ext:
+            ext = "." + ext
+            if file_name.endswith(ext):
+                ext = ""
+            self._fig.savefig(os.path.join(output_dir, file_name + ext))
 
     def reset(self):
         self._colors = {}
