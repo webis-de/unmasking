@@ -213,7 +213,7 @@ class MetaClassificationModel(Configurable, Output, ABC):
             out_dict["clf"].append((clf_dict, self._str_labels))
 
         if file_name is None:
-            file_name = self._get_output_filename_base() + ".model"
+            file_name = self._generate_output_basename() + ".model"
 
         with open(os.path.join(output_dir, file_name), "wb") as f:
             msgpack.pack(out_dict, f)
