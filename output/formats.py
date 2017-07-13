@@ -146,7 +146,7 @@ class UnmaskingStatAccumulator(EventHandler, Output):
         """
 
         if file_name is None:
-            file_name = os.path.join(output_dir, self._get_output_filename_base() + ".json")
+            file_name = os.path.join(output_dir, self._generate_output_basename() + ".json")
 
         self._stats["meta"]["classes"] = sorted(self._classes)
         with open(file_name, "w") as f:
@@ -409,7 +409,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             return
 
         if file_name is None:
-            file_name = self._get_output_filename_base() + ".svg"
+            file_name = self._generate_output_basename() + ".svg"
         self._fig.savefig(os.path.join(output_dir, file_name))
 
     def reset(self):

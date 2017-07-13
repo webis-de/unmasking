@@ -49,7 +49,7 @@ class Output(Configurable, ABC):
         """Reset output and clear all variable data"""
         pass
 
-    def _get_output_filename_base(self) -> str:
+    def _generate_output_basename(self) -> str:
         """
         Generate a base filename (without extension) containing a timestamp which
         can safely be used for writing output files.

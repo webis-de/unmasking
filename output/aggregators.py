@@ -108,7 +108,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         """
 
         if file_name is None:
-            file_name = os.path.join(output_dir, self._get_output_filename_base() + ".json")
+            file_name = os.path.join(output_dir, self._generate_output_basename() + ".json")
         with open(file_name, "w") as f:
             self._meta_data["aggregate_key"] = "class" if self._aggregate_by_class else "curve_id"
             self._meta_data["classes"] = sorted(self._classes)
