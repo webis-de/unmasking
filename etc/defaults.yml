@@ -135,8 +135,6 @@ job:
       - name: output.aggregators.AggregatedCurvePlotter
         parameters:
           display: false
-          markers:
-            SAME_AUTHOR: ["o", "same author", "#009900"]
-            DIFFERENT_AUTHORS: ["x", "different authors", "#990000"]
+          rc_file: etc/plot_rc.yml
         events:
           - name: onJobFinished
