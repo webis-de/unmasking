@@ -25,7 +25,6 @@ from event.events import *
 from event.interfaces import EventHandler
 from input.interfaces import SamplePairClass
 from output.interfaces import Output
-from util.util import get_base_path
 
 from collections import OrderedDict
 from random import randint
@@ -37,7 +36,6 @@ import matplotlib
 import matplotlib.ticker
 import os
 import sys
-import yaml
 
 # don't use default Qt backend if we are operating without a display server
 if sys.platform == "linux" and os.environ.get("DISPLAY") is None:
