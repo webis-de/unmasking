@@ -93,6 +93,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
                 avg_curves[agg]["cls"] = self._curves[agg][-1][1]
 
             avg_curves[agg]["files"] = list(self._curve_files.get(agg, []))
+            avg_curves[agg]["num_input"] = len(self._curves[agg])
 
             curves = [x for x in zip(*self._curves[agg])][2]
             avg_curves[agg]["values"] = [sum(x) / len(x) for x in zip(*curves)]
