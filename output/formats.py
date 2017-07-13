@@ -27,6 +27,7 @@ from input.interfaces import SamplePairClass
 from output.interfaces import Output
 from util.util import get_base_path
 
+from collections import OrderedDict
 from random import randint
 from typing import Any, Dict, Union
 
@@ -55,19 +56,19 @@ class UnmaskingResult(Output):
     """
 
     def __init__(self):
-        self._meta = {}
-        self._curves = {}
+        self._meta = OrderedDict()
+        self._curves = OrderedDict()
         self._classes = set()
 
     @property
     def curves(self) -> Dict[str, Any]:
-        """Get curves"""
+        """Get curves as ordered dict"""
         return self._curves
 
     @property
     def meta(self) -> Dict[str, Union[str, float, int, bool, list]]:
-        """Get meta data"""
-        self._meta["classes"] = list(self._classes)
+        """Get meta data as ordered dict"""
+        self._meta["classes"] = sorted(self._classes)
         return self._meta
 
     def add_curve(self, curve_id: str, cls: str, values: List[float], files: List[Union[List[str], str]], **kwargs):
@@ -80,11 +81,11 @@ class UnmaskingResult(Output):
         :param files: participating files (can be a list of lists to separate files of a pair into buckets)
         :param kwargs: further properties to add to the curve
         """
-        self._curves[curve_id] = {
-            "cls": cls,
-            "values": values,
-            "files": files
-        }
+        self._curves[curve_id] = OrderedDict([
+            ("cls", cls),
+            ("values", values),
+            ("files", files)
+        ])
         if kwargs:
             self._curves[curve_id].update(kwargs)
 
@@ -107,10 +108,37 @@ class UnmaskingResult(Output):
             file_name = self._generate_output_basename() + ".json"
 
         with open(os.path.join(output_dir, file_name), "w", encoding="utf-8") as f:
-            json.dump({
-                "meta": self.meta,
-                "curves": self.curves
-            }, f, indent=2)
+            json.dump(OrderedDict([
+                ("meta", self.meta),
+                ("curves", self.curves)
+            ]), f, indent=2)
+
+    def load(self, file_name: str):
+        """
+        Load saved results from JSON file.
+        The order of loaded curves will be preserved from the file.
+
+        :param file_name: JSON file name
+        """
+        with open(file_name) as f:
+            json_data = json.load(f, object_pairs_hook=OrderedDict)
+
+        if "meta" not in json_data:
+            raise ValueError("No meta section")
+
+        if "curves" not in json_data:
+            raise ValueError("No curves section")
+
+        self._meta = json_data["meta"]
+        self._classes = set()
+        if "classes" not in self._meta:
+            for c in json_data["curves"]:
+                if "cls" in c:
+                    self._classes.add(c["cls"])
+        else:
+            self._classes = set(self._meta["classes"])
+
+        self._curves = json_data["curves"]
 
 
 class ProgressPrinter(EventHandler, Output):
@@ -121,12 +149,12 @@ class ProgressPrinter(EventHandler, Output):
     def __init__(self, text: str = None):
         super().__init__()
         self._text = text
-    
+
     @property
     def text(self) -> str:
         """Get custom display text"""
         return self._text
-    
+
     @text.setter
     def text(self, text: str):
         """
@@ -135,7 +163,7 @@ class ProgressPrinter(EventHandler, Output):
         of events and progress percentage. The usual python format string parameters are accepted.
         """
         self._text = text
-    
+
     async def handle(self, name: str, event: Event, sender: type):
         """
         Accepts events:

@@ -28,7 +28,6 @@ from abc import ABC, abstractmethod
 from sklearn.base import BaseEstimator
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-import json
 import msgpack
 import numpy as np
 import os
@@ -42,7 +41,6 @@ class MetaClassificationModel(Configurable, Output, ABC):
 
     def __init__(self):
         self._clf = []
-        self._str_labels = tuple()
         self._version = 1
 
     @abstractmethod
@@ -85,85 +83,6 @@ class MetaClassificationModel(Configurable, Output, ABC):
         """
         pass
 
-    def load_unmasking_results(self, file_name: str) -> Tuple[np.ndarray, Optional[np.ndarray], Tuple[str, ...]]:
-        """
-        Load unmasking result curves from the given input files and convert them to Numpy arrays
-        which can be used with a classifier.
-
-        :param file_name: file to load curves from
-        :return: (1) numpy matrix of curve data, (2) array of int labels (None if not all data have labels)
-                 and (3) tuple mapping int labels to the original string labels (by position)
-        """
-        X = None
-        y = None
-
-        none_labels = False
-        with open(file_name) as f:
-            json_data = json.load(f)
-
-        if "meta" not in json_data:
-            raise ValueError("No meta section")
-
-        if "curves" not in json_data:
-            raise ValueError("No curves section")
-
-        meta = json_data["meta"]
-        if "classes" not in meta:
-            classes = set()
-            for c in json_data["curves"]:
-                if "cls" in c:
-                    classes.add(c["cls"])
-        else:
-            classes = meta["classes"]
-
-        classes = tuple([c for c in sorted(classes)])
-        classes_inv = {k: i for i, k in enumerate(classes)}
-
-        if X is None:
-            X = [0.0] * len(json_data["curves"])
-            y = [0] * len(json_data["curves"])
-
-        for i, c in enumerate(json_data["curves"]):
-            if not json_data["curves"][c]["curve"]:
-                continue
-
-            data = np.array(json_data["curves"][c]["curve"])
-            X[i] = np.add(X[i], np.concatenate((data, np.gradient(data))))
-
-            if none_labels or "cls" not in json_data["curves"][c]:
-                none_labels = True
-                continue
-
-            y[i] = classes_inv.get(json_data["curves"][c]["cls"])
-
-        return np.array(X), (np.array(y) if not none_labels else None), classes
-
-    def fit_from_unmasking_results(self, file_name: str):
-        """
-        Fit a model from unmasking results in the given file.
-
-        :param file_name: unmasking result file name
-        """
-        X, y, classes = self.load_unmasking_results(file_name)
-        self._str_labels = classes
-
-        if y is None:
-            raise ValueError("Training labels must be set")
-
-        self.fit(X, y)
-
-    def predict_from_unmasking_results(self, file_name: str) -> Tuple[Iterable[int], Tuple[str, ...]]:
-        """
-        Predict samples from unmasking results file.
-        Returns a Numpy array of predicted int labels and a tuple mapping these int
-        labels to the original string labels (if given in the input file).
-        Individual labels may be nan if decision probability is below threshold
-
-        :return: tuple predicted classes and original string classes
-        """
-        X, _, classes = self.load_unmasking_results(file_name)
-        return self.predict(X), classes if classes else self._str_labels
-
     def load(self, file_name: str):
         """
         Load model from given file.
@@ -184,17 +103,12 @@ class MetaClassificationModel(Configurable, Output, ABC):
                 clf = self._get_estimator(i)
                 for k in clf_dict[0]:
                     if k[0] == ord("a"):
-                        clf.__dict__[k[1:].decode("utf-8")] = np.array(clf_dict[0][k])
+                        clf.__dict__[k[1:].decode("utf-8")] = np.array(clf_dict[k])
                     if k[0] == ord("s"):
-                        clf.__dict__[k[1:].decode("utf-8")] = clf_dict[0][k].decode("utf-8")
+                        clf.__dict__[k[1:].decode("utf-8")] = clf_dict[k].decode("utf-8")
                     else:
-                        clf.__dict__[k[1:].decode("utf-8")] = clf_dict[0][k]
+                        clf.__dict__[k[1:].decode("utf-8")] = clf_dict[k]
                 self._clf.append(clf)
-
-                labels = []
-                for l in clf_dict[1]:
-                    labels.append(l.decode("utf-8"))
-                self._str_labels = tuple(labels)
 
     def save(self, output_dir: str, file_name: Optional[str] = None):
         out_dict = {
@@ -210,7 +124,7 @@ class MetaClassificationModel(Configurable, Output, ABC):
                     clf_dict["s" + k] = clf_dict[k]
                 else:
                     clf_dict["t" + k] = clf_dict[k]
-            out_dict["clf"].append((clf_dict, self._str_labels))
+            out_dict["clf"].append(clf_dict)
 
         if file_name is None:
             file_name = self._generate_output_basename() + ".model"
