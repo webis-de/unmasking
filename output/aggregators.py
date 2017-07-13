@@ -24,11 +24,9 @@
 from event.events import *
 from event.interfaces import EventHandler, Event
 from input.interfaces import SamplePairClass
-from output.formats import UnmaskingCurvePlotter
+from output.formats import UnmaskingResult, UnmaskingCurvePlotter
 from output.interfaces import Aggregator
 
-import json
-import os
 from typing import Dict, Any, List, Tuple, Optional
 
 
@@ -39,15 +37,17 @@ class CurveAverageAggregator(EventHandler, Aggregator):
     Handles events: onUnmaskingFinished
     """
 
-    def __init__(self, meta_data: Dict[str, Any] = None):
+    def __init__(self, meta_data: Dict[str, Any] = None, aggregate_by_class: bool = False):
         """
         :param meta_data: dict with experiment meta data
+        :param aggregate_by_class: True to aggregate by class instead of curve id
         """
         self._curves = {}
         self._curve_files = {}
-        self._meta_data = meta_data if meta_data is not None else {}
+        self._initial_meta_data = meta_data if meta_data is not None else {}
+        self._meta_data = self._initial_meta_data
         self._classes = set()
-        self._aggregate_by_class = False
+        self._aggregate_by_class = aggregate_by_class
 
     async def handle(self, name: str, event: Event, sender: type):
         """
@@ -74,12 +74,10 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         agg = str(identifier)
         if self._aggregate_by_class:
             agg = str(cls)
-            identifier = None
 
         if agg not in self._curves:
             self._curves[agg] = []
-
-        if len(self._curves[agg]) > 0:
+        else:
             # aggregating values across classes is always a mistake
             assert str(cls) == self._curves[agg][0][1]
 
@@ -87,17 +85,17 @@ class CurveAverageAggregator(EventHandler, Aggregator):
 
     def get_aggregated_curves(self) -> Dict[str, Any]:
         avg_curves = {}
-        for c in self._curves:
-            avg_curves[c] = {}
+        for agg in self._curves:
+            avg_curves[agg] = {}
             if self._aggregate_by_class:
-                avg_curves[c]["curve_id"] = self._curves[c][-1][0]
+                avg_curves[agg]["curve_ids"] = [c[0] for c in self._curves[agg]]
             else:
-                avg_curves[c]["cls"] = self._curves[c][-1][1]
+                avg_curves[agg]["cls"] = self._curves[agg][-1][1]
 
-            avg_curves[c]["files"] = list(self._curve_files.get(c, []))
+            avg_curves[agg]["files"] = list(self._curve_files.get(agg, []))
 
-            curves = [x for x in zip(*self._curves[c])][2]
-            avg_curves[c]["curve"] = [sum(x) / len(x) for x in zip(*curves)]
+            curves = [x for x in zip(*self._curves[agg])][2]
+            avg_curves[agg]["values"] = [sum(x) / len(x) for x in zip(*curves)]
 
         return avg_curves
 
@@ -108,19 +106,22 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         """
 
         if file_name is None:
-            file_name = os.path.join(output_dir, self._generate_output_basename() + ".json")
+            file_name = self._generate_output_basename() + ".json"
 
-        with open(file_name, "w") as f:
-            self._meta_data["aggregate_key"] = "class" if self._aggregate_by_class else "curve_id"
-            self._meta_data["classes"] = sorted(self._classes)
-            stats = {
-                "meta": self._meta_data,
-                "curves": self.get_aggregated_curves()
-            }
-            json.dump(stats, f, indent=2)
+        output = UnmaskingResult()
+        for m in self._meta_data:
+            output.add_meta(m, self._meta_data[m])
+        output.add_meta("agg_key", "class" if self._aggregate_by_class else "curve_id")
+        output.add_meta("classes", sorted(self._classes))
+
+        curves = self.get_aggregated_curves()
+        for c in curves:
+            output.add_curve(c, **curves[c])
+
+        output.save(output_dir, file_name)
 
     def reset(self):
-        self.__init__(self._meta_data)
+        self.__init__(self._initial_meta_data)
 
     @property
     def aggregate_by_class(self):
@@ -138,8 +139,8 @@ class CurveAverageAggregator(EventHandler, Aggregator):
 
     @meta_data.setter
     def meta_data(self, meta_data: Dict[str, Any]):
-        """Set experiment meta data"""
-        self._meta_data = meta_data
+        """Add experiment meta data"""
+        self._meta_data.update(meta_data)
 
 
 class AggregatedCurvePlotter(UnmaskingCurvePlotter, Aggregator):
@@ -168,7 +169,7 @@ class AggregatedCurvePlotter(UnmaskingCurvePlotter, Aggregator):
         for agg in aggregators:
             curve_dict = agg.get_aggregated_curves()
             for curve in curve_dict:
-                self.plot_curve(curve_dict[curve]["curve"], curve_dict[curve]["cls"], self.start_new_curve())
+                self.plot_curve(curve_dict[curve]["values"], curve_dict[curve]["cls"], self.start_new_curve())
 
     def reset(self):
         super().reset()

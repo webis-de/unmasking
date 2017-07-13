@@ -28,7 +28,7 @@ from output.interfaces import Output
 from util.util import get_base_path
 
 from random import randint
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 import asyncio
 import json
@@ -47,6 +47,70 @@ try:
 except (ModuleNotFoundError, ImportError):
     matplotlib.use("Agg", warn=False, force=True)
     import matplotlib.pyplot as pyplot
+
+
+class UnmaskingResult(Output):
+    """
+    Unmasking result DTO.
+    """
+
+    def __init__(self):
+        self._meta = {}
+        self._curves = {}
+        self._classes = set()
+
+    @property
+    def curves(self) -> Dict[str, Any]:
+        """Get curves"""
+        return self._curves
+
+    @property
+    def meta(self) -> Dict[str, Union[str, float, int, bool, list]]:
+        """Get meta data"""
+        self._meta["classes"] = list(self._classes)
+        return self._meta
+
+    def add_curve(self, curve_id: str, cls: str, values: List[float], files: List[Union[List[str], str]], **kwargs):
+        """
+        Add curve to result.
+
+        :param curve_id: string curve ID
+        :param cls: pair class
+        :param values: curve data points
+        :param files: participating files (can be a list of lists to separate files of a pair into buckets)
+        :param kwargs: further properties to add to the curve
+        """
+        self._curves[curve_id] = {
+            "cls": cls,
+            "values": values,
+            "files": files
+        }
+        if kwargs:
+            self._curves[curve_id].update(kwargs)
+
+        self._classes.add(cls)
+
+    def add_meta(self, key: str, value: Union[str, float, int, bool, list]):
+        """
+        Add meta data to curve.
+
+        :param key: meta key
+        :param value: meta value
+        """
+        self._meta[key] = value
+
+    def reset(self):
+        self.__init__()
+
+    def save(self, output_dir: str, file_name: Optional[str] = None):
+        if file_name is None:
+            file_name = self._generate_output_basename() + ".json"
+
+        with open(os.path.join(output_dir, file_name), "w", encoding="utf-8") as f:
+            json.dump({
+                "meta": self.meta,
+                "curves": self.curves
+            }, f, indent=2)
 
 
 class ProgressPrinter(EventHandler, Output):
@@ -104,12 +168,8 @@ class UnmaskingStatAccumulator(EventHandler, Output):
         :param meta_data: dict with experiment meta data
         """
         self._initial_meta_data = meta_data if meta_data is not None else {}
-
-        self._stats = {
-            "meta": self._initial_meta_data,
-            "curves": {}
-        }
-
+        self._curves = {}
+        self._meta = self._initial_meta_data
         self._classes = set()
 
     # noinspection PyUnresolvedReferences,PyTypeChecker
@@ -121,36 +181,40 @@ class UnmaskingStatAccumulator(EventHandler, Output):
         """
         if not isinstance(event, UnmaskingTrainCurveEvent) and not isinstance(event, PairBuildingProgressEvent):
             raise TypeError("event must be of type UnmaskingTrainCurveEvent or PairBuildingProgressEvent")
-        
+
         pair = event.pair
         pair_id = pair.pair_id
-        if event.pair is not None and pair_id not in self._stats["curves"]:
-            self._stats["curves"][pair_id] = {}
+        if pair_id not in self._curves:
+            self._curves[pair_id] = {}
 
         str_cls = str(pair.cls)
         self._classes.add(str_cls)
 
         if isinstance(event, PairBuildingProgressEvent):
             fa, fb = event.files
-            self._stats["curves"][pair_id]["cls"] = str_cls
-            self._stats["curves"][pair_id]["files_a"] = fa
-            self._stats["curves"][pair_id]["files_b"] = fb
+            self._curves[pair_id]["cls"] = str_cls
+            self._curves[pair_id]["files"] = [fa, fb]
         elif isinstance(event, UnmaskingTrainCurveEvent):
-            self._stats["curves"][pair_id]["curve"] = event.values
-            self._stats["curves"][pair_id]["fs"] = event.feature_set.__name__
-    
+            self._curves[pair_id]["values"] = event.values
+            self._curves[pair_id]["fs"] = event.feature_set.__name__
+
     def save(self, output_dir: str, file_name: Optional[str] = None):
         """
         Save accumulated stats to file in JSON format.
         If the file exists, it will be truncated.
         """
 
-        if file_name is None:
-            file_name = os.path.join(output_dir, self._generate_output_basename() + ".json")
+        output = UnmaskingResult()
+        for c in self._curves:
+            output.add_curve(c, **self._curves[c])
 
-        self._stats["meta"]["classes"] = sorted(self._classes)
-        with open(file_name, "w") as f:
-            json.dump(self._stats, f, indent=2)
+        for m in self._meta:
+            output.add_meta(m, self._meta[m])
+        output.add_meta("classes", list(self._classes))
+
+        if file_name is None:
+            file_name = self._generate_output_basename() + ".json"
+        output.save(output_dir, file_name)
 
     def reset(self):
         self.__init__(self._initial_meta_data)
@@ -158,14 +222,12 @@ class UnmaskingStatAccumulator(EventHandler, Output):
     @property
     def meta_data(self) -> Dict[str, Any]:
         """Get experiment meta data"""
-        if "meta" in self._stats:
-            return self._stats["meta"]
-        return {}
-    
+        return self._meta
+
     @meta_data.setter
     def meta_data(self, meta_data: Dict[str, Any]):
-        """Set experiment meta data"""
-        self._stats["meta"] = meta_data
+        """Add experiment meta data"""
+        self._meta.update(meta_data)
 
 
 class UnmaskingCurvePlotter(EventHandler, Output):
