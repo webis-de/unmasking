@@ -35,7 +35,7 @@ import os
 
 
 # noinspection PyPep8Naming
-class MetaClassificationModel(Output, Configurable, ABC):
+class MetaClassificationModel(Configurable, Output, ABC):
     """
     Base class for meta classification models.
     """
@@ -196,7 +196,7 @@ class MetaClassificationModel(Output, Configurable, ABC):
                     labels.append(l.decode("utf-8"))
                 self._str_labels = tuple(labels)
 
-    def save(self, output_dir: str):
+    def save(self, output_dir: str, file_name: Optional[str] = None):
         out_dict = {
             "version": self._version,
             "clf": []
@@ -212,7 +212,10 @@ class MetaClassificationModel(Output, Configurable, ABC):
                     clf_dict["t" + k] = clf_dict[k]
             out_dict["clf"].append((clf_dict, self._str_labels))
 
-        with open(os.path.join(output_dir, self._get_output_filename_base() + ".model"), "wb") as f:
+        if file_name is None:
+            file_name = self._get_output_filename_base() + ".model"
+
+        with open(os.path.join(output_dir, file_name), "wb") as f:
             msgpack.pack(out_dict, f)
 
     def reset(self):

@@ -26,7 +26,7 @@ from input.interfaces import SamplePairClass
 
 from abc import ABC, abstractmethod
 from time import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional
 
 
 class Output(Configurable, ABC):
@@ -35,19 +35,20 @@ class Output(Configurable, ABC):
     """
     
     @abstractmethod
-    def save(self, output_dir: str):
+    def save(self, output_dir: str, file_name: Optional[str] = None):
         """
         Save object state to file in a given output directory
 
         :param output_dir: output directory
+        :param file_name: file name inside the output directory (None for auto-generated name)
         """
         pass
-    
+
     @abstractmethod
     def reset(self):
         """Reset output and clear all variable data"""
         pass
-    
+
     def _get_output_filename_base(self) -> str:
         """
         Generate a base filename (without extension) containing a timestamp which
