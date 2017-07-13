@@ -25,10 +25,14 @@ from conf.interfaces import ConfigLoader
 from event.dispatch import EventBroadcaster
 from event.interfaces import EventHandler
 from output.interfaces import Output, Aggregator
+from util.util import get_base_path
 
 from abc import abstractmethod, ABC
 from importlib import import_module
 from typing import Any, Dict, Iterable, List, Tuple
+
+import os
+import yaml
 
 
 class JobExecutor(ABC):
@@ -71,6 +75,15 @@ class JobExecutor(ABC):
         """
         cls = self._load_class(cfg["name"])
         obj = cls(*ctr_args)
+
+        if "rc_file" in cfg and cfg["rc_file"] is not None:
+            rc_file = os.path.join(get_base_path(), cfg["rc_file"])
+            with open(rc_file, "r") as f:
+                rc_contents = yaml.safe_load(f)
+
+            for rc in rc_contents:
+                obj.set_property(rc, rc_contents[rc])
+
         if "parameters" in cfg and cfg["parameters"] is not None:
             for p in cfg["parameters"]:
                 obj.set_property(p, cfg["parameters"][p])

@@ -274,48 +274,48 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         """
         super().__init__()
 
-        self._rc_file = None
         self._fig = None
         self._colors = {}
         self._markers = None
         if markers is not None:
             self.markers = markers
         self._display = False
+        self.display = display
         self._is_being_displayed = False
         self._ylim = ylim
         self._xlim = None
         self._axes_need_update = True
 
-        self.display = display
-        
+        self._pyplot_styles = []
+        self._output_formats = ["svg"]
+
         self._next_curve_id = 0
         self._curve_ids = []
         self._events_to_pair_ids = {}
-        
+
         self._last_points = {}
 
-        self._output_file_ext = ["svg"]
+    @property
+    def styles(self) -> Union[str, dict, list]:
+        """Get used pyplot styles."""
+        return self._pyplot_styles
+
+    @styles.setter
+    def styles(self, styles: Union[str, dict, list]):
+        """Set pyplot styles."""
+        self._pyplot_styles = styles
+        pyplot.style.use(styles)
 
     @property
-    def rc_file(self) -> str:
-        """Get plot RC file"""
-        return self._rc_file
+    def rc_params(self) -> Dict[str, Union[str, int, float]]:
+        """Get matplotlib rcParams."""
+        return matplotlib.rcParams
 
-    @rc_file.setter
-    def rc_file(self, rc_file: str):
-        """Set and parse plot RC file"""
-        rc_file = os.path.join(get_base_path(), rc_file)
-        self._rc_file = rc_file
-        with open(rc_file, "r") as f:
-            rc_contents = yaml.safe_load(f)
-
-        self.markers = rc_contents.get("markers", {})
-        pyplot.style.use(rc_contents.get("styles", []))
-        rc_params = rc_contents.get("rc_params", {})
+    @rc_params.setter
+    def rc_params(self, rc_params: Dict[str, Union[str, int, float]]):
+        """Set matplotlib rcParams."""
         for rc in rc_params:
             matplotlib.rcParams[rc] = rc_params[rc]
-
-        self.output_formats = rc_contents.get("output_formats", self.output_formats)
 
     @property
     def markers(self) -> Dict[SamplePairClass, Tuple[str, str, Optional[str]]]:
@@ -366,12 +366,12 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     @property
     def output_formats(self) -> List[str]:
         """Get output formats (default: svg)."""
-        return self._output_file_ext
+        return self._output_formats
 
     @output_formats.setter
     def output_formats(self, ext: List[str]):
         """Set output formats."""
-        self._output_file_ext = ext
+        self._output_formats = ext
 
     async def handle(self, name: str, event: Event, sender: type):
         """
@@ -514,7 +514,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
 
         if file_name is None:
             file_name = self._generate_output_basename()
-        for ext in self._output_file_ext:
+        for ext in self._output_formats:
             ext = "." + ext
             if file_name.endswith(ext):
                 ext = ""
@@ -548,6 +548,10 @@ class UnmaskingCurvePlotter(EventHandler, Output):
 
         legend_handles = []
         legend_labels = []
+
+        if self._markers is None:
+            self._markers = {}
+
         for m in self._markers:
             if not self._markers[m][1]:
                 continue

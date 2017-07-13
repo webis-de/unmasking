@@ -21,7 +21,6 @@ job:
   # configuring properties of this feature set.
   classifier.feature_set:
     name: features.feature_sets.AvgWordFreqFeatureSet
-    parameters: null
 
   # Default samplers for generating chunk pairs.
   #
@@ -29,7 +28,6 @@ job:
   # configuring properties of this feature set.
   classifier.sampler:
     name: features.sampling.RandomOversampler
-    parameters: null
 
   # Default unmasking strategy to be applied.
   unmasking:
@@ -64,21 +62,22 @@ job:
   outputs:
     # Accumulate unmasking raw and meta data
     - name: output.formats.UnmaskingStatAccumulator
-      parameters: null
       events:
         - name: onPairGenerated
         - name: onUnmaskingFinished
 
     # Visualize unmasking curves
     - name: output.formats.UnmaskingCurvePlotter
+
+      # Plot RC file path relative to the application directory.
+      # This configures basic plot parameters such as used markers and colors
+      # or dynamic matplotlib settings.
+      rc_file: etc/plot_rc.yml
+
+      # Other parameters (settings here take precedence of the RC file)
       parameters:
         # Do not display live plot, only write final image to disk
         display: false
-
-        # Plot RC file path relative to the application directory.
-        # This configures basic plot parameters such as used markers and colors
-        # or dynamic matplotlib settings.
-        rc_file: etc/plot_rc.yml
 
       events:
         - name: onUnmaskingRoundFinished
@@ -133,8 +132,8 @@ job:
 
       # Visualize aggregated curves
       - name: output.aggregators.AggregatedCurvePlotter
+        rc_file: etc/plot_rc.yml
         parameters:
           display: false
-          rc_file: etc/plot_rc.yml
         events:
           - name: onJobFinished

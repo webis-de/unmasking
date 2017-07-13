@@ -28,18 +28,15 @@ job%:
   # UnmaskingCurvePlotter, we can't inherit from the default config
   outputs:
     - name: output.formats.UnmaskingStatAccumulator
-      parameters: null
       events:
         - name: onPairGenerated
         - name: onUnmaskingFinished
 
     - name: output.formats.UnmaskingCurvePlotter
+      rc_file: etc/plot_rc.yml
       parameters:
         # Show live plot
         display: true
-
-        # Plot RC file relative to the application directory
-        rc_file: etc/plot_rc.yml
 
         # Set fixed xlim values since we know how many curve points we'll be getting
         xlim: [0, 23]
