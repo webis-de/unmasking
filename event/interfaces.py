@@ -67,9 +67,11 @@ class Event:
     def clone(self) -> "Event":
         """
         Return a new cloned instance of this event.
-        Sub classes should override this method to clone any additional properties.
+        Sub classes should override this method if they change the constructor signature.
         """
-        return Event(self.group_id, self.serial)
+        event = self.__class__(self.group_id, self.serial)
+        event.__dict__ = self.__dict__.copy()
+        return event
 
     @property
     def group_id(self) -> str:

@@ -46,9 +46,6 @@ class ProgressEvent(Event):
 
         self._events_total = events_total
 
-    def clone(self) -> Event:
-        return self.__class__(self.group_id, self.serial, self._events_total)
-
     @property
     def text(self) -> str:
         """Get user-readable textural representation of this event."""
@@ -108,10 +105,6 @@ class PairBuildingProgressEvent(ProgressEvent):
         self._pair = pair
         self._files_a = [] if files_a is None else files_a
         self._files_b = [] if files_b is None else files_b
-
-    def clone(self) -> Event:
-        return self.__class__(self.group_id, self.serial, self._events_total,
-                              self._pair, self._files_a, self._files_b)
 
     @property
     def pair(self):
@@ -195,11 +188,6 @@ class UnmaskingTrainCurveEvent(Event):
         self._pair = pair
         self._feature_set = feature_set
 
-    def clone(self) -> Event:
-        clone = UnmaskingTrainCurveEvent(self.group_id, self.serial, self._n, self._pair, self._feature_set)
-        clone._values = self._values
-        return clone
-    
     @property
     def pair(self):
         """Pair for which this curve is being calculated."""
