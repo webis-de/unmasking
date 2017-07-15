@@ -120,7 +120,7 @@ class CachedAvgTokenCountFeatureSet(FeatureSet):
         
             yield vec
 
-    @lru_cache(maxsize=10000)
+    @lru_cache(maxsize=200)
     def _tokenize(self, text) -> List[str]:
         return list(self._chunk_tokenizer.tokenize(text))
 
