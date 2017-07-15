@@ -25,7 +25,7 @@ job%:
   unmasking%:
     iterations: 24
     strategy%.parameters%:
-        # update plots after each iteration
+        # Update plot after each iteration
         buffer_curves: false
 
   # Specify outputs. Since we are overriding the settings for the
