@@ -53,6 +53,8 @@ class UnmaskingStrategy(ABC, Configurable):
         Initialize unmasking strategy. LinearSVC() is used as default estimator.
         """
         self._clf = LinearSVC()
+        self._buffer_curves = True
+        self._values = []
     
     @property
     def clf(self):
@@ -69,6 +71,16 @@ class UnmaskingStrategy(ABC, Configurable):
         if not hasattr(clf, "fit"):
             raise ValueError("Estimator does not implement fit()")
         self._clf = clf
+
+    @property
+    def buffer_curves(self) -> bool:
+        """Whether to buffer curves."""
+        return self._buffer_curves
+
+    @buffer_curves.setter
+    def buffer_curves(self, buffer: bool):
+        """Set whether to buffer curves. Set to False to send update events after each round."""
+        self._buffer_curves = buffer
 
     # noinspection PyPep8Naming
     async def run(self, pair: SamplePair, m: int, n: int, fs: FeatureSet, relative: bool = False,
@@ -126,7 +138,7 @@ class UnmaskingStrategy(ABC, Configurable):
                 else:
                     coef = numpy.array(clf.coef_)
 
-                if not monotonize:
+                if not monotonize and not self._buffer_curves:
                     await EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
                     event = UnmaskingTrainCurveEvent.new_event(event)
 
@@ -135,7 +147,7 @@ class UnmaskingStrategy(ABC, Configurable):
             except ValueError:
                 continue
 
-        if monotonize:
+        if monotonize or self._buffer_curves:
             event.values = self._monotonize(values)
             await EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
         event = UnmaskingTrainCurveEvent.new_event(event)

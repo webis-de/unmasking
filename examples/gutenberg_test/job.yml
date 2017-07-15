@@ -22,7 +22,11 @@ job%:
         chunk_size: $chunk_size
         language: "english"
 
-  unmasking%.iterations: 24
+  unmasking%:
+    iterations: 24
+    strategy%.parameters%:
+        # update plots after each iteration
+        buffer_curves: false
 
   # Specify outputs. Since we are overriding the settings for the
   # UnmaskingCurvePlotter, we can't inherit from the default config
