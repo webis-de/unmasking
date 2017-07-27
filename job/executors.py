@@ -254,10 +254,10 @@ class MetaTrainExecutor(MetaClassificationExecutor):
         super().__init__()
         self._input_path = input_path
 
-    # noinspection PyPep8Naming
     async def _exec(self, job_id, model: MetaClassificationModel, output_dir):
         unmasking_input = UnmaskingResult()
         unmasking_input.load(self._input_path)
+        # noinspection PyPep8Naming
         X, y = unmasking_result_to_numpy(unmasking_input)
 
         if not y:
