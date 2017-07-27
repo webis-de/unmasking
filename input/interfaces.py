@@ -24,7 +24,7 @@
 from conf.interfaces import Configurable
 from util.util import lru_cache, get_base_path
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from enum import Enum, unique
 from typing import AsyncGenerator, Iterable, List
 from uuid import UUID
@@ -32,7 +32,7 @@ from uuid import UUID
 import os
 
 
-class Tokenizer(ABC, Configurable):
+class Tokenizer(Configurable, metaclass=ABCMeta):
     """
     Base class for tokenizers.
 
@@ -97,7 +97,7 @@ class SamplePairClass(Enum):
         return self.__repr__().__hash__()
 
 
-class SamplePair(ABC):
+class SamplePair(metaclass=ABCMeta):
     """
     Pair of sample text sets.
 
@@ -159,7 +159,7 @@ class SamplePair(ABC):
         pass
 
 
-class CorpusParser(ABC, Configurable):
+class CorpusParser(Configurable, metaclass=ABCMeta):
     """
     Base class for corpus parsers.
     """

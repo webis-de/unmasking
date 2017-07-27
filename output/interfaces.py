@@ -24,12 +24,12 @@
 from conf.interfaces import Configurable
 from input.interfaces import SamplePairClass
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from time import time
 from typing import Any, Dict, List, Optional
 
 
-class Output(Configurable, ABC):
+class Output(Configurable, metaclass=ABCMeta):
     """
     Base class for output handlers
     """
@@ -59,7 +59,7 @@ class Output(Configurable, ABC):
         return self.__class__.__name__ + "." + str(int(time()))
 
 
-class Aggregator(Output, ABC):
+class Aggregator(Output, metaclass=ABCMeta):
     """
     Base class for unmasking curve aggregation.
     This can be used for building ensembles of multiple runs.

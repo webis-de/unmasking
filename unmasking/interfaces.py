@@ -30,11 +30,11 @@ from sklearn.model_selection import cross_val_score
 from sklearn.svm import LinearSVC
 import numpy
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import List
 
 
-class UnmaskingStrategy(ABC, Configurable):
+class UnmaskingStrategy(Configurable, metaclass=ABCMeta):
     """
     Base class for unmasking strategies.
     

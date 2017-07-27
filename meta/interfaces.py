@@ -23,7 +23,7 @@
 
 from output.interfaces import Output
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from sklearn.base import BaseEstimator
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -33,7 +33,7 @@ import os
 
 
 # noinspection PyPep8Naming
-class MetaClassificationModel(Output, ABC):
+class MetaClassificationModel(Output, metaclass=ABCMeta):
     """
     Base class for meta classification models.
     """

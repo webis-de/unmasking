@@ -27,7 +27,7 @@ from event.interfaces import EventHandler
 from output.interfaces import Output, Aggregator
 from util.util import get_base_path
 
-from abc import abstractmethod, ABC
+from abc import abstractmethod, ABCMeta
 from importlib import import_module
 from time import time
 from typing import Any, Dict, Iterable, List, Tuple
@@ -36,7 +36,7 @@ import os
 import yaml
 
 
-class JobExecutor(ABC):
+class JobExecutor(metaclass=ABCMeta):
     """
     Generic job executor.
     """
@@ -178,7 +178,7 @@ class JobExecutor(ABC):
         pass
 
 
-class ConfigurationExpander(ABC):
+class ConfigurationExpander(metaclass=ABCMeta):
     """
     Base class for configuration expanders.
     """

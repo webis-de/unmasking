@@ -21,7 +21,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from uuid import UUID, uuid5
 from typing import Iterable
 
@@ -98,7 +98,7 @@ class Event:
         return str(uuid5(cls.EVENT_NS, sources_str))
 
 
-class EventHandler(ABC):
+class EventHandler(metaclass=ABCMeta):
     """
     Base class for :class:`Event` subscribers.
     """

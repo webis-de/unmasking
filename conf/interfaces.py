@@ -21,11 +21,11 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-from abc import abstractmethod, ABC
+from abc import abstractmethod, ABCMeta
 from typing import Any, Dict
 
 
-class ConfigLoader(ABC):
+class ConfigLoader(metaclass=ABCMeta):
     @abstractmethod
     def load(self, filename: str):
         """

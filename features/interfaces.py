@@ -23,12 +23,12 @@
 
 from input.interfaces import SamplePair
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 import numpy
 from typing import Iterable, Tuple
 
 
-class ChunkSampler(ABC):
+class ChunkSampler(metaclass=ABCMeta):
     """
     Base class for chunk samplers used for generating pairs of chunks from :class:`SamplePair`s.
 
@@ -47,7 +47,7 @@ class ChunkSampler(ABC):
         pass
 
 
-class FeatureSet(ABC):
+class FeatureSet(metaclass=ABCMeta):
     """
     Base class for text discrimination feature sets.
 

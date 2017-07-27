@@ -33,7 +33,7 @@ from output.formats import UnmaskingResult
 from unmasking.interfaces import UnmaskingStrategy
 from util.util import clear_lru_caches
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from concurrent.futures import Executor, ProcessPoolExecutor
 from time import time
 from typing import Any, Dict, Tuple
@@ -198,7 +198,7 @@ class ExpandingExecutor(JobExecutor):
         return expanded
 
 
-class MetaClassificationExecutor(JobExecutor, ABC):
+class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
     """
     Base class for meta classification executors.
     Runs a meta training or classification job on a set of pre-generated unmasking curves.
