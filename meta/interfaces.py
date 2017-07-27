@@ -22,11 +22,10 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 from output.interfaces import Output
-from conf.interfaces import Configurable
 
 from abc import ABC, abstractmethod
 from sklearn.base import BaseEstimator
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional
 
 import msgpack
 import numpy as np
@@ -34,7 +33,7 @@ import os
 
 
 # noinspection PyPep8Naming
-class MetaClassificationModel(Configurable, Output, ABC):
+class MetaClassificationModel(Output, ABC):
     """
     Base class for meta classification models.
     """
@@ -54,7 +53,7 @@ class MetaClassificationModel(Configurable, Output, ABC):
         pass
 
     @abstractmethod
-    def fit(self, X: Iterable[Iterable[float]], y: Iterable[int]):
+    async def fit(self, X: Iterable[Iterable[float]], y: Iterable[int]):
         """
         Fit model to data in X with labels from y.
 
@@ -64,7 +63,7 @@ class MetaClassificationModel(Configurable, Output, ABC):
         pass
 
     @abstractmethod
-    def predict(self, X: Iterable[Iterable[float]]) -> Iterable[int]:
+    async def predict(self, X: Iterable[Iterable[float]]) -> Iterable[int]:
         """
         Predict classes for samples in X.
 
@@ -83,7 +82,7 @@ class MetaClassificationModel(Configurable, Output, ABC):
         """
         pass
 
-    def load(self, file_name: str):
+    async def load(self, file_name: str):
         """
         Load model from given file.
 

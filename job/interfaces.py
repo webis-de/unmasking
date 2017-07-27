@@ -29,6 +29,7 @@ from util.util import get_base_path
 
 from abc import abstractmethod, ABC
 from importlib import import_module
+from time import time
 from typing import Any, Dict, Iterable, List, Tuple
 
 import os
@@ -39,21 +40,44 @@ class JobExecutor(ABC):
     """
     Generic job executor.
     """
-    
+
     def __init__(self):
         self._outputs = []
         self._aggregators = []
-    
+
     @property
     def outputs(self) -> List[Output]:
         """Get configured outputs"""
         return self._outputs
-    
+
     @property
     def aggregators(self) -> List[Aggregator]:
         """Get configured aggregators"""
         return self._aggregators
-    
+
+    def _init_job_output(self, conf: ConfigLoader, output_dir: str = None) -> Tuple[str, str]:
+        """
+        Initialize job output directory and return job ID.
+        If `output_dir` is not set, the `job.output_dir` directive provided by
+        the given :class:: ConfigLoader will be used.
+
+        :param conf: config loader
+        :param output_dir: base directory to save job outputs to
+        :return: tuple of generated job ID and absolute output directory path
+        """
+        job_id = "job_" + str(int(time()))
+        output_dir = conf.get("job.output_dir") if not output_dir else output_dir
+        output_dir = os.path.join(output_dir, job_id)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        if not os.path.isdir(output_dir):
+            raise IOError("Failed to create output directory '{}', maybe it exists already?".format(output_dir))
+
+        conf.save(os.path.join(output_dir, "job"))
+
+        return job_id, output_dir
+
     def _load_class(self, name: str):
         """
         Dynamically load a class based on its fully-qualified module path
@@ -152,13 +176,6 @@ class JobExecutor(ABC):
         :param output_dir: output directory
         """
         pass
-
-
-class MetaClassificationExecutor(JobExecutor, ABC):
-    """
-    Base class for meta classification executors.
-    """
-    pass
 
 
 class ConfigurationExpander(ABC):

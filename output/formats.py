@@ -119,6 +119,9 @@ class UnmaskingResult(Output):
 
         :param file_name: JSON file name
         """
+        if not os.path.isfile(file_name):
+            raise IOError("Input file '{}' does not exist.".format(file_name))
+
         with open(file_name) as f:
             json_data = json.load(f, object_pairs_hook=OrderedDict)
 

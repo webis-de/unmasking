@@ -23,10 +23,13 @@
 
 from meta.interfaces import MetaClassificationModel
 
-import numpy as np
+from concurrent.futures import ThreadPoolExecutor
 from sklearn.base import BaseEstimator
 from sklearn.svm import LinearSVC
 from typing import Any, Iterable
+
+import asyncio
+import numpy as np
 
 
 # noinspection PyPep8Naming
@@ -39,10 +42,11 @@ class LinearMetaClassificationModel(MetaClassificationModel):
         super().__init__()
         self._threshold = 0.5
 
+    # noinspection PyUnusedLocal
     def _get_estimator(self, index: int) -> BaseEstimator:
         return LinearSVC()
 
-    def fit(self, X: Iterable[Iterable[float]], y: Iterable[Any]):
+    async def fit(self, X: Iterable[Iterable[float]], y: Iterable[Any]):
         self.reset()
 
         # decision quality estimator
@@ -51,15 +55,20 @@ class LinearMetaClassificationModel(MetaClassificationModel):
         # sample classifier
         self._clf.append(self._get_estimator(1))
 
-        self._clf[0].fit(X, y)
+        executor = ThreadPoolExecutor(max_workers=1)
+        try:
+            await asyncio.get_event_loop().run_in_executor(executor, self._clf[0].fit, X, y)
 
-        # eliminate samples below threshold
-        dist = self._clf[0].decision_function(X)
-        X = np.fromiter((x for i, x in enumerate(X) if abs(dist[i]) >= self._threshold), dtype=[("", float), ("", float)])
-        y = np.fromiter((y for i, y in enumerate(y) if abs(dist[i]) >= self._threshold), dtype=float)
-        self._clf[1].fit(X, y)
+            # eliminate samples below threshold
+            dist = self._clf[0].decision_function(X)
+            X = np.fromiter((x for i, x in enumerate(X) if abs(dist[i]) >= self._threshold), dtype=[("", float), ("", float)])
+            y = np.fromiter((y for i, y in enumerate(y) if abs(dist[i]) >= self._threshold), dtype=float)
 
-    def predict(self, X: Iterable[Iterable[float]]) -> Iterable[Any]:
+            await asyncio.get_event_loop().run_in_executor(executor, self._clf[1].fit, X, y)
+        finally:
+            executor.shutdown()
+
+    async def predict(self, X: Iterable[Iterable[float]]) -> Iterable[Any]:
         """
         Predict classes for samples in X
         If decision probability of a prediction is below the threshold, the array entry will be nan.

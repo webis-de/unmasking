@@ -27,14 +27,19 @@ from event.dispatch import EventBroadcaster, MultiProcessEventContext
 from event.events import ConfigurationFinishedEvent, JobFinishedEvent
 from features.interfaces import FeatureSet
 from job.interfaces import JobExecutor, ConfigurationExpander
+from meta.interfaces import MetaClassificationModel
+from meta.util import unmasking_result_to_numpy
+from output.formats import UnmaskingResult
 from unmasking.interfaces import UnmaskingStrategy
 from util.util import clear_lru_caches
 
-import asyncio
-import os
+from abc import ABC, abstractmethod
 from concurrent.futures import Executor, ProcessPoolExecutor
 from time import time
 from typing import Any, Dict, Tuple
+
+import asyncio
+import os
 
 
 class ExpandingExecutor(JobExecutor):
@@ -63,23 +68,11 @@ class ExpandingExecutor(JobExecutor):
 
     async def run(self, conf: ConfigLoader, output_dir: str = None):
         self._config = conf
-        
+
         self._load_outputs(self._config.get("job.outputs"))
         self._load_aggregators(self._config.get("job.experiment.aggregators"))
-        
-        job_id = "job_" + str(int(time()))
-        if output_dir is None:
-            output_dir = self._config.get("job.output_dir")
-        else:
-            output_dir = output_dir
-        output_dir = os.path.join(output_dir, job_id)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-            
-        if not os.path.isdir(output_dir):
-            raise IOError("Failed to create output directory '{}', maybe it exists already?".format(output_dir))
 
-        conf.save(os.path.join(output_dir, "job"))
+        job_id, output_dir = self._init_job_output(conf, output_dir)
 
         config_vectors = self._config.get("job.experiment.configurations")
         config_variables = [tuple()]
@@ -203,3 +196,72 @@ class ExpandingExecutor(JobExecutor):
                         except (TypeError, ValueError):
                             expanded[k] = new_value
         return expanded
+
+
+class MetaClassificationExecutor(JobExecutor, ABC):
+    """
+    Base class for meta classification executors.
+    Runs a meta training or classification job on a set of pre-generated unmasking curves.
+
+    Events published by this class:
+
+    * `onJobFinished`: [type JobFinishedEvent]
+                       fired when the job has finished
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._config = None
+
+    async def run(self, conf: ConfigLoader, output_dir: str = None):
+        job_id, output_dir = self._init_job_output(conf, output_dir)
+        model = self._configure_instance(conf.get("job.model"))
+        self._load_outputs(conf.get("job.outputs"))
+
+        start_time = time()
+        try:
+            await self._exec(job_id, model, conf, output_dir)
+            event = JobFinishedEvent(job_id, 0, [])
+            await EventBroadcaster.publish("onJobFinished", event, self.__class__)
+
+            for output in self.outputs:
+                output.save(output_dir)
+                output.reset()
+
+        finally:
+            print("Time taken: {:.03f} seconds.".format(time() - start_time))
+
+    @abstractmethod
+    async def _exec(self, job_id: str, model: MetaClassificationModel, output_dir):
+        """
+        Execute meta classification task.
+
+        :param job_id: job ID
+        :param output_dir: full output directory path
+        """
+        pass
+
+
+class MetaTrainExecutor(MetaClassificationExecutor):
+    """
+    Train and save a meta classification model from given input raw data.
+    """
+
+    def __init__(self, input_path: str):
+        """
+        :param input_path: JSON input file
+        """
+        super().__init__()
+        self._input_path = input_path
+
+    # noinspection PyPep8Naming
+    async def _exec(self, job_id, model: MetaClassificationModel, output_dir):
+        unmasking_input = UnmaskingResult()
+        unmasking_input.load(self._input_path)
+        X, y = unmasking_result_to_numpy(unmasking_input)
+
+        if not y:
+            raise RuntimeError("Training input must have labels")
+
+        await model.fit(X, y)
+        model.save(output_dir)
