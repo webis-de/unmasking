@@ -416,7 +416,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         loop = asyncio.get_event_loop()
         while loop.is_running() and self._is_being_displayed and self._fig is not None:
             self._flush_events()
-            await asyncio.sleep(0.0001)
+            await asyncio.sleep(0)
 
     def _flush_events(self):
         """
