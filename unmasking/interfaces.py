@@ -147,8 +147,9 @@ class UnmaskingStrategy(ABC, Configurable):
             except ValueError:
                 continue
 
-        if monotonize or self._buffer_curves:
+        if monotonize:
             event.values = self._monotonize(values)
+        if monotonize or self._buffer_curves:
             await EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
         event = UnmaskingTrainCurveEvent.new_event(event)
         await EventBroadcaster.publish("onUnmaskingFinished", event, self.__class__)
