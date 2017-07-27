@@ -25,7 +25,6 @@ from features.interfaces import FeatureSet
 from event.dispatch import EventBroadcaster, MultiProcessEventContext
 from event.events import UnmaskingTrainCurveEvent
 from conf.interfaces import Configurable
-from input.interfaces import SamplePair
 
 from sklearn.model_selection import cross_val_score
 from sklearn.svm import LinearSVC
