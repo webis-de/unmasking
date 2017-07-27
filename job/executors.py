@@ -25,7 +25,7 @@ from conf.interfaces import ConfigLoader
 from conf.loader import JobConfigLoader
 from event.dispatch import EventBroadcaster, MultiProcessEventContext
 from event.events import ConfigurationFinishedEvent, JobFinishedEvent
-from input.interfaces import SamplePair
+from features.interfaces import FeatureSet
 from job.interfaces import JobExecutor, ConfigurationExpander
 from unmasking.interfaces import UnmaskingStrategy
 from util.util import clear_lru_caches
@@ -134,13 +134,15 @@ class ExpandingExecutor(JobExecutor):
         repetitions = cfg.get("job.experiment.repetitions")
 
         strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
+        sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
         loop = asyncio.get_event_loop()
         for _ in range(repetitions):
             async with MultiProcessEventContext:
                 futures = []
 
                 async for pair in parser:
-                    futures.append(loop.run_in_executor(executor, self._exec, strat, pair, cfg))
+                    feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
+                    futures.append(loop.run_in_executor(executor, self._exec, strat, feature_set, cfg))
                     await asyncio.sleep(0)
 
                 await asyncio.wait(futures)
@@ -154,22 +156,20 @@ class ExpandingExecutor(JobExecutor):
         event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
         await EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
 
-    def _exec(self, strat: UnmaskingStrategy, pair: SamplePair, cfg: JobConfigLoader):
+    @staticmethod
+    def _exec(strat: UnmaskingStrategy, feature_set: FeatureSet, cfg: JobConfigLoader):
         """
         Execute actual unmasking strategy.
         This method should be run in a separate process.
 
         :param strat: unmasking strategy to run
-        :param pair: sample pair to run on
+        :param feature_set: feature set for pair
         :param cfg: job configuration
         """
-        sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
-        feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
-
         loop = asyncio.new_event_loop()
         try:
             loop.run_until_complete(strat.run(
-                pair,
+                feature_set.pair,
                 cfg.get("job.unmasking.iterations"),
                 cfg.get("job.unmasking.vector_size"),
                 feature_set,
