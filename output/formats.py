@@ -503,6 +503,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     def close(self):
         """Close an open plot window."""
         pyplot.close(self._fig)
+        pyplot.ioff()
         self._fig = None
         self._is_being_displayed = False
         self.reset()
@@ -525,6 +526,10 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._curve_ids = []
         self._events_to_pair_ids = {}
         self._last_points = {}
+        if not self.display:
+            pyplot.ioff()
+        else:
+            pyplot.ion()
 
         if self._fig is None:
             self._fig = pyplot.figure()
