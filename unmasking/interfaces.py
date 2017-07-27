@@ -83,15 +83,14 @@ class UnmaskingStrategy(ABC, Configurable):
         self._buffer_curves = buffer
 
     # noinspection PyPep8Naming
-    async def run(self, pair: SamplePair, m: int, n: int, fs: FeatureSet, relative: bool = False,
+    async def run(self, fs: FeatureSet, m: int, n: int, relative: bool = False,
                   folds: int = 10, monotonize: bool = False):
         """
         Run ``m`` rounds of unmasking on given parametrized feature set.
 
-        :param pair: input pair from which to generate this curve
+        :param fs: parametrized feature set to run unmasking on
         :param m: number of unmasking rounds
         :param n: number of features to use
-        :param fs: parametrized feature set
         :param relative: whether to use relative (normalized) of absolute feature weights
         :param folds: number of cross-validation folds
         :param monotonize: whether to monotonize curves (i.e., no point will be larger than the previous point)
@@ -112,10 +111,10 @@ class UnmaskingStrategy(ABC, Configurable):
             # cls either "text 0" or "text 1" of a pair
             y.append(0)
             y.append(1)
-        
+
         X = numpy.array(X)
         y = numpy.array(y)
-        group_id = UnmaskingTrainCurveEvent.generate_group_id([self.__class__.__name__ + ":" + pair.pair_id])
+        group_id = UnmaskingTrainCurveEvent.generate_group_id([self.__class__.__name__ + ":" + fs.pair.pair_id])
         event = UnmaskingTrainCurveEvent(group_id, 0, m, fs.pair, fs.__class__)
         values = []
         for i in range(m):

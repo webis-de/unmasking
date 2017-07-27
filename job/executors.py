@@ -169,10 +169,9 @@ class ExpandingExecutor(JobExecutor):
         loop = asyncio.new_event_loop()
         try:
             loop.run_until_complete(strat.run(
-                feature_set.pair,
+                feature_set,
                 cfg.get("job.unmasking.iterations"),
                 cfg.get("job.unmasking.vector_size"),
-                feature_set,
                 cfg.get("job.unmasking.relative"),
                 cfg.get("job.unmasking.folds"),
                 cfg.get("job.unmasking.monotonize")))
