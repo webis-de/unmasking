@@ -52,25 +52,8 @@ class UnmaskingStrategy(ABC, Configurable):
         """
         Initialize unmasking strategy. LinearSVC() is used as default estimator.
         """
-        self._clf = LinearSVC()
         self._buffer_curves = True
         self._values = []
-    
-    @property
-    def clf(self):
-        """Get estimator."""
-        return self._clf
-    
-    @clf.setter
-    def clf(self, clf):
-        """
-        Set estimator.
-        Must implement ``fit()`` and provide an attribute ``coef_`` after fitting data, which
-        contains the trained feature coefficients.
-        """
-        if not hasattr(clf, "fit"):
-            raise ValueError("Estimator does not implement fit()")
-        self._clf = clf
 
     @property
     def buffer_curves(self) -> bool:
