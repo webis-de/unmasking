@@ -31,6 +31,7 @@ from random import randint
 from typing import Any, Dict, Union
 
 import asyncio
+import gc
 import json
 import matplotlib
 import matplotlib.ticker
@@ -529,6 +530,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
             self._fig = pyplot.figure()
 
         self._fig.clear()
+        gc.collect()
         if self._markers is not None:
             self._setup_axes()
 
