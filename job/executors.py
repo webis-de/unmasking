@@ -28,7 +28,6 @@ from event.events import ConfigurationFinishedEvent, JobFinishedEvent
 from features.interfaces import FeatureSet
 from job.interfaces import JobExecutor, ConfigurationExpander
 from meta.interfaces import MetaClassificationModel
-from meta.util import unmasking_result_to_numpy
 from output.formats import UnmaskingResult
 from unmasking.interfaces import UnmaskingStrategy
 from util.util import clear_lru_caches
@@ -36,9 +35,10 @@ from util.util import clear_lru_caches
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Executor, ProcessPoolExecutor
 from time import time
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Union, Tuple
 
 import asyncio
+import numpy as np
 import os
 
 
@@ -215,12 +215,12 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
 
     async def run(self, conf: ConfigLoader, output_dir: str = None):
         job_id, output_dir = self._init_job_output(conf, output_dir)
-        model = self._configure_instance(conf.get("job.model"))
         self._load_outputs(conf.get("job.outputs"))
+        self._config = conf
 
         start_time = time()
         try:
-            await self._exec(job_id, model, output_dir)
+            await self._exec(job_id, output_dir)
             event = JobFinishedEvent(job_id, 0, [])
             await EventBroadcaster.publish("onJobFinished", event, self.__class__)
 
@@ -232,7 +232,7 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
             print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
     @abstractmethod
-    async def _exec(self, job_id: str, model: MetaClassificationModel, output_dir):
+    async def _exec(self, job_id: str, output_dir):
         """
         Execute meta classification task.
 
@@ -251,7 +251,7 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
         unmasking = UnmaskingResult()
         unmasking.load(input_path)
         # noinspection PyPep8Naming
-        X, y = unmasking_result_to_numpy(unmasking)
+        X, y = unmasking.to_numpy()
         if y is None:
             raise RuntimeError("Training input must have labels")
 
@@ -270,9 +270,68 @@ class MetaTrainExecutor(MetaClassificationExecutor):
         super().__init__()
         self._input_path = input_path
 
-    async def _exec(self, job_id, model: MetaClassificationModel, output_dir):
+    async def _exec(self, job_id, output_dir):
         if not self._input_path.endswith(".json"):
             raise ValueError("Input file must be JSON")
 
+        model = self._configure_instance(self._config.get("job.model"))
         await self._train_from_json(self._input_path, model)
         model.save(output_dir)
+
+
+class MetaApplyExecutor(MetaClassificationExecutor):
+    """
+    Apply a pre-trained model to a test data set.
+    """
+
+    def __init__(self, model: Union[str, MetaClassificationModel], test_data: Union[str, UnmaskingResult]):
+        """
+        :param model: pre-trained model or path to model file
+        :param test_data: test data set or path to raw JSON file
+        """
+        super().__init__()
+        if type(model) == str:
+            self._model = None
+            self._model_path = model
+        else:
+            self._model = model
+            self._model_path = None
+
+        if type(model) == str:
+            self._test_data = None
+            self._test_data_path = test_data
+        else:
+            self._test_data = test_data
+            self._test_data_path = None
+
+    async def _exec(self, job_id, output_dir):
+        # load model from model or JSON file if path is given
+        if self._model_path:
+            self._model = self._configure_instance(self._config.get("job.model"))
+            if self._model_path.endswith(".json"):
+                await self._train_from_json(self._model_path, self._model)
+            else:
+                await self._model.load(self._model_path)
+            self._model_path = None
+
+        # load test data from file if path is given
+        if self._test_data_path:
+            self._test_data = UnmaskingResult()
+            self._test_data.load(self._test_data_path)
+            self._test_data_path = None
+
+        # noinspection PyPep8Naming
+        X, _ = self._test_data.to_numpy()
+        pred = await self._model.predict(X)
+        decision_func = await self._model.decision_function(X)
+        prob = np.abs(decision_func)
+        prob = (prob - np.min(prob)) / (np.max(prob) - np.min(prob))
+
+        for i, curve_id in enumerate(self._test_data.curves):
+            if pred[i] > -1:
+                pred_cls = self._test_data.numpy_label_to_str(pred[i])
+                self._test_data.add_prediction(curve_id, pred_cls, prob[i])
+            else:
+                self._test_data.add_prediction(curve_id, None, None)
+
+        self._test_data.save(output_dir)

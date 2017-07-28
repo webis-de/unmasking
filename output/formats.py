@@ -35,6 +35,7 @@ import gc
 import json
 import matplotlib
 import matplotlib.ticker
+import numpy as np
 import os
 import sys
 
@@ -58,6 +59,8 @@ class UnmaskingResult(Output):
         self._meta = OrderedDict()
         self._curves = OrderedDict()
         self._classes = set()
+        self._classes_mapping = None
+        self._inv_classes_mapping = None
 
     @property
     def curves(self) -> Dict[str, Any]:
@@ -70,12 +73,13 @@ class UnmaskingResult(Output):
         self._meta["classes"] = sorted(self._classes)
         return self._meta
 
-    def add_curve(self, curve_id: str, cls: str, values: List[float], files: List[Union[List[str], str]], **kwargs):
+    def add_curve(self, curve_id: str, cls: Optional[str], values: List[float],
+                  files: List[Union[List[str], str]], **kwargs):
         """
         Add curve to result.
 
         :param curve_id: string curve ID
-        :param cls: pair class
+        :param cls: pair class (None if unknown)
         :param values: curve data points
         :param files: participating files (can be a list of lists to separate files of a pair into buckets)
         :param kwargs: further properties to add to the curve
@@ -89,6 +93,26 @@ class UnmaskingResult(Output):
             self._curves[curve_id].update(kwargs)
 
         self._classes.add(cls)
+
+    def add_prediction(self, curve_id: str, cls: Optional[str], prob: Optional[float]):
+        """
+        Add a prediction to a curve.
+
+        :param curve_id: curve to add the prediction to
+        :param cls: predicted class (None if no decision has been made)
+        :param prob: prediction certainty / probability (None if no decision has been made)
+        """
+        if cls is None:
+            pred = None
+        else:
+            pred = OrderedDict([
+                ("cls", cls),
+                ("prob", prob)
+            ])
+
+        if "pred" not in self._curves[curve_id]:
+            self._curves[curve_id]["pred"] = []
+        self._curves[curve_id]["pred"].append(pred)
 
     def add_meta(self, key: str, value: Union[str, float, int, bool, list]):
         """
@@ -141,6 +165,64 @@ class UnmaskingResult(Output):
             self._classes = set(self._meta["classes"])
 
         self._curves = json_data["curves"]
+        self._classes_mapping = None
+        self._inv_classes_mapping = None
+
+    def _create_numpy_label_mapping(self):
+        """
+        Create mapping from string labels to numpy int labels.
+        """
+        self._classes_mapping = {k: i for i, k in enumerate(self.meta.get("classes", []))}
+        self._inv_classes_mapping = {self._classes_mapping[k]: k for k in self._classes_mapping}
+
+    def numpy_label_to_str(self, label: int) -> Optional[str]:
+        """
+        Reverse mapping of numpy integer label to string label.
+
+        :param label: numpy int label
+        :return: string label for integer mapping (None if no mapping exists for `label`)
+        """
+        if self._classes_mapping is None:
+            self._create_numpy_label_mapping()
+
+        return self._inv_classes_mapping.get(int(label))
+
+    def to_numpy(self) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """
+        Convert UnmaskingResult to a numpy feature matrix containing the curve data and a numpy
+        array containing the class labels.
+        The feature matrix rows consist of the original curve values and their first derivative.
+
+        String labels from the given UnmaskingResult are represented by integers (starting at 0) in the
+        order in which they appear in :attr:: UnmaskingResult.meta.
+
+        :return: numpy matrix with data samples and numpy array with integer labels (None if there are no labels)
+        """
+        if self._classes_mapping is None:
+            self._create_numpy_label_mapping()
+
+        curves = self.curves
+        num_rows = len(curves)
+        num_cols = max((len(curves[c]["values"]) for c in curves)) * 2
+
+        # noinspection PyPep8Naming
+        X = np.zeros((num_rows, num_cols))
+        y = np.zeros(num_rows)
+
+        no_labels = False
+        for i, c in enumerate(curves):
+            if not curves[c]["values"]:
+                continue
+
+            data = np.array(curves[c]["values"])
+            X[i] = np.concatenate((data, np.gradient(data)))
+
+            if no_labels or "cls" not in curves[c]:
+                no_labels = True
+            else:
+                y[i] = self._classes_mapping.get(curves[c]["cls"])
+
+        return X, (y if not no_labels else None)
 
 
 class ProgressPrinter(EventHandler, Output):

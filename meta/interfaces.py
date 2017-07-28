@@ -73,7 +73,7 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def decision_function(self, X: Iterable[Iterable[float]]) -> Iterable[float]:
+    async def decision_function(self, X: Iterable[Iterable[float]]) -> Iterable[float]:
         """
         Classification decision function / probabilities for samples in X.
 

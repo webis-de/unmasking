@@ -61,13 +61,13 @@ class LinearMetaClassificationModel(MetaClassificationModel):
             await asyncio.get_event_loop().run_in_executor(executor, self._clf[0].fit, X, y)
 
             # eliminate samples below threshold
-            dist = self._clf[0].decision_function(X)
+            dist = abs(self._clf[0].decision_function(X))
 
             num_features = len(X[0])
             X = np.fromiter(
-                chain.from_iterable((x for i, x in enumerate(X) if abs(dist[i]) >= self._threshold)), dtype=float)
+                chain.from_iterable((x for i, x in enumerate(X) if dist[i] >= self._threshold)), dtype=float)
             X.shape = len(X) // num_features, num_features
-            y = np.fromiter((y for i, y in enumerate(y) if abs(dist[i]) >= self._threshold), dtype=float)
+            y = np.fromiter((y for i, y in enumerate(y) if dist[i] >= self._threshold), dtype=float)
 
             await asyncio.get_event_loop().run_in_executor(executor, self._clf[1].fit, X, y)
         finally:
@@ -75,18 +75,19 @@ class LinearMetaClassificationModel(MetaClassificationModel):
 
     async def predict(self, X: Iterable[Iterable[float]]) -> Iterable[Any]:
         """
-        Predict classes for samples in X
-        If decision probability of a prediction is below the threshold, the array entry will be nan.
+        Predict classes for samples in X.
+        If decision probability of a prediction is below the threshold, the array entry will be -1.
         """
         decision_func = self._clf[0].decision_function(X)
-        pred = self._clf[1].predict(X)
+        pred = self._clf[1].predict(X).astype(int)
         for i in range(len(decision_func)):
-            if decision_func[i] < self._threshold:
-                pred[i] = None
+            if abs(decision_func[i]) < self._threshold:
+                pred[i] = -1
+
         return pred
 
-    def decision_function(self, X: Iterable[Iterable[float]]) -> Iterable[float]:
-        return self._clf[1].decision_function(X)
+    async def decision_function(self, X: Iterable[Iterable[float]]) -> Iterable[float]:
+        return self._clf[0].decision_function(X)
 
     @property
     def threshold(self) -> float:
