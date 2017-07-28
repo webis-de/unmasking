@@ -32,6 +32,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import asyncio
 import argparse
+import os
 import sys
 
 
@@ -74,27 +75,30 @@ def main():
 
     args = parser.parse_args()
 
-    config_file = args.config
-
     config_loader = JobConfigLoader(defaults_file="defaults_meta.yml")
-    if config_file:
-        config_loader.load(config_file)
+    if args.config:
+        config_loader.load(args.config)
 
     loop = asyncio.get_event_loop()
     loop.set_default_executor(ThreadPoolExecutor(max_workers=8))
     try:
         if args.command == "train":
+            assert_file(args.input)
             if not args.input.endswith(".json"):
                 print("Input file must be JSON.", file=sys.stderr)
                 sys.exit(1)
 
             executor = MetaTrainExecutor(args.input)
         elif args.command == "apply":
+            assert_file(args.model)
+            assert_file(args.test)
             executor = MetaApplyExecutor(args.model, args.test)
         elif args.command == "eval":
+            assert_file(args.input_train)
+            assert_file(args.input_test)
             executor = MetaEvalExecutor(args.input_train, args.input_test)
         else:
-            raise ValueError("Invalid sub command")
+            raise RuntimeError("Invalid sub command: {}".format(args.command))
 
         future = asyncio.ensure_future(base_coroutine(executor.run(config_loader, args.output)))
         loop.run_until_complete(future)
@@ -102,6 +106,12 @@ def main():
         loop.run_until_complete(base_coroutine(loop.shutdown_asyncgens()))
         loop.stop()
         MultiProcessEventContext.cleanup()
+
+
+def assert_file(file_name: str):
+    if not os.path.isfile(file_name):
+        print("File '{}' does not exist.".format(file_name), file=sys.stderr)
+        sys.exit(1)
 
 
 def terminate():
