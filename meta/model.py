@@ -87,7 +87,7 @@ class LinearMetaClassificationModel(MetaClassificationModel):
         return pred
 
     async def decision_function(self, X: Iterable[Iterable[float]]) -> Iterable[float]:
-        return self._clf[0].decision_function(X)
+        return self._clf[1].decision_function(X)
 
     @property
     def threshold(self) -> float:
