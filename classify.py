@@ -25,7 +25,7 @@
 
 from conf.loader import JobConfigLoader
 from event.dispatch import MultiProcessEventContext
-from job.executors import MetaApplyExecutor, MetaTrainExecutor
+from job.executors import MetaApplyExecutor, MetaEvalExecutor, MetaTrainExecutor
 from util.util import SoftKeyboardInterrupt, base_coroutine
 
 from concurrent.futures import ThreadPoolExecutor
@@ -92,7 +92,7 @@ def main():
         elif args.command == "apply":
             executor = MetaApplyExecutor(args.model, args.test)
         elif args.command == "eval":
-            pass
+            executor = MetaEvalExecutor(args.input_train, args.input_test)
         else:
             raise ValueError("Invalid sub command")
 

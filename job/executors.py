@@ -33,9 +33,11 @@ from unmasking.interfaces import UnmaskingStrategy
 from util.util import clear_lru_caches
 
 from abc import ABCMeta, abstractmethod
+from collections import OrderedDict
 from concurrent.futures import Executor, ProcessPoolExecutor
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from time import time
-from typing import Any, Dict, Union, Tuple
+from typing import Any, Dict, Iterable, Union, Tuple
 
 import asyncio
 import numpy as np
@@ -61,7 +63,7 @@ class ExpandingExecutor(JobExecutor):
                                  fired when the job has finished, but before aggregators are asked
                                  to save their outputs
     """
-    
+
     def __init__(self):
         super().__init__()
         self._config = None
@@ -304,7 +306,10 @@ class MetaApplyExecutor(MetaClassificationExecutor):
             self._test_data = test_data
             self._test_data_path = None
 
-    async def _exec(self, job_id, output_dir):
+    async def _load_data(self):
+        """
+        Load training and test data from files if needed.
+        """
         # load model from model or JSON file if path is given
         if self._model_path:
             self._model = self._configure_instance(self._config.get("job.model"))
@@ -320,8 +325,14 @@ class MetaApplyExecutor(MetaClassificationExecutor):
             self._test_data.load(self._test_data_path)
             self._test_data_path = None
 
-        # noinspection PyPep8Naming
-        X, _ = self._test_data.to_numpy()
+    # noinspection PyPep8Naming
+    async def _predict(self, X: np.ndarray) -> Tuple[Iterable[int], Iterable[float]]:
+        """
+        Perform actual prediction and update stored :class:: UnmaskingResult.
+
+        :param X: data points
+        :return: predicted classes as int vector and decision probabilities
+        """
         pred = await self._model.predict(X)
         decision_func = await self._model.decision_function(X)
         prob = np.abs(decision_func)
@@ -333,5 +344,64 @@ class MetaApplyExecutor(MetaClassificationExecutor):
                 self._test_data.add_prediction(curve_id, pred_cls, prob[i])
             else:
                 self._test_data.add_prediction(curve_id, None, None)
+
+        return pred, prob
+
+    async def _exec(self, job_id, output_dir):
+        await self._load_data()
+
+        # noinspection PyPep8Naming
+        X, _ = self._test_data.to_numpy()
+        await self._predict(X)
+
+        self._test_data.save(output_dir)
+
+
+class MetaEvalExecutor(MetaApplyExecutor):
+    """
+    Evaluate model quality against a labeled test set.
+    """
+
+    async def _exec(self, job_id, output_dir):
+        await self._load_data()
+
+        # noinspection PyPep8Naming
+        X, y = self._test_data.to_numpy()
+        if y is None:
+            raise ValueError("Test set must have labels")
+        pred, _ = await self._predict(X)
+
+        # assume positive class is class with highest int label (usually 1)
+        # TODO: let user choose different positive class
+        positive_cls = np.max(y)
+
+        # eliminate all non-decisions
+        y_pred = np.fromiter((p for i, p in enumerate(pred) if pred[i] > -1), dtype=int)
+        y_actual = np.fromiter((p for i, p in enumerate(y) if pred[i] > -1), dtype=int)
+
+        metrics = OrderedDict((
+            ("accuracy", accuracy_score(y_actual, y_pred)),
+            ("frac_classified", len(y_pred) / len(y)),
+        ))
+
+        if len(self._test_data.meta["classes"]) == 2:
+            # binary classification
+            metrics.update(OrderedDict((
+                ("f1", f1_score(y_actual, y_pred, pos_label=positive_cls, average="binary")),
+                ("precision", precision_score(y_actual, y_pred, pos_label=positive_cls, average="binary")),
+                ("recall", recall_score(y_actual, y_pred, pos_label=positive_cls, average="binary")),
+                ("positive_cls", self._test_data.numpy_label_to_str(positive_cls))
+            )))
+        else:
+            # multi-class classification
+            metrics.update(OrderedDict((
+                ("f1", f1_score(y_actual, y_pred, average="weighted")),
+                ("precision", precision_score(y_actual, y_pred, average="weighted")),
+                ("recall", recall_score(y_actual, y_pred, average="weighted"))
+            )))
+
+        if "metrics" not in self._test_data.meta:
+            self._test_data.add_meta("metrics", [])
+        self._test_data.meta["metrics"].append(metrics)
 
         self._test_data.save(output_dir)

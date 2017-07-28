@@ -68,7 +68,7 @@ class UnmaskingResult(Output):
         return self._curves
 
     @property
-    def meta(self) -> Dict[str, Union[str, float, int, bool, list]]:
+    def meta(self) -> Dict[str, Any]:
         """Get meta data as ordered dict"""
         self._meta["classes"] = sorted(self._classes)
         return self._meta
@@ -186,6 +186,18 @@ class UnmaskingResult(Output):
             self._create_numpy_label_mapping()
 
         return self._inv_classes_mapping.get(int(label))
+
+    def str_to_numpy_label(self, label: str) -> Optional[int]:
+        """
+        Mapping of string label to numpy integer label.
+
+        :param label: string label
+        :return: int label for string mapping (None if no mapping exists for `label`)
+        """
+        if self._classes_mapping is None:
+            self._create_numpy_label_mapping()
+
+        return self._classes_mapping.get(str(label))
 
     def to_numpy(self) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
