@@ -174,7 +174,7 @@ class ExpandingExecutor(JobExecutor):
 
     def _expand_dict(self, d: Dict[str, Any], keys: Tuple[str], values: Tuple) -> Dict[str, Any]:
         """
-        Expand variables in configuration dictionary.
+        Expand configuration variables.
 
         :param d: dict to expand
         :param keys: replacement keys
@@ -220,7 +220,7 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
 
         start_time = time()
         try:
-            await self._exec(job_id, model, conf, output_dir)
+            await self._exec(job_id, model, output_dir)
             event = JobFinishedEvent(job_id, 0, [])
             await EventBroadcaster.publish("onJobFinished", event, self.__class__)
 
@@ -241,6 +241,22 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
         """
         pass
 
+    async def _train_from_json(self, input_path: str, model: MetaClassificationModel):
+        """
+        Train a new model from given JSON input data.
+
+        :param input_path: path to the input JSON file
+        :param model: model to train
+        """
+        unmasking = UnmaskingResult()
+        unmasking.load(input_path)
+        # noinspection PyPep8Naming
+        X, y = unmasking_result_to_numpy(unmasking)
+        if y is None:
+            raise RuntimeError("Training input must have labels")
+
+        await model.fit(X, y)
+
 
 class MetaTrainExecutor(MetaClassificationExecutor):
     """
@@ -255,13 +271,8 @@ class MetaTrainExecutor(MetaClassificationExecutor):
         self._input_path = input_path
 
     async def _exec(self, job_id, model: MetaClassificationModel, output_dir):
-        unmasking_input = UnmaskingResult()
-        unmasking_input.load(self._input_path)
-        # noinspection PyPep8Naming
-        X, y = unmasking_result_to_numpy(unmasking_input)
+        if not self._input_path.endswith(".json"):
+            raise ValueError("Input file must be JSON")
 
-        if not y:
-            raise RuntimeError("Training input must have labels")
-
-        await model.fit(X, y)
+        await self._train_from_json(self._input_path, model)
         model.save(output_dir)

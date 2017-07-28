@@ -50,6 +50,7 @@ class YamlLoader(ConfigLoader):
 
         keys = name.split(".")
         cfg = self._config
+
         for k in keys:
             if k not in cfg:
                 raise KeyError("Missing config option '{}'".format(name))
@@ -107,8 +108,12 @@ class JobConfigLoader(YamlLoader):
         if self._default_config is None:
             self._default_config = YamlLoader()
             if defaults_file is None:
-                defaults_file = os.path.join(get_base_path(), "etc", "defaults.yml")
+                defaults_file = "defaults.yml"
+            if not os.path.isabs(defaults_file):
+                defaults_file = os.path.join(get_base_path(), "etc", defaults_file)
             self._default_config.load(defaults_file)
+
+        self._config.update(self._default_config._config)
 
         if cfg is not None:
             self.set(cfg)

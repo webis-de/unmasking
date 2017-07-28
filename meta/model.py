@@ -24,6 +24,7 @@
 from meta.interfaces import MetaClassificationModel
 
 from concurrent.futures import ThreadPoolExecutor
+from itertools import chain
 from sklearn.base import BaseEstimator
 from sklearn.svm import LinearSVC
 from typing import Any, Iterable
@@ -61,7 +62,11 @@ class LinearMetaClassificationModel(MetaClassificationModel):
 
             # eliminate samples below threshold
             dist = self._clf[0].decision_function(X)
-            X = np.fromiter((x for i, x in enumerate(X) if abs(dist[i]) >= self._threshold), dtype=[("", float), ("", float)])
+
+            num_features = len(X[0])
+            X = np.fromiter(
+                chain.from_iterable((x for i, x in enumerate(X) if abs(dist[i]) >= self._threshold)), dtype=float)
+            X.shape = len(X) // num_features, num_features
             y = np.fromiter((y for i, y in enumerate(y) if abs(dist[i]) >= self._threshold), dtype=float)
 
             await asyncio.get_event_loop().run_in_executor(executor, self._clf[1].fit, X, y)

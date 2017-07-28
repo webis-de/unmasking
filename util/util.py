@@ -75,3 +75,27 @@ def get_base_path():
     :return: absolute path to application directory
     """
     return os.path.realpath(os.path.dirname(sys.argv[0]))
+
+
+class SoftKeyboardInterrupt(Exception):
+    """
+    Replacement for KeyboardInterrupt that inherits from :class:: Exception instead of
+    :class:: BaseException, to avoid uncatchable stack traces when a :class:: KeyboardInterrupt
+    happens within a coroutine.
+    See: https://github.com/python/asyncio/issues/341
+    """
+    pass
+
+
+async def base_coroutine(cr):
+    """
+    Base coroutine that wraps and waits another coroutine and catches KeyboardInterrupts.
+    Caught keyboardInterrupts are re-raised as SoftKeyboardInterrupts.
+
+    :param cr: coroutine to wrap
+    :return: Return value of the wrapped coroutine
+    """
+    try:
+        return await cr
+    except KeyboardInterrupt as k:
+        raise SoftKeyboardInterrupt() from k

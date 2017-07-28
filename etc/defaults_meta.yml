@@ -1,0 +1,27 @@
+# Unmasking tool config file for defining default unmasking meta
+# classification parameters.
+#
+# These values can be overridden via job-specific configuration files
+# You can append % to the names of objects or lists in your job config
+# to inherit from this default configuration.
+#
+# You can use variables starting with $ for values which are defined
+# in job.experiment.configurations. The definition consists of a list
+# of values for this variable, each representing a separate experiment
+# configuration. The specified aggregator will be used to aggregate
+# results of multiple configurations.
+
+---
+
+# Defaults for job configuration
+job:
+  # Default model to use for unmasking meta classification
+  model:
+    name: meta.model.LinearMetaClassificationModel
+
+  # Output directory
+  output_dir: out_meta
+
+  # Output formats for specific events and optional parameters.
+  # For events you can specify the name and optionally a list of senders to listen to.
+  outputs: []

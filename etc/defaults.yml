@@ -13,7 +13,7 @@
 
 ---
 
-# Defaults for Job configuration
+# Defaults for job configuration
 job:
   # Default feature set for representing texts in vectors
   #

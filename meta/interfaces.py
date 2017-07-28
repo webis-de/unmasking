@@ -88,6 +88,7 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
 
         :param file_name: input file name
         """
+
         with open(file_name, "rb") as f:
             in_data = msgpack.unpack(f, use_list=False)
 
@@ -101,12 +102,18 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
             for i, clf_dict in enumerate(in_data["clf"]):
                 clf = self._get_estimator(i)
                 for k in clf_dict[0]:
-                    if k[0] == ord("a"):
-                        clf.__dict__[k[1:].decode("utf-8")] = np.array(clf_dict[k])
-                    if k[0] == ord("s"):
-                        clf.__dict__[k[1:].decode("utf-8")] = clf_dict[k].decode("utf-8")
+                    key = k[1:].decode("utf-8")
+
+                    if k[0] == ord("a") or k[0] == ord("m"):
+                        clf.__dict__[key] = np.array(clf_dict[k])
+                    elif k[0] == ord("s"):
+                        clf.__dict__[key] = clf_dict[k].decode("utf-8")
+                    elif k[0] == ord("i"):
+                        clf.__dict__[key] = np.int64(clf_dict[k])
+                    elif k[0] == ord("f"):
+                        clf.__dict__[key] = np.float64(clf_dict[k])
                     else:
-                        clf.__dict__[k[1:].decode("utf-8")] = clf_dict[k]
+                        clf.__dict__[key] = clf_dict[k]
                 self._clf.append(clf)
 
     def save(self, output_dir: str, file_name: Optional[str] = None):
@@ -114,15 +121,24 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
             "version": self._version,
             "clf": []
         }
+
         for clf in self._clf:
-            clf_dict = clf.__dict__.copy()
-            for k in clf_dict:
-                if isinstance(clf_dict[k], np.ndarray):
-                    clf_dict["a" + k] = tuple(clf_dict[k])
-                if isinstance(clf_dict[k], str):
-                    clf_dict["s" + k] = clf_dict[k]
+            clf_dict = {}
+            for k in clf.__dict__:
+                if isinstance(clf.__dict__[k], np.ndarray):
+                    if len(clf.__dict__[k].shape) > 1:
+                        clf_dict["m" + k] = tuple(map(tuple, clf.__dict__[k]))
+                    else:
+                        clf_dict["a" + k] = tuple(clf.__dict__[k])
+                elif isinstance(clf.__dict__[k], np.integer):
+                    clf_dict["i" + k] = int(clf.__dict__[k])
+                elif isinstance(clf.__dict__[k], np.inexact):
+                    clf_dict["f" + k] = float(clf.__dict__[k])
+                elif isinstance(clf.__dict__[k], str):
+                    clf_dict["s" + k] = clf.__dict__[k]
                 else:
-                    clf_dict["t" + k] = clf_dict[k]
+                    clf_dict["t" + k] = clf.__dict__[k]
+
             out_dict["clf"].append(clf_dict)
 
         if file_name is None:
