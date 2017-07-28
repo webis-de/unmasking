@@ -92,16 +92,16 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
         with open(file_name, "rb") as f:
             in_data = msgpack.unpack(f, use_list=False)
 
-        if "version" not in in_data:
+        if b"version" not in in_data:
             raise IOError("Invalid model format")
 
-        if in_data["version"] > self._version or in_data["version"] < 1:
-            raise ValueError("Unsupported model version: " + in_data["version"])
+        if in_data[b"version"] > self._version or in_data[b"version"] < 1:
+            raise ValueError("Unsupported model version: " + in_data[b"version"])
 
-        if in_data["version"] == 1:
-            for i, clf_dict in enumerate(in_data["clf"]):
+        if in_data[b"version"] == 1:
+            for i, clf_dict in enumerate(in_data[b"clf"]):
                 clf = self._get_estimator(i)
-                for k in clf_dict[0]:
+                for k in clf_dict:
                     key = k[1:].decode("utf-8")
 
                     if k[0] == ord("a") or k[0] == ord("m"):
