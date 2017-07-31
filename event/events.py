@@ -242,18 +242,30 @@ class ModelFitEvent(Event):
     """
 
     def __init__(self, group_id: str, serial: int, data: Iterable[Iterable[float]] = None,
-                 labels: Iterable[str] = None):
+                 labels: Iterable[str] = None, is_truth: bool = False):
         """
         :param group_id: event group ID token
         :param serial: event serial number
         :param data: data which the model has been fit on
         :param labels: data class labels as strings
+        :param is_truth: True if labels are ground truth
         """
         super().__init__(group_id, serial)
         self._data = None
         self._labels = None
         self._data = data
         self._labels = labels
+        self._is_truth = is_truth
+
+    @property
+    def is_truth(self) -> bool:
+        """If labels are the ground truth."""
+        return self._is_truth
+
+    @is_truth.setter
+    def is_truth(self, is_truth: bool):
+        """Set if labels are the ground truth."""
+        self._is_truth = is_truth
 
     @property
     def data(self) -> Iterable[Iterable[float]]:
@@ -274,3 +286,29 @@ class ModelFitEvent(Event):
     def labels(self, labels: Iterable[str]):
         """Set class labels as strings."""
         self._labels = labels
+
+
+class ModelPredictEvent(ModelFitEvent):
+    """
+    Event to be fried when a model has been applied to a dataset to predict samples.
+    """
+
+    @property
+    def data(self) -> Iterable[Iterable[float]]:
+        """Predicted data."""
+        return super().data
+
+    @data.setter
+    def data(self, data: Iterable[Iterable[float]]):
+        """Set predicted data."""
+        super().data = data
+
+    @property
+    def labels(self) -> Iterable[str]:
+        """Predicted class labels as strings."""
+        return super().labels
+
+    @labels.setter
+    def labels(self, labels: Iterable[str]):
+        """Set predicted class labels as strings."""
+        super().labels = labels

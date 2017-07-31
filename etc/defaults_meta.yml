@@ -25,7 +25,7 @@ job:
   # Output formats for specific events and optional parameters.
   # For events you can specify the name and optionally a list of senders to listen to.
   outputs:
-    # Visualize learned and predicted curves
+    # Visualize training curves
     - name: output.formats.ModelCurvePlotter
 
       # Plot RC file path relative to the application directory.
@@ -36,7 +36,18 @@ job:
       # Other parameters (settings here take precedence of the RC file)
       parameters:
         # Do not display live plot, only write final image to disk
-        display: true
+        display: false
+        title: "Training data"
 
       events:
         - name: onModelFit
+
+    # Visualize predicted data
+    - name: output.formats.ModelCurvePlotter
+      rc_file: etc/plot_rc.yml
+      parameters:
+        display: true
+        title: "Predicted data"
+
+      events:
+        - name: onDataPredicted

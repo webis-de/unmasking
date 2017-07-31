@@ -373,6 +373,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._fig = None
         self._colors = {}
         self._markers = None
+        self._title = ""
         if markers is not None:
             self.markers = markers
         self._display = False
@@ -469,6 +470,17 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         """Set output formats."""
         self._output_formats = ext
 
+    @property
+    def title(self) -> str:
+        """Plot title"""
+        return self._title
+
+    @title.setter
+    def title(self, title: str):
+        """Set plot title."""
+        self._title = title
+        self._axes_need_update = True
+
     async def handle(self, name: str, event: Event, sender: type):
         """
         Accepts events:
@@ -497,14 +509,6 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._next_curve_id += 1
 
         return self._next_curve_id - 1
-
-    def set_plot_title(self, title: str):
-        """
-        Set plot title.
-        
-        :param title: plot title
-        """
-        self._fig.gca().set_title(title)
 
     async def _flush_events_loop(self):
         """
@@ -638,6 +642,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
 
     def _setup_axes(self):
         axes = self._fig.gca()
+        axes.set_title(self._title)
         axes.set_ylim(self._ylim)
         axes.set_xlabel("rounds")
         axes.set_ylabel("accuracy")
@@ -680,8 +685,12 @@ class ModelCurvePlotter(UnmaskingCurvePlotter):
         Accepts events:
             - ModelFitEvent
         """
-        if not isinstance(event, ModelFitEvent):
-            raise TypeError("event must be of type ModelFitEvent")
+        if isinstance(event, ModelFitEvent) or isinstance(event, ModelPredictEvent):
+            if event.is_truth:
+                self.title += " (ground truth)"
+                self.title = self.title.strip()
+        else:
+            raise TypeError("event must be of type ModelFitEvent or ModelPredictEvent")
 
         labels = event.labels
         if type(labels) is not list:

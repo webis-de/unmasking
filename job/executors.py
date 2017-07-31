@@ -24,7 +24,7 @@
 from conf.interfaces import ConfigLoader
 from conf.loader import JobConfigLoader
 from event.dispatch import EventBroadcaster, MultiProcessEventContext
-from event.events import ConfigurationFinishedEvent, JobFinishedEvent, ModelFitEvent
+from event.events import ConfigurationFinishedEvent, JobFinishedEvent, ModelFitEvent, ModelPredictEvent
 from features.interfaces import FeatureSet
 from job.interfaces import JobExecutor, ConfigurationExpander
 from meta.interfaces import MetaClassificationModel
@@ -209,8 +209,8 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
 
     * `onJobFinished`: [type JobFinishedEvent]
                        fired when the job has finished
-    * `onModelFit`: [type ModelFitEvent]
-                    fired when model has been successfully fit to a dataset
+    * `onModelFit`:    [type ModelFitEvent]
+                       fired when model has been successfully fit to a dataset
     """
 
     def __init__(self):
@@ -269,6 +269,13 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
 class MetaTrainExecutor(MetaClassificationExecutor):
     """
     Train and save a meta classification model from given input raw data.
+
+    Events published by this class:
+
+    * `onJobFinished`: [type JobFinishedEvent]
+                       fired when the job has finished
+    * `onModelFit`:    [type ModelFitEvent]
+                       fired when model has been successfully fit to a dataset
     """
 
     def __init__(self, input_path: str):
@@ -290,6 +297,15 @@ class MetaTrainExecutor(MetaClassificationExecutor):
 class MetaApplyExecutor(MetaClassificationExecutor):
     """
     Apply a pre-trained model to a test data set.
+
+    Events published by this class:
+
+    * `onJobFinished`:    [type JobFinishedEvent]
+                          fired when the job has finished
+    * `onModelFit`:       [type ModelFitEvent]
+                          fired when model has been successfully fit to a dataset
+    * `onDataPredicted`:  [type ModelPredictEvent]
+                          fired when model has been applied to dataset to predict samples
     """
 
     def __init__(self, model: Union[str, MetaClassificationModel], test_data: Union[str, UnmaskingResult]):
@@ -332,7 +348,7 @@ class MetaApplyExecutor(MetaClassificationExecutor):
             self._test_data_path = None
 
     # noinspection PyPep8Naming
-    async def _predict(self, X: np.ndarray) -> Tuple[Iterable[int], Iterable[float]]:
+    async def _predict(self, X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
         Perform actual prediction and update stored :class:: UnmaskingResult.
 
@@ -358,7 +374,14 @@ class MetaApplyExecutor(MetaClassificationExecutor):
 
         # noinspection PyPep8Naming
         X, _ = self._test_data.to_numpy()
-        await self._predict(X)
+        y, _ = await self._predict(X)
+
+        # noinspection PyPep8Naming
+        X_filtered = [x for i, x in enumerate(X) if y[i] > -1]
+        y_filtered = [self._test_data.numpy_label_to_str(l) for l in y if l > -1]
+        event = ModelPredictEvent(job_id, 0, X_filtered, y_filtered)
+        event.is_truth = False
+        await EventBroadcaster.publish("onDataPredicted", event, self.__class__)
 
         self._test_data.save(output_dir)
 
@@ -366,12 +389,19 @@ class MetaApplyExecutor(MetaClassificationExecutor):
 class MetaEvalExecutor(MetaApplyExecutor):
     """
     Evaluate model quality against a labeled test set.
+
+    Events published by this class:
+
+    * `onJobFinished`:    [type JobFinishedEvent]
+                          fired when the job has finished
+    * `onDataPredicted`:  [type ModelPredictEvent]
+                          fired when model has been applied to dataset to predict samples
     """
 
+    # noinspection PyPep8Naming
     async def _exec(self, job_id, output_dir):
         await self._load_data()
 
-        # noinspection PyPep8Naming
         X, y = self._test_data.to_numpy()
         if y is None:
             raise ValueError("Test set must have labels")
@@ -382,8 +412,14 @@ class MetaEvalExecutor(MetaApplyExecutor):
         positive_cls = np.max(y)
 
         # eliminate all non-decisions
-        y_pred = np.fromiter((p for i, p in enumerate(pred) if pred[i] > -1), dtype=int)
-        y_actual = np.fromiter((p for i, p in enumerate(y) if pred[i] > -1), dtype=int)
+        y_pred       = np.fromiter((p for i, p in enumerate(pred) if pred[i] > -1), dtype=int)
+        y_actual     = np.fromiter((p for i, p in enumerate(y) if pred[i] > -1), dtype=int)
+        y_actual_str = [self._test_data.numpy_label_to_str(y) for y in y_actual]
+        X_filtered   = [x for i, x in enumerate(X) if pred[i] > -1]
+
+        event = ModelPredictEvent(job_id, 0, X_filtered, y_actual_str)
+        event.is_truth = True
+        await EventBroadcaster.publish("onDataPredicted", event, self.__class__)
 
         metrics = OrderedDict((
             ("accuracy", accuracy_score(y_actual, y_pred)),
