@@ -37,7 +37,7 @@ from collections import OrderedDict
 from concurrent.futures import Executor, ProcessPoolExecutor
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from time import time
-from typing import Any, Dict, Iterable, Union, Tuple
+from typing import Any, Dict, Union, Tuple
 
 import asyncio
 import numpy as np
