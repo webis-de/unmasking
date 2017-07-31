@@ -52,6 +52,8 @@ def main():
                               required=False, default=None)
     train_parser.add_argument("--output", "-o", help="output directory to save the trained model to",
                               required=False, default=None)
+    train_parser.add_argument("--wait", "-w", help="wait for user confirmation after job is done",
+                              required=False, action="store_true")
 
     # apply command
     apply_parser = subparsers.add_parser("apply", help="Apply a trained model to a test dataset.")
@@ -62,6 +64,8 @@ def main():
                               required=False, default=None)
     apply_parser.add_argument("--output", "-o", help="output directory to save classification data to",
                               required=False, default=None)
+    apply_parser.add_argument("--wait", "-w", help="wait for user confirmation after job is done",
+                              required=False, action="store_true")
 
     # eval command
     eval_parser = subparsers.add_parser("eval", help="Evaluate the quality of a model against a labeled test set.")
@@ -72,6 +76,8 @@ def main():
                              required=False, default=None)
     eval_parser.add_argument("--output", "-o", help="output directory to save evaluation data to",
                              required=False, default=None)
+    eval_parser.add_argument("--wait", "-w", help="wait for user confirmation after job is done",
+                             required=False, action="store_true")
 
     args = parser.parse_args()
 
@@ -106,6 +112,9 @@ def main():
         loop.run_until_complete(base_coroutine(loop.shutdown_asyncgens()))
         loop.stop()
         MultiProcessEventContext.cleanup()
+
+    if args.wait:
+        input("Press enter to terminate...")
 
 
 def assert_file(file_name: str):
