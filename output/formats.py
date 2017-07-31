@@ -126,7 +126,7 @@ class UnmaskingResult(Output):
     def reset(self):
         self.__init__()
 
-    def save(self, output_dir: str, file_name: Optional[str] = None):
+    async def save(self, output_dir: str, file_name: Optional[str] = None):
         if file_name is None:
             file_name = self._generate_output_basename() + ".json"
 
@@ -275,7 +275,7 @@ class ProgressPrinter(EventHandler, Output):
             percent_done = event.percent_done if event.percent_done is not None else "unknown"
             print(self._text.format(event.serial, total, percent_done))
 
-    def save(self, output_dir: str, file_name: Optional[str] = None):
+    async def save(self, output_dir: str, file_name: Optional[str] = None):
         pass
 
     def reset(self):
@@ -322,7 +322,7 @@ class UnmaskingStatAccumulator(EventHandler, Output):
             self._curves[pair_id]["values"] = event.values
             self._curves[pair_id]["fs"] = event.feature_set.__name__
 
-    def save(self, output_dir: str, file_name: Optional[str] = None):
+    async def save(self, output_dir: str, file_name: Optional[str] = None):
         """
         Save accumulated stats to file in JSON format.
         If the file exists, it will be truncated.
@@ -338,7 +338,7 @@ class UnmaskingStatAccumulator(EventHandler, Output):
 
         if file_name is None:
             file_name = self._generate_output_basename() + ".json"
-        output.save(output_dir, file_name)
+        await output.save(output_dir, file_name)
 
     def reset(self):
         self.__init__(self._initial_meta_data)
@@ -609,7 +609,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         self._is_being_displayed = False
         self.reset()
 
-    def save(self, output_dir: str, file_name: Optional[str] = None):
+    async def save(self, output_dir: str, file_name: Optional[str] = None):
         if self._fig is None:
             return
 

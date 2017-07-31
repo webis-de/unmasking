@@ -97,7 +97,7 @@ class ExpandingExecutor(JobExecutor):
             await EventBroadcaster.publish("onJobFinished", event, self.__class__)
 
             for aggregator in self.aggregators:
-                aggregator.save(output_dir)
+                await aggregator.save(output_dir)
                 aggregator.reset()
         finally:
             executor.shutdown()
@@ -143,7 +143,7 @@ class ExpandingExecutor(JobExecutor):
                 await asyncio.wait(futures)
 
             for output in self.outputs:
-                output.save(config_output_dir)
+                await output.save(config_output_dir)
                 output.reset()
 
         clear_lru_caches()
@@ -229,7 +229,7 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
             await EventBroadcaster.publish("onJobFinished", event, self.__class__)
 
             for output in self.outputs:
-                output.save(output_dir)
+                await output.save(output_dir)
                 output.reset()
 
         finally:
@@ -291,7 +291,7 @@ class MetaTrainExecutor(MetaClassificationExecutor):
 
         model = self._configure_instance(self._config.get("job.model"))
         await self._train_from_json(self._input_path, model)
-        model.save(output_dir)
+        await model.save(output_dir)
 
 
 class MetaApplyExecutor(MetaClassificationExecutor):
@@ -383,7 +383,7 @@ class MetaApplyExecutor(MetaClassificationExecutor):
         event.is_truth = False
         await EventBroadcaster.publish("onDataPredicted", event, self.__class__)
 
-        self._test_data.save(output_dir)
+        await self._test_data.save(output_dir)
 
 
 class MetaEvalExecutor(MetaApplyExecutor):
@@ -446,4 +446,4 @@ class MetaEvalExecutor(MetaApplyExecutor):
             self._test_data.add_meta("metrics", [])
         self._test_data.meta["metrics"].append(metrics)
 
-        self._test_data.save(output_dir)
+        await self._test_data.save(output_dir)

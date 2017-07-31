@@ -35,7 +35,7 @@ class Output(Configurable, metaclass=ABCMeta):
     """
     
     @abstractmethod
-    def save(self, output_dir: str, file_name: Optional[str] = None):
+    async def save(self, output_dir: str, file_name: Optional[str] = None):
         """
         Save object state to file in a given output directory
 

@@ -100,7 +100,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
 
         return avg_curves
 
-    def save(self, output_dir: str, file_name: Optional[str] = None):
+    async def save(self, output_dir: str, file_name: Optional[str] = None):
         """
         Save accumulated stats to file in JSON format.
         If the file exists, it will be truncated.
@@ -119,7 +119,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         for c in curves:
             output.add_curve(c, **curves[c])
 
-        output.save(output_dir, file_name)
+        await output.save(output_dir, file_name)
 
     def reset(self):
         self.__init__(self._initial_meta_data)

@@ -117,7 +117,7 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
                         clf.__dict__[key] = clf_dict[k]
                 self._clf.append(clf)
 
-    def save(self, output_dir: str, file_name: Optional[str] = None):
+    async def save(self, output_dir: str, file_name: Optional[str] = None):
         out_dict = {
             "version": self._version,
             "clf": []
