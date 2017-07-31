@@ -684,6 +684,7 @@ class ModelCurvePlotter(UnmaskingCurvePlotter):
         """
         Accepts events:
             - ModelFitEvent
+            - ModelPredictEvent
         """
         if isinstance(event, ModelFitEvent) or isinstance(event, ModelPredictEvent):
             if event.is_truth:
