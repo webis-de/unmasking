@@ -25,7 +25,7 @@ from event.interfaces import Event
 from input.interfaces import SamplePair
 from output.interfaces import Aggregator
 
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 
 class ProgressEvent(Event):
@@ -234,3 +234,43 @@ class UnmaskingTrainCurveEvent(Event):
     def feature_set(self, fs: type):
         """Set feature set class used for generating this curve."""
         self._feature_set = fs
+
+
+class ModelFitEvent(Event):
+    """
+    Event to be fired when a model has ben fit to a dataset.
+    """
+
+    def __init__(self, group_id: str, serial: int, data: Iterable[Iterable[float]] = None,
+                 labels: Iterable[str] = None):
+        """
+        :param group_id: event group ID token
+        :param serial: event serial number
+        :param data: data which the model has been fit on
+        :param labels: data class labels as strings
+        """
+        super().__init__(group_id, serial)
+        self._data = None
+        self._labels = None
+        self._data = data
+        self._labels = labels
+
+    @property
+    def data(self) -> Iterable[Iterable[float]]:
+        """Data the model has been fit on."""
+        return self._data
+
+    @data.setter
+    def data(self, data: Iterable[Iterable[float]]):
+        """Set model data."""
+        self._data = data
+
+    @property
+    def labels(self) -> Iterable[str]:
+        """Data class labels as strings."""
+        return self._labels
+
+    @labels.setter
+    def labels(self, labels: Iterable[str]):
+        """Set class labels as strings."""
+        self._labels = labels

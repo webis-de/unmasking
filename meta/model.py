@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from itertools import chain
 from sklearn.base import BaseEstimator
 from sklearn.svm import LinearSVC
-from typing import Any, Iterable
+from typing import Any, Iterable, Tuple
 
 import asyncio
 import numpy as np
@@ -47,7 +47,7 @@ class LinearMetaClassificationModel(MetaClassificationModel):
     def _get_estimator(self, index: int) -> BaseEstimator:
         return LinearSVC()
 
-    async def fit(self, X: Iterable[Iterable[float]], y: Iterable[Any]):
+    async def fit(self, X: Iterable[Iterable[float]], y: Iterable[Any]) -> Tuple[np.ndarray, np.ndarray]:
         self.reset()
 
         # decision quality estimator
@@ -73,7 +73,9 @@ class LinearMetaClassificationModel(MetaClassificationModel):
         finally:
             executor.shutdown()
 
-    async def predict(self, X: Iterable[Iterable[float]]) -> Iterable[Any]:
+        return X, y
+
+    async def predict(self, X: Iterable[Iterable[float]]) -> np.ndarray:
         """
         Predict classes for samples in X.
         If decision probability of a prediction is below the threshold, the array entry will be -1.

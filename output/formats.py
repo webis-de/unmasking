@@ -527,7 +527,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         except (AttributeError, NotImplementedError):
             pass
 
-    def plot_curve(self, values: List[float], curve_class: SamplePairClass, curve_handle: int):
+    def plot_curve(self, values: List[float], curve_class: Union[str, SamplePairClass], curve_handle: int):
         """
         Plot unmasking curve. Points from ``values`` which have been plotted earlier will not be plotted again.
         Consecutive calls with the same ``curve_handle`` append points new points to existing curve.
@@ -668,3 +668,27 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         axes.legend(handles=legend_handles, labels=legend_labels)
 
         self._axes_need_update = False
+
+
+class ModelCurvePlotter(UnmaskingCurvePlotter):
+    """
+    Plotter for meta model training data.
+    """
+
+    async def handle(self, name: str, event: Event, sender: type):
+        """
+        Accepts events:
+            - ModelFitEvent
+        """
+        if not isinstance(event, ModelFitEvent):
+            raise TypeError("event must be of type ModelFitEvent")
+
+        labels = event.labels
+        if type(labels) is not list:
+            labels = list(labels)
+
+        for i, d in enumerate(event.data):
+            if type(d) is not list:
+                d = list(d)
+            d = d[:len(d) // 2]
+            self.plot_curve(d, labels[i], self.start_new_curve())

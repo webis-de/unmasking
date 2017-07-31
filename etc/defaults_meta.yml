@@ -24,4 +24,19 @@ job:
 
   # Output formats for specific events and optional parameters.
   # For events you can specify the name and optionally a list of senders to listen to.
-  outputs: []
+  outputs:
+    # Visualize learned and predicted curves
+    - name: output.formats.ModelCurvePlotter
+
+      # Plot RC file path relative to the application directory.
+      # This configures basic plot parameters such as used markers and colors
+      # or dynamic matplotlib settings.
+      rc_file: etc/plot_rc.yml
+
+      # Other parameters (settings here take precedence of the RC file)
+      parameters:
+        # Do not display live plot, only write final image to disk
+        display: true
+
+      events:
+        - name: onModelFit

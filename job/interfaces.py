@@ -141,17 +141,17 @@ class JobExecutor(metaclass=ABCMeta):
             output_obj = self._configure_instance(output)
             if not isinstance(output_obj, Output):
                 raise ValueError("'{}' is not an Output".format(output["name"]))
-            
+
             if "events" in output:
                 # noinspection PyTypeChecker
                 self._subscribe_to_events(output_obj, output["events"])
-            
+
             self._outputs.append(output_obj)
-            
+
     def _load_aggregators(self, aggs: List[Dict[str, Any]]):
         """
         Load job aggregator modules.
-        
+
         :param aggs: aggregator settings list
         """
         for agg in aggs:

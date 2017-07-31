@@ -25,7 +25,7 @@ from output.interfaces import Output
 
 from abc import ABCMeta, abstractmethod
 from sklearn.base import BaseEstimator
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import msgpack
 import numpy as np
@@ -53,27 +53,28 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def fit(self, X: Iterable[Iterable[float]], y: Iterable[int]):
+    async def fit(self, X: Iterable[Iterable[float]], y: Iterable[int]) -> Tuple[np.ndarray, np.ndarray]:
         """
         Fit model to data in X with labels from y.
 
         :param X: training samples
         :param y: labels
+        :return: data and labels which actually participated in model fitting (may be the same as input)
         """
         pass
 
     @abstractmethod
-    async def predict(self, X: Iterable[Iterable[float]]) -> Iterable[int]:
+    async def predict(self, X: Iterable[Iterable[float]]) -> np.ndarray:
         """
         Predict classes for samples in X.
 
         :param X: samples
-        :return: predicted labels
+        :return: numpy array of predicted labels
         """
         pass
 
     @abstractmethod
-    async def decision_function(self, X: Iterable[Iterable[float]]) -> Iterable[float]:
+    async def decision_function(self, X: Iterable[Iterable[float]]) -> np.ndarray:
         """
         Classification decision function / probabilities for samples in X.
 

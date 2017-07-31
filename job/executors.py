@@ -24,7 +24,7 @@
 from conf.interfaces import ConfigLoader
 from conf.loader import JobConfigLoader
 from event.dispatch import EventBroadcaster, MultiProcessEventContext
-from event.events import ConfigurationFinishedEvent, JobFinishedEvent
+from event.events import ConfigurationFinishedEvent, JobFinishedEvent, ModelFitEvent
 from features.interfaces import FeatureSet
 from job.interfaces import JobExecutor, ConfigurationExpander
 from meta.interfaces import MetaClassificationModel
@@ -209,6 +209,8 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
 
     * `onJobFinished`: [type JobFinishedEvent]
                        fired when the job has finished
+    * `onModelFit`: [type ModelFitEvent]
+                    fired when model has been successfully fit to a dataset
     """
 
     def __init__(self):
@@ -243,6 +245,7 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
         """
         pass
 
+    # noinspection PyPep8Naming
     async def _train_from_json(self, input_path: str, model: MetaClassificationModel):
         """
         Train a new model from given JSON input data.
@@ -252,12 +255,15 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
         """
         unmasking = UnmaskingResult()
         unmasking.load(input_path)
-        # noinspection PyPep8Naming
         X, y = unmasking.to_numpy()
         if y is None:
             raise RuntimeError("Training input must have labels")
 
-        await model.fit(X, y)
+        X, y = await model.fit(X, y)
+
+        y = [unmasking.numpy_label_to_str(l) for l in y]
+        event = ModelFitEvent(input_path, 0, X, y)
+        await EventBroadcaster.publish("onModelFit", event, self.__class__)
 
 
 class MetaTrainExecutor(MetaClassificationExecutor):
