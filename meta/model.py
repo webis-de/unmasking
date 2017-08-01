@@ -74,9 +74,6 @@ class LinearMetaClassificationModel(MetaClassificationModel):
 
         return X, y
 
-    def reset(self):
-        super().__init__()
-
     async def predict(self, X: Iterable[Iterable[float]]) -> np.ndarray:
         """
         Predict classes for samples in X.
