@@ -1,5 +1,6 @@
 # Output files
 out/
+out_meta/
 
 # Cache and compiled files
 *.pyc
