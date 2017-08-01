@@ -18,6 +18,9 @@ job:
   # Default model to use for unmasking meta classification
   model:
     name: meta.model.LinearMetaClassificationModel
+    parameters:
+      # Sample discard threshold
+      threshold: 0.6
 
   # Output directory
   output_dir: out_meta
