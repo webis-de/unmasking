@@ -39,18 +39,31 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
     """
 
     def __init__(self):
-        self._clf = []
         self._version = 1
+        self._clf = []
+        self._clf_params = []
 
     @abstractmethod
     def _get_estimator(self, index: int) -> BaseEstimator:
         """
-        Create a new estimator instance.
+        Create a new (unconfigured) estimator instance.
 
         :param index: estimator index number (relevant if model has multiple estimators of different types)
         :return: estimator instance
         """
         pass
+
+    def _get_configured_estimator(self, index: int) -> BaseEstimator:
+        """
+        Create a new configured estimator instance.
+
+        :param index: estimator index number (relevant if model has multiple estimators of different types)
+        :return: estimator instance
+        """
+        clf = self._get_estimator(index)
+        if len(self._clf_params) > index:
+            clf.set_params(**self._clf_params[index])
+        return clf
 
     @abstractmethod
     async def fit(self, X: Iterable[Iterable[float]], y: Iterable[int]) -> Tuple[np.ndarray, np.ndarray]:
@@ -101,7 +114,8 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
 
         if in_data[b"version"] == 1:
             for i, clf_dict in enumerate(in_data[b"clf"]):
-                clf = self._get_estimator(i)
+                clf = self._get_configured_estimator(i)
+
                 for k in clf_dict:
                     key = k[1:].decode("utf-8")
 
@@ -149,15 +163,14 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
             msgpack.pack(out_dict, f)
 
     def reset(self):
-        self.__init__()
+        self._clf = []
 
     @property
     def params(self) -> List[Dict[str, Any]]:
         """Get parameters for each estimator."""
-        return [p.get_params() for p in self._clf]
+        return self._clf_params
 
     @params.setter
     def params(self, params: List[Dict[str, Any]]):
         """Set parameters for each estimator."""
-        for i, p in enumerate(params):
-            self._clf[i].set_params(**p)
+        self._clf_params = params

@@ -43,7 +43,6 @@ class LinearMetaClassificationModel(MetaClassificationModel):
         super().__init__()
         self._threshold = 0.5
 
-    # noinspection PyUnusedLocal
     def _get_estimator(self, index: int) -> BaseEstimator:
         return LinearSVC()
 
@@ -51,10 +50,10 @@ class LinearMetaClassificationModel(MetaClassificationModel):
         self.reset()
 
         # decision quality estimator
-        self._clf.append(self._get_estimator(0))
+        self._clf.append(self._get_configured_estimator(0))
 
         # sample classifier
-        self._clf.append(self._get_estimator(1))
+        self._clf.append(self._get_configured_estimator(1))
 
         executor = ThreadPoolExecutor(max_workers=1)
         try:
@@ -74,6 +73,9 @@ class LinearMetaClassificationModel(MetaClassificationModel):
             executor.shutdown()
 
         return X, y
+
+    def reset(self):
+        super().__init__()
 
     async def predict(self, X: Iterable[Iterable[float]]) -> np.ndarray:
         """
