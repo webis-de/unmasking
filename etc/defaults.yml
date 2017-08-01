@@ -15,6 +15,9 @@
 
 # Defaults for job configuration
 job:
+  # Output directory
+  output_dir: out
+
   # Default feature set for representing texts in vectors
   #
   # You can also specify an optional dictionary of parameters for
@@ -87,9 +90,6 @@ job:
       events:
         - name: onChunkingProgress
         - name: onPairGenerated
-
-  # Output directory
-  output_dir: out
 
   # Global experiment settings
   experiment:
