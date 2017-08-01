@@ -21,9 +21,10 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-from conf.interfaces import ConfigLoader
+from conf.interfaces import ConfigLoader, Configurable
 from event.dispatch import EventBroadcaster
 from event.interfaces import EventHandler
+from features.interfaces import FeatureSet
 from output.interfaces import Output, Aggregator
 from util.util import get_base_path
 
@@ -88,17 +89,24 @@ class JobExecutor(metaclass=ABCMeta):
         modules = name.split(".")
         return getattr(import_module(".".join(modules[0:-1])), modules[-1])
 
-    def _configure_instance(self, cfg: Dict[str, Any], *ctr_args):
+    def _configure_instance(self, cfg: Dict[str, Any], assert_type: type = None, ctr_args: Iterable[Any] = None):
         """
         Dynamically configure an instance of a class based on the parameters
         defined in the job configuration.
         
         :param cfg: object configuration parameters
+        :param assert_type: raise exception if object is not of this type
         :param ctr_args: constructor arguments
         :return: configured instance
         """
         cls = self._load_class(cfg["name"])
-        obj = cls(*ctr_args)
+        if ctr_args is None:
+            obj = cls()
+        else:
+            obj = cls(*ctr_args)
+
+        if assert_type is not None:
+            self._assert_type(obj, assert_type)
 
         if "rc_file" in cfg and cfg["rc_file"] is not None:
             rc_file = os.path.join(get_base_path(), cfg["rc_file"])
@@ -121,10 +129,8 @@ class JobExecutor(metaclass=ABCMeta):
         :param events: list of dicts containing a name key and an optional
                        senders key with a list of allowed senders
         """
+        self._assert_type(obj, EventHandler)
 
-        if not isinstance(obj, EventHandler):
-            raise ValueError("'{}' is not an EventHandler".format(obj.__class__.__name__))
-        
         for event in events:
             senders = None
             if "senders" in event and type(event["senders"]) is list:
@@ -134,16 +140,13 @@ class JobExecutor(metaclass=ABCMeta):
     def _load_outputs(self, outputs: List[Dict[str, Any]]):
         """
         Load job output modules.
-        
+
         :param outputs: output settings list
         """
         for output in outputs:
-            output_obj = self._configure_instance(output)
-            if not isinstance(output_obj, Output):
-                raise ValueError("'{}' is not an Output".format(output["name"]))
+            output_obj = self._configure_instance(output, assert_type=Output)
 
-            if "events" in output:
-                # noinspection PyTypeChecker
+            if "events" in output and output["events"]:
                 self._subscribe_to_events(output_obj, output["events"])
 
             self._outputs.append(output_obj)
@@ -155,17 +158,23 @@ class JobExecutor(metaclass=ABCMeta):
         :param aggs: aggregator settings list
         """
         for agg in aggs:
-            agg_obj = self._configure_instance(agg)
-            if not isinstance(agg_obj, Aggregator):
-                raise ValueError("'{}' is not an Aggregator".format(agg["name"]))
+            agg_obj = self._configure_instance(agg, assert_type=Aggregator)
 
-            if "events" in agg:
-                if not isinstance(agg_obj, EventHandler):
-                    raise ValueError("Aggregator '{}' is not an EventHandler".format(agg["name]"]))
-
+            if "events" in agg and agg["events"]:
                 self._subscribe_to_events(agg_obj, agg["events"])
 
             self._aggregators.append(agg_obj)
+
+    def _assert_type(self, obj: object, t: type):
+        """
+        Assert an object to be an instance of a certain class, otherwise raise an exception.
+
+        :param obj: object
+        :param t: type
+        """
+        if not isinstance(obj, t):
+            raise ValueError("'{}.{}' is not a subclass of {}".format(
+                obj.__class__.__module__, obj.__class__.__name__, t.__name__))
 
     @abstractmethod
     def run(self, conf: ConfigLoader, output_dir: str = None):
@@ -196,3 +205,17 @@ class ConfigurationExpander(metaclass=ABCMeta):
         :return: generator of expanded configuration vectors
         """
         pass
+
+
+class Strategy(Configurable, metaclass=ABCMeta):
+    """
+    Base class for execution strategies.
+    """
+
+    @abstractmethod
+    async def run(self, fs: FeatureSet):
+        """
+        Run execution strategy.
+
+        :param fs: parametrized feature set to execute on
+        """

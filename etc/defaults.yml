@@ -29,27 +29,27 @@ job:
   classifier.sampler:
     name: features.sampling.RandomOversampler
 
-  # Default unmasking strategy to be applied.
-  unmasking:
-    strategy:
-      name: unmasking.strategies.FeatureRemoval
-      parameters:
-        num_eliminate: 10
+  # Default execution strategy to be applied
+  exec.strategy:
+    name: unmasking.strategies.FeatureRemoval
+    parameters:
+      # Number of feature to eliminate in each iterations
+      eliminate: 10
 
-    # Number of unmasking iterations
-    iterations: 10
+      # Number of unmasking iterations
+      iterations: 10
 
-    # Feature vector size
-    vector_size: 250
+      # Feature vector size
+      vector_size: 250
 
-    # Number of cross-validation folds for comparing two texts of a pair
-    folds: 10
+      # Number of cross-validation folds for comparing two texts of a pair
+      folds: 10
 
-    # Whether to use relative instead of absolute feature weights.
-    relative: false
+      # Whether to use relative instead of absolute feature weights.
+      relative: false
 
-    # Whether to monotonize curves after unmasking
-    monotonize: false
+      # Whether to monotonize curves after unmasking
+      monotonize: false
 
   # Output formats for specific events and optional parameters.
   # For events you can specify the name and optionally a list of senders to listen to.

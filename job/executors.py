@@ -25,11 +25,11 @@ from conf.interfaces import ConfigLoader
 from conf.loader import JobConfigLoader
 from event.dispatch import EventBroadcaster, MultiProcessEventContext
 from event.events import ConfigurationFinishedEvent, JobFinishedEvent, ModelFitEvent, ModelPredictEvent
-from features.interfaces import FeatureSet
-from job.interfaces import JobExecutor, ConfigurationExpander
+from features.interfaces import ChunkSampler, FeatureSet
+from job.interfaces import JobExecutor, ConfigurationExpander, Strategy
+from input.interfaces import CorpusParser, Tokenizer
 from meta.interfaces import MetaClassificationModel
 from output.formats import UnmaskingResult
-from unmasking.interfaces import UnmaskingStrategy
 from util.util import clear_lru_caches
 
 from abc import ABCMeta, abstractmethod
@@ -80,9 +80,8 @@ class ExpandingExecutor(JobExecutor):
         config_variables = [tuple()]
         expanded_vectors = [tuple()]
         if config_vectors:
-            config_expander = self._configure_instance(self._config.get("job.experiment.configuration_expander"))
-            if not isinstance(config_expander, ConfigurationExpander):
-                raise ValueError("'{}' is not a ConfigurationExpander".format(config_expander.__class__.__name__))
+            config_expander = self._configure_instance(
+                self._config.get("job.experiment.configuration_expander"), ConfigurationExpander)
 
             config_variables = config_vectors.keys()
             expanded_vectors = config_expander.expand(config_vectors.values())
@@ -124,20 +123,21 @@ class ExpandingExecutor(JobExecutor):
             config_output_dir = output_dir
             cfg = JobConfigLoader(self._config.get())
 
-        chunk_tokenizer = self._configure_instance(cfg.get("job.input.tokenizer"))
-        parser = self._configure_instance(cfg.get("job.input.parser"), chunk_tokenizer)
+        chunk_tokenizer = self._configure_instance(cfg.get("job.input.tokenizer"), Tokenizer)
+        parser = self._configure_instance(cfg.get("job.input.parser"), CorpusParser, (chunk_tokenizer,))
         repetitions = cfg.get("job.experiment.repetitions")
+        strat = self._configure_instance(cfg.get("job.exec.strategy"), Strategy)
+        sampler = self._configure_instance(cfg.get("job.classifier.sampler"), ChunkSampler)
 
-        strat = self._configure_instance(cfg.get("job.unmasking.strategy"))
-        sampler = self._configure_instance(cfg.get("job.classifier.sampler"))
         loop = asyncio.get_event_loop()
         for _ in range(repetitions):
             async with MultiProcessEventContext:
                 futures = []
 
                 async for pair in parser:
-                    feature_set = self._configure_instance(cfg.get("job.classifier.feature_set"), pair, sampler)
-                    futures.append(loop.run_in_executor(executor, self._exec, strat, feature_set, cfg))
+                    feature_set = self._configure_instance(
+                        cfg.get("job.classifier.feature_set"), FeatureSet, (pair, sampler))
+                    futures.append(loop.run_in_executor(executor, self._exec, strat, feature_set))
                     await asyncio.sleep(0)
 
                 await asyncio.wait(futures)
@@ -152,24 +152,17 @@ class ExpandingExecutor(JobExecutor):
         await EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
 
     @staticmethod
-    def _exec(strat: UnmaskingStrategy, feature_set: FeatureSet, cfg: JobConfigLoader):
+    def _exec(strat: Strategy, feature_set: FeatureSet):
         """
-        Execute actual unmasking strategy.
+        Execute actual unmasking strategy on a pair feature set.
         This method should be run in a separate process.
 
         :param strat: unmasking strategy to run
         :param feature_set: feature set for pair
-        :param cfg: job configuration
         """
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(strat.run(
-                feature_set,
-                cfg.get("job.unmasking.iterations"),
-                cfg.get("job.unmasking.vector_size"),
-                cfg.get("job.unmasking.relative"),
-                cfg.get("job.unmasking.folds"),
-                cfg.get("job.unmasking.monotonize")))
+            loop.run_until_complete(strat.run(feature_set))
         finally:
             loop.run_until_complete(loop.shutdown_asyncgens())
             loop.stop()
@@ -289,7 +282,7 @@ class MetaTrainExecutor(MetaClassificationExecutor):
         if not self._input_path.endswith(".json"):
             raise ValueError("Input file must be JSON")
 
-        model = self._configure_instance(self._config.get("job.model"))
+        model = self._configure_instance(self._config.get("job.model"), MetaClassificationModel)
         await self._train_from_json(self._input_path, model)
         await model.save(output_dir)
 
@@ -334,7 +327,7 @@ class MetaApplyExecutor(MetaClassificationExecutor):
         """
         # load model from model or JSON file if path is given
         if self._model_path:
-            self._model = self._configure_instance(self._config.get("job.model"))
+            self._model = self._configure_instance(self._config.get("job.model"), MetaClassificationModel)
             if self._model_path.endswith(".json"):
                 await self._train_from_json(self._model_path, self._model)
             else:

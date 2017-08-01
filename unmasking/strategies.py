@@ -40,14 +40,14 @@ class FeatureRemoval(UnmaskingStrategy):
         self._num_eliminate = num_eliminate
     
     @property
-    def num_eliminate(self) -> int:
+    def eliminate(self) -> int:
         """Get number of eliminations per round"""
         return self._num_eliminate
     
-    @num_eliminate.setter
-    def num_eliminate(self, num_eliminate: int):
+    @eliminate.setter
+    def eliminate(self, eliminate: int):
         """Set number of eliminations per round"""
-        self._num_eliminate = num_eliminate
+        self._num_eliminate = eliminate
 
     async def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
         coef = numpy.absolute(coef)
