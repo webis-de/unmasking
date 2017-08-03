@@ -293,9 +293,9 @@ class ModelMetricsPrinter(EventHandler, Output):
         print("Model metrics:")
         for m in event.metrics:
             if isinstance(event.metrics[m], float) or isinstance(event.metrics[m], np.inexact):
-                print(" - {}: {:.3f}".format(m.upper(), event.metrics[m]))
+                print(" - {:20} - {:.3f}".format(m.upper(), event.metrics[m]))
             else:
-                print(" - {}: {}".format(m.upper(), event.metrics[m]))
+                print(" - {:20} - {}".format(m.upper(), event.metrics[m]))
 
     def reset(self):
         pass
