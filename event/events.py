@@ -25,7 +25,7 @@ from event.interfaces import Event
 from input.interfaces import SamplePair
 from output.interfaces import Aggregator
 
-from typing import Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 class ProgressEvent(Event):
@@ -312,3 +312,24 @@ class ModelPredictEvent(ModelFitEvent):
     def labels(self, labels: Iterable[str]):
         """Set predicted class labels as strings."""
         super().labels = labels
+
+
+class ModelMetricsEvent(ModelPredictEvent):
+    """
+    :class:: ModelPredictEvent with additional performance metrics.
+    """
+
+    def __init__(self, group_id: str, serial: int, data: Iterable[Iterable[float]] = None,
+                 labels: Iterable[str] = None, is_truth: bool = False, metrics: Dict[str, Any] = None):
+        super().__init__(group_id, serial, data, labels, is_truth)
+        self._metrics = metrics if metrics is not None else {}
+
+    @property
+    def metrics(self) -> Dict[str, Any]:
+        """Performance metrics dictionary."""
+        return self._metrics
+
+    @metrics.setter
+    def metrics(self, metrics: Dict[str, Any]):
+        """Set performance metrics dictionary."""
+        self._metrics = metrics

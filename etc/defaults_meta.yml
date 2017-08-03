@@ -54,3 +54,8 @@ job:
 
       events:
         - name: onDataPredicted
+
+    # Print model prediction metrics
+    - name: output.formats.ModelMetricsPrinter
+      events:
+        - name: onDataPredicted

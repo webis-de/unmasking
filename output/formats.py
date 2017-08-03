@@ -282,6 +282,28 @@ class ProgressPrinter(EventHandler, Output):
         pass
 
 
+class ModelMetricsPrinter(EventHandler, Output):
+    """
+    Print model prediction metrics.
+    """
+    async def handle(self, name: str, event: Event, sender: type):
+        if not isinstance(event, ModelMetricsEvent):
+            return
+
+        print("Model metrics:")
+        for m in event.metrics:
+            if isinstance(event.metrics[m], float) or isinstance(event.metrics[m], np.inexact):
+                print(" - {}: {:.3f}".format(m.upper(), event.metrics[m]))
+            else:
+                print(" - {}: {}".format(m.upper(), event.metrics[m]))
+
+    def reset(self):
+        pass
+
+    async def save(self, output_dir: str, file_name: Optional[str] = None):
+        pass
+
+
 class UnmaskingStatAccumulator(EventHandler, Output):
     """
     Accumulate various statistics about a running experiment.

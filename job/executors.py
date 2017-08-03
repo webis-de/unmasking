@@ -24,7 +24,7 @@
 from conf.interfaces import ConfigLoader
 from conf.loader import JobConfigLoader
 from event.dispatch import EventBroadcaster, MultiProcessEventContext
-from event.events import ConfigurationFinishedEvent, JobFinishedEvent, ModelFitEvent, ModelPredictEvent
+from event.events import *
 from features.interfaces import ChunkSampler, FeatureSet
 from job.interfaces import JobExecutor, ConfigurationExpander, Strategy
 from input.interfaces import CorpusParser, Tokenizer
@@ -372,8 +372,7 @@ class MetaApplyExecutor(MetaClassificationExecutor):
         # noinspection PyPep8Naming
         X_filtered = [x for i, x in enumerate(X) if y[i] > -1]
         y_filtered = [self._test_data.numpy_label_to_str(l) for l in y if l > -1]
-        event = ModelPredictEvent(job_id, 0, X_filtered, y_filtered)
-        event.is_truth = False
+        event = ModelPredictEvent(job_id, 0, X_filtered, y_filtered, False)
         await EventBroadcaster.publish("onDataPredicted", event, self.__class__)
 
         await self._test_data.save(output_dir)
@@ -387,7 +386,7 @@ class MetaEvalExecutor(MetaApplyExecutor):
 
     * `onJobFinished`:    [type JobFinishedEvent]
                           fired when the job has finished
-    * `onDataPredicted`:  [type ModelPredictEvent]
+    * `onDataPredicted`:  [type ModelMetricsEvent]
                           fired when model has been applied to dataset to predict samples
     """
 
@@ -409,10 +408,6 @@ class MetaEvalExecutor(MetaApplyExecutor):
         y_actual     = np.fromiter((p for i, p in enumerate(y) if pred[i] > -1), dtype=int)
         y_actual_str = [self._test_data.numpy_label_to_str(y) for y in y_actual]
         X_filtered   = [x for i, x in enumerate(X) if pred[i] > -1]
-
-        event = ModelPredictEvent(job_id, 0, X_filtered, y_actual_str)
-        event.is_truth = True
-        await EventBroadcaster.publish("onDataPredicted", event, self.__class__)
 
         metrics = OrderedDict((
             ("accuracy", accuracy_score(y_actual, y_pred)),
@@ -438,5 +433,8 @@ class MetaEvalExecutor(MetaApplyExecutor):
         if "metrics" not in self._test_data.meta:
             self._test_data.add_meta("metrics", [])
         self._test_data.meta["metrics"].append(metrics)
+
+        event = ModelMetricsEvent(job_id, 0, X_filtered, y_actual_str, True, metrics)
+        await EventBroadcaster.publish("onDataPredicted", event, self.__class__)
 
         await self._test_data.save(output_dir)
