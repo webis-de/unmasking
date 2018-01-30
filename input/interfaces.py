@@ -212,3 +212,19 @@ class CorpusParser(Configurable, metaclass=ABCMeta):
         """
         with open(file_name, "r", encoding="utf-8", errors="ignore") as f:
             return f.read().replace("\ufeff", "")
+
+    async def await_lines(self, file_name) -> AsyncGenerator[str, None]:
+        """
+        Read file line by line.
+
+        :param file_name: name of the file
+        :return: its contents line by line
+        """
+        with open(file_name, "r", encoding="utf-8", errors="ignore") as f:
+            first = True
+            for line in f:
+                if first and line.startswith("\ufeff"):
+                    yield line.replace("\ufeff", "")
+                    first = False
+                else:
+                    yield line
