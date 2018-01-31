@@ -75,7 +75,7 @@ job:
       # Plot RC file path relative to the application directory.
       # This configures basic plot parameters such as used markers and colors
       # or dynamic matplotlib settings.
-      rc_file: etc/plot_rc.yml
+      rc_file: plot_rc.yml
 
       # Other parameters (settings here take precedence of the RC file)
       parameters:
@@ -132,7 +132,7 @@ job:
 
       # Visualize aggregated curves
       - name: output.aggregators.AggregatedCurvePlotter
-        rc_file: etc/plot_rc.yml
+        rc_file: plot_rc.yml
         parameters:
           display: false
         events:

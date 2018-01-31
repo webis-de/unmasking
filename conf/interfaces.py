@@ -77,8 +77,11 @@ class ConfigLoader(metaclass=ABCMeta):
 
     def resolve_relative_path(self, path: str) -> str:
         """
-        Resolve a path relative to the config directory or the application directory if
-        no such file could be found inside the config directory.
+        Try to resolve a path relative to the following directories (in order):
+
+        - config directory
+        - application directory
+        - application config directory
 
         An absolute path will be returned unchanged if the file was found. Otherwise
         it will be resolved relatively as well. If after the last try the file could
@@ -94,6 +97,10 @@ class ConfigLoader(metaclass=ABCMeta):
             return os.path.realpath(rc_file)
 
         rc_file = os.path.join(os.path.realpath(os.path.dirname(sys.argv[0])), path)
+        if os.path.exists(rc_file):
+            return rc_file
+
+        rc_file = os.path.join(os.path.realpath(os.path.dirname(sys.argv[0])), "etc", path)
         if not os.path.exists(rc_file):
             raise FileNotFoundError("No such file or directory: {}".format(path))
 
