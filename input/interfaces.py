@@ -21,6 +21,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+from conf.interfaces import path_property
 from conf.interfaces import Configurable
 from util.util import lru_cache, get_base_path
 
@@ -173,7 +174,7 @@ class CorpusParser(Configurable, metaclass=ABCMeta):
         self.corpus_path = corpus_path
         self.chunk_tokenizer = chunk_tokenizer
 
-    @property
+    @path_property
     def corpus_path(self) -> str:
         """Get corpus path"""
         return self._corpus_path

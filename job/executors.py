@@ -66,7 +66,6 @@ class ExpandingExecutor(JobExecutor):
 
     def __init__(self):
         super().__init__()
-        self._config = None
 
     async def run(self, conf: ConfigLoader, output_dir: str = None):
         self._config = conf
@@ -208,7 +207,6 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
 
     def __init__(self):
         super().__init__()
-        self._config = None
 
     async def run(self, conf: ConfigLoader, output_dir: str = None):
         job_id, output_dir = self._init_job_output(conf, output_dir)

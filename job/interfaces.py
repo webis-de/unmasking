@@ -26,7 +26,6 @@ from event.dispatch import EventBroadcaster
 from event.interfaces import EventHandler
 from features.interfaces import FeatureSet
 from output.interfaces import Output, Aggregator
-from util.util import get_base_path
 
 from abc import abstractmethod, ABCMeta
 from importlib import import_module
@@ -45,6 +44,7 @@ class JobExecutor(metaclass=ABCMeta):
     def __init__(self):
         self._outputs = []
         self._aggregators = []
+        self._config = None     # type: ConfigLoader
 
     @property
     def outputs(self) -> List[Output]:
@@ -68,7 +68,10 @@ class JobExecutor(metaclass=ABCMeta):
         """
         job_id = "job_" + str(int(time()))
         output_dir = conf.get("job.output_dir") if not output_dir else output_dir
-        output_dir = os.path.join(output_dir, job_id)
+        if not os.path.isabs(output_dir):
+            output_dir = os.path.join(conf.get_config_path(), output_dir)
+
+        output_dir = os.path.relpath(os.path.join(output_dir, job_id))
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
@@ -109,7 +112,7 @@ class JobExecutor(metaclass=ABCMeta):
             self._assert_type(obj, assert_type)
 
         if "rc_file" in cfg and cfg["rc_file"] is not None:
-            rc_file = os.path.join(get_base_path(), cfg["rc_file"])
+            rc_file = self._config.resolve_relative_path(cfg["rc_file"])
             with open(rc_file, "r") as f:
                 rc_contents = yaml.safe_load(f)
 
@@ -118,7 +121,10 @@ class JobExecutor(metaclass=ABCMeta):
 
         if "parameters" in cfg and cfg["parameters"] is not None:
             for p in cfg["parameters"]:
-                obj.set_property(p, cfg["parameters"][p])
+                val = cfg["parameters"][p]
+                if type(val) is str and obj.has_property(p) and obj.is_path_property(p):
+                    val = self._config.resolve_relative_path(val)
+                obj.set_property(p, val)
         return obj
 
     def _subscribe_to_events(self, obj: EventHandler, events: List[Dict[str, Any]]):

@@ -22,6 +22,8 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 from abc import abstractmethod, ABCMeta
+import os
+import sys
 from typing import Any, Dict
 
 
@@ -64,12 +66,55 @@ class ConfigLoader(metaclass=ABCMeta):
         """
         pass
 
+    @abstractmethod
+    def get_config_path(self) -> str:
+        """
+        Get configuration base directory for resolving relative pathss.
+
+        :return: directory path
+        """
+        pass
+
+    def resolve_relative_path(self, path: str) -> str:
+        """
+        Resolve a path relative to the config directory or the application directory if
+        no such file could be found inside the config directory.
+
+        An absolute path will be returned unchanged if the file was found. Otherwise
+        it will be resolved relatively as well. If after the last try the file could
+        still not be found, a :class:: FileNotFoundError will be raised.
+
+        :return: resolved path
+        """
+        if os.path.isabs(path) and os.path.isfile(path):
+            return path
+
+        rc_file = os.path.join(self.get_config_path(), path)
+        if os.path.exists(rc_file):
+            return os.path.realpath(rc_file)
+
+        rc_file = os.path.join(os.path.realpath(os.path.dirname(sys.argv[0])), path)
+        if not os.path.exists(rc_file):
+            raise FileNotFoundError("No such file or directory: {}".format(path))
+
+        return os.path.realpath(rc_file)
+
+
+# noinspection PyPep8Naming
+class path_property(property):
+    """
+    Decorator class for file path properties.
+    This class inherits from property and can be used to annotate object properties
+    whose values may be path-expanded. See :meth: Configurable.is_path_property
+    """
+    pass
+
 
 class Configurable:
     """
     Base class for classes which are configurable at runtime via @properties.
     """
-    
+
     def set_property(self, name: str, value: Any):
         """
         Dynamically set a given configuration property.
@@ -88,6 +133,18 @@ class Configurable:
         Check whether a class has a given property and if is of type property.
         
         :param name: property name
-        :return: Whether object has a given property
+        :return: whether object has a given property
         """
         return hasattr(self.__class__, name) and isinstance(getattr(self.__class__, name), property)
+
+    def is_path_property(self, name: str) -> bool:
+        """
+        Check whether a property is a path property.
+        Values of path properties may be expanded to absolute paths.
+
+        The property has to exist. Check with :meth: has_property first.
+
+        :param name: property name
+        :return: whether property is a path property
+        """
+        return isinstance(getattr(self.__class__, name), path_property)

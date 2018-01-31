@@ -36,6 +36,10 @@ class YamlLoader(ConfigLoader):
 
     def __init__(self):
         self._config = {}
+        self._config_dir = os.getcwd()
+
+    def get_config_path(self) -> str:
+        return self._config_dir
 
     def get(self, name: str = None) -> Any:
         """
@@ -49,13 +53,14 @@ class YamlLoader(ConfigLoader):
             return self._config
 
         keys = name.split(".")
-        cfg = self._config
+        cfg = dict(self._config)
 
         for k in keys:
             if k not in cfg:
                 raise KeyError("Missing config option '{}'".format(name))
 
             cfg = cfg[k]
+
         return cfg
 
     def load(self, filename: str):
@@ -65,6 +70,7 @@ class YamlLoader(ConfigLoader):
         if type(cfg) is not dict:
             raise RuntimeError("Invalid configuration file")
 
+        self._config_dir = os.path.realpath(os.path.dirname(filename))
         self._config = self._parse_dot_notation(cfg)
 
     def set(self, cfg: Dict[str, Any]):
