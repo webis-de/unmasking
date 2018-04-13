@@ -209,9 +209,9 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
         super().__init__()
 
     async def run(self, conf: ConfigLoader, output_dir: str = None):
+        self._config = conf
         job_id, output_dir = self._init_job_output(conf, output_dir)
         self._load_outputs(conf.get("job.outputs"))
-        self._config = conf
 
         start_time = time()
         try:
