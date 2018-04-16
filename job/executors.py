@@ -388,6 +388,57 @@ class MetaEvalExecutor(MetaApplyExecutor):
                           fired when model has been applied to dataset to predict samples
     """
 
+    @staticmethod
+    def c_at_1_score(y_true: Union[List[float], np.ndarray], y_pred: Union[List[float], np.ndarray]):
+        """
+        Return c@1 score of prediction.
+        See Peñas and Rodrigo, 2011: A Simple Measure to Assess Non-response
+
+        :param y_true: true labels
+        :param y_pred: predicted labels, -1 for non-decisions
+        :return: c@1 score
+        """
+        n = len(y_true)
+        n_ac = 0
+        n_u = 0
+
+        for i, pred in enumerate(y_pred):
+            if pred <= -1:
+                n_u += 1
+            elif pred == y_true[i]:
+                n_ac += 1
+
+        return 1.0 / n * (n_ac + (n_ac / n) * n_u)
+
+    @staticmethod
+    def f_05_u_score(y_true: Union[List[float], np.ndarray], y_pred: Union[List[float], np.ndarray], pos_label: int):
+        """
+        Return F0.5u score of prediction.
+        See Bevendorff, 2018: Authorship Obfuscation Using Heuristic Search
+
+        :param y_true: true labels
+        :param y_pred: predicted labels, -1 for non-decisions
+        :param pos_label: positive class label
+        :return: F0.5u score
+        """
+
+        n_tp = 0
+        n_fn = 0
+        n_fp = 0
+        n_u = 0
+
+        for i, pred in enumerate(y_pred):
+            if pred <= -1:
+                n_u += 1
+            elif pred == pos_label and pred == y_true[i]:
+                n_tp += 1
+            elif pred == pos_label and pred != y_true[i]:
+                n_fp += 1
+            elif y_true[i] == pos_label and pred != y_true[i]:
+                n_fn += 1
+
+        return (1.25 * n_tp) / (1.25 * n_tp + 0.25 * (n_fn + n_u) + n_fp)
+
     # noinspection PyPep8Naming
     async def _exec(self, job_id, output_dir):
         await self._load_data()
@@ -409,6 +460,7 @@ class MetaEvalExecutor(MetaApplyExecutor):
 
         metrics = OrderedDict((
             ("accuracy", accuracy_score(y_actual, y_pred)),
+            ("c_at_1", self.c_at_1_score(y, pred)),
             ("frac_classified", len(y_pred) / len(y)),
         ))
 
@@ -418,6 +470,7 @@ class MetaEvalExecutor(MetaApplyExecutor):
                 ("f1", f1_score(y_actual, y_pred, pos_label=positive_cls, average="binary")),
                 ("precision", precision_score(y_actual, y_pred, pos_label=positive_cls, average="binary")),
                 ("recall", recall_score(y_actual, y_pred, pos_label=positive_cls, average="binary")),
+                ("f_05_u", self.f_05_u_score(y, pred, pos_label=positive_cls)),
                 ("positive_cls", self._test_data.numpy_label_to_str(positive_cls))
             )))
         else:
