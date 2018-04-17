@@ -150,7 +150,7 @@ class AggregatedCurvePlotter(UnmaskingCurvePlotter, Aggregator):
     """
 
     def __init__(self, markers: Dict[SamplePairClass, Tuple[str, str, Optional[str]]] = None,
-                 ylim: Tuple[float, float] = (0, 1.0), display: bool = False):
+                 ylim: Tuple[float, float] = (0.5, 1.0), display: bool = False):
         super().__init__(markers, ylim, display)
         self._aggregators = []
 

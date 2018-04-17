@@ -382,7 +382,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
     """
     
     def __init__(self, markers: Dict[SamplePairClass, Tuple[str, str, Optional[str]]] = None,
-                 ylim: Tuple[float, float] = (0, 1.0), display: bool = False):
+                 ylim: Tuple[float, float] = (0.5, 1.0), display: bool = False):
         """
         :param markers: dictionary of pair classes mapped to matplotlib marker codes, a
                         human-readable legend description and a color code. If color
@@ -559,6 +559,8 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         Consecutive calls with the same ``curve_handle`` append points new points to existing curve.
         Therefore, if you want to start a new plot for a certain curve, you need to create a new instance of
         this class or create a new figure with :method:`new_figure()`.
+
+        Plots will be transformed from [0.0, 1.0] to [0.5, 1.0] to represent proper accuracy values.
         
         :param values: list of y-axis values
         :param curve_class: class of the curve
@@ -583,6 +585,7 @@ class UnmaskingCurvePlotter(EventHandler, Output):
                 if str_curve_class not in self._markers:
                     self._markers[str_curve_class] = [".", "", None]
 
+        values = [min(1.0, v / 2.0 + 0.5) for v in values]
         num_values = len(values)
         axes = self._fig.gca()
 
@@ -666,9 +669,9 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         axes = self._fig.gca()
         axes.set_title(self._title)
         axes.set_ylim(self._ylim)
-        axes.set_xlabel("rounds")
-        axes.set_ylabel("accuracy")
-    
+        axes.set_xlabel("Rounds")
+        axes.set_ylabel("Accuracy")
+
         # force integer ticks on x axis
         axes.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
 
