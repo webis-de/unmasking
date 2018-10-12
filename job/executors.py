@@ -451,34 +451,39 @@ class MetaEvalExecutor(MetaApplyExecutor):
         # assume positive class is class with highest int label (usually 1)
         # TODO: let user choose different positive class
         positive_cls = np.max(y)
+        negative_cls = np.min(y)
 
         # eliminate all non-decisions
-        y_pred       = np.fromiter((p for i, p in enumerate(pred) if pred[i] > -1), dtype=int)
-        y_actual     = np.fromiter((p for i, p in enumerate(y) if pred[i] > -1), dtype=int)
-        y_actual_str = [self._test_data.numpy_label_to_str(y) for y in y_actual]
-        X_filtered   = [x for i, x in enumerate(X) if pred[i] > -1]
+        y_pred_filtered = pred[pred > -1]
+        y_pred_all      = np.copy(pred)
+        y_pred_all[y_pred_all == -1] = negative_cls
+        y_filtered     = y[pred > -1]
+        y_actual_str   = [self._test_data.numpy_label_to_str(y) for y in y_filtered]
+        X_filtered     = [x for i, x in enumerate(X) if pred[i] > -1]
 
         metrics = OrderedDict((
-            ("accuracy", accuracy_score(y_actual, y_pred)),
+            ("accuracy", accuracy_score(y_filtered, y_pred_filtered)),
             ("c_at_1", self.c_at_1_score(y, pred)),
-            ("frac_classified", len(y_pred) / len(y)),
+            ("frac_classified", len(y_pred_filtered) / len(y)),
         ))
 
         if len(self._test_data.meta["classes"]) == 2:
             # binary classification
             metrics.update(OrderedDict((
-                ("f1", f1_score(y_actual, y_pred, pos_label=positive_cls, average="binary")),
-                ("precision", precision_score(y_actual, y_pred, pos_label=positive_cls, average="binary")),
-                ("recall", recall_score(y_actual, y_pred, pos_label=positive_cls, average="binary")),
+                ("f1", f1_score(y_filtered, y_pred_filtered, pos_label=positive_cls, average="binary")),
+                ("precision", precision_score(y_filtered, y_pred_filtered, pos_label=positive_cls, average="binary")),
+                ("recall", recall_score(y_filtered, y_pred_filtered, pos_label=positive_cls, average="binary")),
+                ("recall_total", recall_score(y, y_pred_all, pos_label=positive_cls, average="binary")),
                 ("f_05_u", self.f_05_u_score(y, pred, pos_label=positive_cls)),
                 ("positive_cls", self._test_data.numpy_label_to_str(positive_cls))
             )))
         else:
             # multi-class classification
             metrics.update(OrderedDict((
-                ("f1", f1_score(y_actual, y_pred, average="weighted")),
-                ("precision", precision_score(y_actual, y_pred, average="weighted")),
-                ("recall", recall_score(y_actual, y_pred, average="weighted"))
+                ("f1", f1_score(y_filtered, y_pred_filtered, average="weighted")),
+                ("precision", precision_score(y_filtered, y_pred_filtered, average="weighted")),
+                ("recall", recall_score(y_filtered, y_pred_filtered, average="weighted")),
+                ("recall_total", recall_score(y, y_pred_all, average="weighted")),
             )))
 
         if "metrics" not in self._test_data.meta:
