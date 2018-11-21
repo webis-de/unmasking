@@ -250,6 +250,7 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
         if y is None:
             raise RuntimeError("Training input must have labels")
 
+        await model.optimize(X, y)
         X, y = await model.fit(X, y)
 
         y = [unmasking.numpy_label_to_str(l) for l in y]
@@ -414,7 +415,6 @@ class MetaEvalExecutor(MetaApplyExecutor):
     def f_05_u_score(y_true: Union[List[float], np.ndarray], y_pred: Union[List[float], np.ndarray], pos_label: int):
         """
         Return F0.5u score of prediction.
-        See Bevendorff, 2018: Authorship Obfuscation Using Heuristic Search
 
         :param y_true: true labels
         :param y_pred: predicted labels, -1 for non-decisions
@@ -486,11 +486,53 @@ class MetaEvalExecutor(MetaApplyExecutor):
                 ("recall_total", recall_score(y, y_pred_all, average="weighted")),
             )))
 
-        if "metrics" not in self._test_data.meta:
-            self._test_data.add_meta("metrics", [])
-        self._test_data.meta["metrics"].append(metrics)
+        self._test_data.meta["params"] = self._model.params
+        self._test_data.meta["metrics"] = metrics
 
         event = ModelMetricsEvent(job_id, 0, X_filtered, y_actual_str, True, metrics)
         await EventBroadcaster.publish("onDataPredicted", event, self.__class__)
 
         await self._test_data.save(output_dir)
+
+
+# class MetaXEvalExecutor(MetaClassificationExecutor):
+#     """
+#     Evaluate model quality using cross validation.
+#
+#     Events published by this class:
+#
+#     * `onJobFinished`:    [type JobFinishedEvent]
+#                           fired when the job has finished
+#     """
+#
+#     def __init__(self, train_data: Union[str, UnmaskingResult], folds: int = 10):
+#         """
+#         :param train_data: UnmaskingResult result or path to stored UnmaskingResult JSON serialization
+#         :param folds: number of CV folds
+#         """
+#         super().__init__()
+#
+#         self._folds = folds
+#         if type(train_data) == str:
+#             self._train_data = None
+#             self._train_data_path = train_data
+#         else:
+#             self._train_data = train_data
+#             self._train_data_path = None
+#
+#     async def _load_data(self):
+#         """
+#         Load training and test data from files if needed.
+#         """
+#         if self._train_data_path:
+#             self._train_data = UnmaskingResult()
+#             self._train_data.load(self._train_data_path)
+#
+#     # noinspection PyPep8Naming
+#     async def _exec(self, job_id, output_dir):
+#         await self._load_data()
+#
+#         X, y = self._train_data.to_numpy()
+#         if y is None:
+#             raise ValueError("Test set must have labels")
+#         pred, _ = await self._predict(X)

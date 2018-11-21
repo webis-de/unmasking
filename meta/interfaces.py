@@ -66,6 +66,16 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
         return clf
 
     @abstractmethod
+    async def optimize(self, X: Iterable[Iterable[float]], y: Iterable[int]):
+        """
+        Optimize hyperparameters of the model.
+
+        :param X: samples
+        :param y: labels
+        """
+        pass
+
+    @abstractmethod
     async def fit(self, X: Iterable[Iterable[float]], y: Iterable[int]) -> Tuple[np.ndarray, np.ndarray]:
         """
         Fit model to data in X with labels from y.

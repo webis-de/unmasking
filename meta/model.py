@@ -26,6 +26,7 @@ from meta.interfaces import MetaClassificationModel
 from concurrent.futures import ThreadPoolExecutor
 from itertools import chain
 from sklearn.base import BaseEstimator
+from sklearn.model_selection import GridSearchCV
 from sklearn.svm import LinearSVC
 from typing import Any, Iterable, Tuple
 
@@ -73,6 +74,21 @@ class LinearMetaClassificationModel(MetaClassificationModel):
             executor.shutdown()
 
         return X, y
+
+    async def optimize(self, X: Iterable[Iterable[float]], y: Iterable[int]):
+        """
+        Optimize model parameters using cross-validated grid search
+        """
+        estimator = self._get_estimator(1)
+        parameters = {
+            "C": [0.1, 0.2, 0.3, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 10],
+            "loss": ["hinge", "squared_hinge"],
+            "class_weight": [None, "balanced", {0: 1, 1: 2}, {0: 2, 1: 1}]
+        }
+        grid = GridSearchCV(estimator, parameters, cv=5)
+        grid.fit(X, y)
+
+        self._clf_params = [grid.best_estimator_.get_params()] * 2
 
     async def predict(self, X: Iterable[Iterable[float]]) -> np.ndarray:
         """
