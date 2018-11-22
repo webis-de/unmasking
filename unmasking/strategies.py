@@ -50,13 +50,14 @@ class FeatureRemoval(UnmaskingStrategy):
         self._num_eliminate = eliminate
 
     async def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
-        coef = numpy.absolute(coef)
-        
         for i in range(0, self._num_eliminate):
             if data.shape[1] == 0:
                 return data
-            
-            index = numpy.argmax(coef)
+
+            if i < self._num_eliminate / 2:
+                index = numpy.argmax(coef)
+            else:
+                index = numpy.argmin(coef)
             coef  = numpy.delete(coef, index)
             data  = numpy.delete(data, index, 1)
 

@@ -108,7 +108,7 @@ job:
     # The zip expander will generate n configurations for m vectors
     # containing n values each (vectors must have the same length).
     # The product expander will generate the Cartesian product with all
-    # n^m (or n1*n2*...*nn for vectors of different lengths) possible
+    # n^m (or n1*n2*...*nm for vectors of different lengths) possible
     # combinations
     #
     # WARNING: building the Cartesian product is linear to the number of

@@ -203,7 +203,8 @@ class UnmaskingResult(Output):
         """
         Convert UnmaskingResult to a numpy feature matrix containing the curve data and a numpy
         array containing the class labels.
-        The feature matrix rows consist of the original curve values and their first derivative.
+        The feature matrix rows consist of the original curve values and their first- and
+        second-order point-wise derivative (i.e., vector size = n * 3).
 
         String labels from the given UnmaskingResult are represented by integers (starting at 0) in the
         order in which they appear in :attr:: UnmaskingResult.meta.
@@ -215,7 +216,7 @@ class UnmaskingResult(Output):
 
         curves = self.curves
         num_rows = len(curves)
-        num_cols = max((len(curves[c]["values"]) for c in curves)) * 2
+        num_cols = max((len(curves[c]["values"]) for c in curves)) * 3
 
         # noinspection PyPep8Naming
         X = np.zeros((num_rows, num_cols))
@@ -227,7 +228,7 @@ class UnmaskingResult(Output):
                 continue
 
             data = np.array(curves[c]["values"])
-            X[i] = np.concatenate((data, np.gradient(data)))
+            X[i] = np.concatenate((data, np.gradient(data, edge_order=1), np.gradient(data, edge_order=2)))
 
             if no_labels or "cls" not in curves[c]:
                 no_labels = True
@@ -725,5 +726,5 @@ class ModelCurvePlotter(UnmaskingCurvePlotter):
         for i, d in enumerate(event.data):
             if type(d) is not list:
                 d = list(d)
-            d = d[:len(d) // 2]
+            d = d[:len(d) // 3]
             self.plot_curve(d, labels[i], self.start_new_curve())
