@@ -25,7 +25,7 @@
 
 from conf.loader import JobConfigLoader
 from event.dispatch import MultiProcessEventContext
-from job.executors import MetaApplyExecutor, MetaEvalExecutor, MetaTrainExecutor
+from job.executors import MetaApplyExecutor, MetaEvalExecutor, MetaTrainExecutor, MetaModelSelectionExecutor
 from util.util import SoftKeyboardInterrupt, base_coroutine
 
 from concurrent.futures import ThreadPoolExecutor
@@ -79,6 +79,20 @@ def main():
     eval_parser.add_argument("--wait", "-w", help="wait for user confirmation after job is done",
                              required=False, action="store_true")
 
+    # model_select command
+    eval_parser = subparsers.add_parser("model_select",
+                                        help="Select the best-performing unmasking model of a set of configurations.")
+    eval_parser.add_argument("input_run_folder", help="folder containing the unmasking runs from whose configurations" +
+                                                      "to select the best performing model")
+    eval_parser.add_argument("--config", "-c", help="optional job configuration file",
+                             required=False, default=None)
+    eval_parser.add_argument("--output", "-o", help="output directory to save evaluation data to",
+                             required=False, default=None)
+    eval_parser.add_argument("--cv_folds", "-f", help="cross-validation folds for model selection",
+                             required=False, type=int, default=10)
+    eval_parser.add_argument("--wait", "-w", help="wait for user confirmation after job is done",
+                             required=False, action="store_true")
+
     args = parser.parse_args()
 
     config_loader = JobConfigLoader(defaults_file="defaults_meta.yml")
@@ -103,6 +117,9 @@ def main():
             assert_file(args.input_train)
             assert_file(args.input_test)
             executor = MetaEvalExecutor(args.input_train, args.input_test)
+        elif args.command == "model_select":
+            assert_dir(args.input_run_folder)
+            executor = MetaModelSelectionExecutor(args.input_run_folder, args.cv_folds)
         else:
             raise RuntimeError("Invalid sub command: {}".format(args.command))
 
@@ -120,6 +137,12 @@ def main():
 def assert_file(file_name: str):
     if not os.path.isfile(file_name):
         print("File '{}' does not exist.".format(file_name), file=sys.stderr)
+        sys.exit(1)
+
+
+def assert_dir(dirname: str):
+    if not os.path.isdir(dirname):
+        print("Directory '{}' does not exist or is not a directory.".format(dirname), file=sys.stderr)
         sys.exit(1)
 
 

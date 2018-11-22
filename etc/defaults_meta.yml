@@ -25,6 +25,12 @@ job:
   # Output directory
   output_dir: out_meta
 
+  # Meta model selection parameters
+  model_selection:
+    # Aggregator for aggregating run repetitions of individual configurations
+    aggregator:
+      name: output.aggregators.CurveAverageAggregator
+
   # Output formats for specific events and optional parameters.
   # For events you can specify the name and optionally a list of senders to listen to.
   outputs:
@@ -59,3 +65,9 @@ job:
     - name: output.formats.ModelMetricsPrinter
       events:
         - name: onDataPredicted
+
+    # Print model selection status
+    - name: output.formats.ProgressPrinter
+      events:
+        - name: onUnmaskingModelEvaluated
+        - name: onUnmaskingModelSelected

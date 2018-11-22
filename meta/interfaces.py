@@ -53,7 +53,7 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
         """
         pass
 
-    def _get_configured_estimator(self, index: int) -> BaseEstimator:
+    def get_configured_estimator(self, index: int) -> BaseEstimator:
         """
         Create a new configured estimator instance.
 
@@ -124,7 +124,7 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
 
         if in_data[b"version"] == 1:
             for i, clf_dict in enumerate(in_data[b"clf"]):
-                clf = self._get_configured_estimator(i)
+                clf = self.get_configured_estimator(i)
 
                 for k in clf_dict:
                     key = k[1:].decode("utf-8")

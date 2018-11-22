@@ -35,7 +35,9 @@ from util.util import clear_lru_caches
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from concurrent.futures import Executor, ProcessPoolExecutor
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from glob import glob
+from sklearn.metrics import accuracy_score, f1_score, make_scorer, precision_score, recall_score
+from sklearn.model_selection import cross_val_score
 from time import time
 from typing import Any, Dict, Union, Tuple
 
@@ -257,6 +259,56 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
         event = ModelFitEvent(input_path, 0, X, y)
         await EventBroadcaster.publish("onModelFit", event, self.__class__)
 
+    @staticmethod
+    def c_at_1_score(y_true: Union[List[float], np.ndarray], y_pred: Union[List[float], np.ndarray]):
+        """
+        Return c@1 score of prediction.
+        See Peñas and Rodrigo, 2011: A Simple Measure to Assess Non-response
+
+        :param y_true: true labels
+        :param y_pred: predicted labels, -1 for non-decisions
+        :return: c@1 score
+        """
+        n = len(y_true)
+        n_ac = 0
+        n_u = 0
+
+        for i, pred in enumerate(y_pred):
+            if pred <= -1:
+                n_u += 1
+            elif pred == y_true[i]:
+                n_ac += 1
+
+        return 1.0 / n * (n_ac + (n_ac / n) * n_u)
+
+    @staticmethod
+    def f_05_u_score(y_true: Union[List[float], np.ndarray], y_pred: Union[List[float], np.ndarray], pos_label: int):
+        """
+        Return F0.5u score of prediction.
+
+        :param y_true: true labels
+        :param y_pred: predicted labels, -1 for non-decisions
+        :param pos_label: positive class label
+        :return: F0.5u score
+        """
+
+        n_tp = 0
+        n_fn = 0
+        n_fp = 0
+        n_u = 0
+
+        for i, pred in enumerate(y_pred):
+            if pred <= -1:
+                n_u += 1
+            elif pred == pos_label and pred == y_true[i]:
+                n_tp += 1
+            elif pred == pos_label and pred != y_true[i]:
+                n_fp += 1
+            elif y_true[i] == pos_label and pred != y_true[i]:
+                n_fn += 1
+
+        return (1.25 * n_tp) / (1.25 * n_tp + 0.25 * (n_fn + n_u) + n_fp)
+
 
 class MetaTrainExecutor(MetaClassificationExecutor):
     """
@@ -389,56 +441,6 @@ class MetaEvalExecutor(MetaApplyExecutor):
                           fired when model has been applied to dataset to predict samples
     """
 
-    @staticmethod
-    def c_at_1_score(y_true: Union[List[float], np.ndarray], y_pred: Union[List[float], np.ndarray]):
-        """
-        Return c@1 score of prediction.
-        See Peñas and Rodrigo, 2011: A Simple Measure to Assess Non-response
-
-        :param y_true: true labels
-        :param y_pred: predicted labels, -1 for non-decisions
-        :return: c@1 score
-        """
-        n = len(y_true)
-        n_ac = 0
-        n_u = 0
-
-        for i, pred in enumerate(y_pred):
-            if pred <= -1:
-                n_u += 1
-            elif pred == y_true[i]:
-                n_ac += 1
-
-        return 1.0 / n * (n_ac + (n_ac / n) * n_u)
-
-    @staticmethod
-    def f_05_u_score(y_true: Union[List[float], np.ndarray], y_pred: Union[List[float], np.ndarray], pos_label: int):
-        """
-        Return F0.5u score of prediction.
-
-        :param y_true: true labels
-        :param y_pred: predicted labels, -1 for non-decisions
-        :param pos_label: positive class label
-        :return: F0.5u score
-        """
-
-        n_tp = 0
-        n_fn = 0
-        n_fp = 0
-        n_u = 0
-
-        for i, pred in enumerate(y_pred):
-            if pred <= -1:
-                n_u += 1
-            elif pred == pos_label and pred == y_true[i]:
-                n_tp += 1
-            elif pred == pos_label and pred != y_true[i]:
-                n_fp += 1
-            elif y_true[i] == pos_label and pred != y_true[i]:
-                n_fn += 1
-
-        return (1.25 * n_tp) / (1.25 * n_tp + 0.25 * (n_fn + n_u) + n_fp)
-
     # noinspection PyPep8Naming
     async def _exec(self, job_id, output_dir):
         await self._load_data()
@@ -495,44 +497,60 @@ class MetaEvalExecutor(MetaApplyExecutor):
         await self._test_data.save(output_dir)
 
 
-# class MetaXEvalExecutor(MetaClassificationExecutor):
-#     """
-#     Evaluate model quality using cross validation.
-#
-#     Events published by this class:
-#
-#     * `onJobFinished`:    [type JobFinishedEvent]
-#                           fired when the job has finished
-#     """
-#
-#     def __init__(self, train_data: Union[str, UnmaskingResult], folds: int = 10):
-#         """
-#         :param train_data: UnmaskingResult result or path to stored UnmaskingResult JSON serialization
-#         :param folds: number of CV folds
-#         """
-#         super().__init__()
-#
-#         self._folds = folds
-#         if type(train_data) == str:
-#             self._train_data = None
-#             self._train_data_path = train_data
-#         else:
-#             self._train_data = train_data
-#             self._train_data_path = None
-#
-#     async def _load_data(self):
-#         """
-#         Load training and test data from files if needed.
-#         """
-#         if self._train_data_path:
-#             self._train_data = UnmaskingResult()
-#             self._train_data.load(self._train_data_path)
-#
-#     # noinspection PyPep8Naming
-#     async def _exec(self, job_id, output_dir):
-#         await self._load_data()
-#
-#         X, y = self._train_data.to_numpy()
-#         if y is None:
-#             raise ValueError("Test set must have labels")
-#         pred, _ = await self._predict(X)
+class MetaModelSelectionExecutor(MetaClassificationExecutor):
+    """
+    Evaluate quality of different unmasking models using cross validation.
+    Cross-validates all configurations generated by a ::class:ExpandingExecutor and
+    selects the best-performing one.
+
+    Events published by this class:
+
+    * `onJobFinished`:    [type JobFinishedEvent]
+                          fired when the job has finished
+    """
+
+    def __init__(self, configurations_folder: str, folds: int = 10):
+        """
+        :param configurations_folder: input folder containing run results with different configurations / hyperparameters
+        :param metric: metric by which to find the best model
+        """
+        super().__init__()
+        self._folds = folds
+        self._input_configs = [f for f in glob(os.path.join(configurations_folder, "config_*")) if os.path.isdir(f)]
+
+    # noinspection PyPep8Naming
+    async def _exec(self, job_id, output_dir):
+        agg_conf = self._config.get("job.model_selection.aggregator")
+        best_model = (-1.0, None, "")
+        scorer = make_scorer(self.c_at_1_score)
+
+        for conf_folder in self._input_configs:
+            agg = self._configure_instance(agg_conf, assert_type=Aggregator)
+
+            for result_path in glob(os.path.join(conf_folder, "*.json")):
+                r = UnmaskingResult()
+                r.load(result_path)
+                curves = r.curves
+                for c in curves:
+                    agg.add_curve(c, curves[c]["cls"], curves[c]["values"])
+
+            X, y = agg.get_aggregated_output().to_numpy()
+            if y is None:
+                raise ValueError("Test set must have labels")
+
+            model = self._configure_instance(self._config.get("job.model"),
+                                             MetaClassificationModel)    # type: MetaClassificationModel
+            estimator = model.get_configured_estimator(0)
+            cv_scores = cross_val_score(estimator, X, y, scoring=scorer, cv=self._folds, n_jobs=-1)
+            cv_score = float(np.mean(cv_scores))
+
+            if cv_score > best_model[0]:
+                best_model = (cv_score, agg, conf_folder)
+
+            event = UnmaskingModelEvaluatedEvent(job_id, 0, conf_folder, cv_score)
+            await EventBroadcaster.publish("onUnmaskingModelEvaluated", event, self.__class__)
+
+        event = UnmaskingModelSelectedEvent(job_id, 0, best_model[2], best_model[0],
+                                            best_model[1].get_aggregated_output())
+        await EventBroadcaster.publish("onUnmaskingModelSelected", event, self.__class__)
+        await best_model[1].save(output_dir)

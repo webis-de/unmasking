@@ -238,7 +238,7 @@ class UnmaskingTrainCurveEvent(Event):
 
 class ModelFitEvent(Event):
     """
-    Event to be fired when a model has ben fit to a dataset.
+    Event to be fired when a model has been fit to a dataset.
     """
 
     def __init__(self, group_id: str, serial: int, data: Iterable[Iterable[float]] = None,
@@ -333,3 +333,42 @@ class ModelMetricsEvent(ModelPredictEvent):
     def metrics(self, metrics: Dict[str, Any]):
         """Set performance metrics dictionary."""
         self._metrics = metrics
+
+
+class UnmaskingModelEvaluatedEvent(ProgressEvent):
+    """
+    Event to be fired when an unmasking model has been evaluated.
+    """
+
+    def __init__(self, group_id: str, serial: int, source_path: str, score: float):
+        super().__init__(group_id, serial)
+
+        self._source_path = source_path
+        self._score = score
+
+    @property
+    def text(self) -> str:
+        return "\nModel evaluated: {}\nScore: {:.3f}".format(self._source_path, self._score)
+
+
+class UnmaskingModelSelectedEvent(UnmaskingModelEvaluatedEvent):
+    """
+    Event to be fired when an unmasking model has been selected as best-performing.
+    """
+    def __init__(self, group_id: str, serial: int, source_path: str, score: float, model: "UnmaskingResult"):
+        super().__init__(group_id, serial, source_path, score)
+        self._model = model
+
+    @property
+    def model(self) -> "UnmaskingResult":
+        """Performance metrics dictionary."""
+        return self._model
+
+    @model.setter
+    def model(self, model: "UnmaskingResult"):
+        """Set performance metrics dictionary."""
+        self._model = model
+
+    @property
+    def text(self) -> str:
+        return "\nBest performing model selected: {}\nScore: {:.3f}".format(self._source_path, self._score)

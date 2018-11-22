@@ -84,3 +84,10 @@ class Aggregator(Output, metaclass=ABCMeta):
         :return: dictionary containing aggregation keys and curve data (may be another dictionary)
         """
         pass
+
+    @abstractmethod
+    def get_aggregated_output(self) -> Output:
+        """
+        :return: configured output instance containing aggregated results
+        """
+        pass

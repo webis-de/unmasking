@@ -51,10 +51,10 @@ class LinearMetaClassificationModel(MetaClassificationModel):
         self.reset()
 
         # decision quality estimator
-        self._clf.append(self._get_configured_estimator(0))
+        self._clf.append(self.get_configured_estimator(0))
 
         # sample classifier
-        self._clf.append(self._get_configured_estimator(1))
+        self._clf.append(self.get_configured_estimator(1))
 
         executor = ThreadPoolExecutor(max_workers=1)
         try:
@@ -85,7 +85,7 @@ class LinearMetaClassificationModel(MetaClassificationModel):
             "loss": ["hinge", "squared_hinge"],
             "class_weight": [None, "balanced", {0: 1, 1: 2}, {0: 2, 1: 1}]
         }
-        grid = GridSearchCV(estimator, parameters, cv=5)
+        grid = GridSearchCV(estimator, parameters, cv=5, n_jobs=-1)
         grid.fit(X, y)
 
         self._clf_params = [grid.best_estimator_.get_params()] * 2

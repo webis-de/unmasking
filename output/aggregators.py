@@ -25,7 +25,7 @@ from event.events import *
 from event.interfaces import EventHandler, Event
 from input.interfaces import SamplePairClass
 from output.formats import UnmaskingResult, UnmaskingCurvePlotter
-from output.interfaces import Aggregator
+from output.interfaces import Aggregator, Output
 
 from typing import Dict, Any, List, Tuple, Optional
 
@@ -100,15 +100,7 @@ class CurveAverageAggregator(EventHandler, Aggregator):
 
         return avg_curves
 
-    async def save(self, output_dir: str, file_name: Optional[str] = None):
-        """
-        Save accumulated stats to file in JSON format.
-        If the file exists, it will be truncated.
-        """
-
-        if file_name is None:
-            file_name = self._generate_output_basename() + ".json"
-
+    def get_aggregated_output(self) -> Output:
         output = UnmaskingResult()
         for m in self._meta_data:
             output.add_meta(m, self._meta_data[m])
@@ -119,6 +111,18 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         for c in curves:
             output.add_curve(c, **curves[c])
 
+        return output
+
+    async def save(self, output_dir: str, file_name: Optional[str] = None):
+        """
+        Save accumulated stats to file in JSON format.
+        If the file exists, it will be truncated.
+        """
+
+        if file_name is None:
+            file_name = self._generate_output_basename() + ".json"
+
+        output = self.get_aggregated_output()
         await output.save(output_dir, file_name)
 
     def reset(self):
@@ -181,6 +185,9 @@ class AggregatedCurvePlotter(UnmaskingCurvePlotter, Aggregator):
         for agg in self._aggregators:
             curves.update(agg.get_aggregated_curves())
         return curves
+
+    def get_aggregated_output(self) -> Output:
+        raise NotImplementedError()
 
     def add_curve(self, identifier: str, cls: SamplePairClass, values: List[float]):
         raise NotImplementedError()
