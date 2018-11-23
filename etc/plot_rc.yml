@@ -10,8 +10,8 @@
 # If curve color is null, each individual curve will
 # get a random color.
 markers:
-  SAME_AUTHOR: ["o", "same author", "#FFBF00"]
-  DIFFERENT_AUTHORS: ["x", "different authors", "#7A16FF"]
+  SAME_AUTHOR: ["", "same author", "#FFBF00"]
+  DIFFERENT_AUTHORS: ["", "different authors", "#7A16FF"]
 
 # Output file formats
 output_formats: ["svg", "png"]
