@@ -524,10 +524,13 @@ class MetaModelSelectionExecutor(MetaClassificationExecutor):
         best_model = (-1.0, None, "")
         scorer = make_scorer(self.c_at_1_score)
 
+        if not self._input_configs:
+            return
+
         for conf_folder in self._input_configs:
             agg = self._configure_instance(agg_conf, assert_type=Aggregator)
 
-            for result_path in glob(os.path.join(conf_folder, "*.json")):
+            for result_path in glob(os.path.join(conf_folder, "*Accumulator.*.json")):
                 r = UnmaskingResult()
                 r.load(result_path)
                 curves = r.curves
@@ -540,7 +543,7 @@ class MetaModelSelectionExecutor(MetaClassificationExecutor):
 
             model = self._configure_instance(self._config.get("job.model"),
                                              MetaClassificationModel)    # type: MetaClassificationModel
-            estimator = model.get_configured_estimator(0)
+            estimator = model.get_configured_estimator()
             cv_scores = cross_val_score(estimator, X, y, scoring=scorer, cv=self._folds, n_jobs=-1)
             cv_score = float(np.mean(cv_scores))
 

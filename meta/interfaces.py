@@ -25,7 +25,7 @@ from output.interfaces import Output
 
 from abc import ABCMeta, abstractmethod
 from sklearn.base import BaseEstimator
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, Optional
 
 import msgpack
 import numpy as np
@@ -40,29 +40,25 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
 
     def __init__(self):
         self._version = 1
-        self._clf = []
-        self._clf_params = []
+        self._clf = None
+        self._clf_params = {}
 
     @abstractmethod
-    def _get_estimator(self, index: int) -> BaseEstimator:
+    def _get_estimator(self) -> BaseEstimator:
         """
         Create a new (unconfigured) estimator instance.
-
-        :param index: estimator index number (relevant if model has multiple estimators of different types)
         :return: estimator instance
         """
         pass
 
-    def get_configured_estimator(self, index: int) -> BaseEstimator:
+    def get_configured_estimator(self) -> BaseEstimator:
         """
         Create a new configured estimator instance.
 
-        :param index: estimator index number (relevant if model has multiple estimators of different types)
         :return: estimator instance
         """
-        clf = self._get_estimator(index)
-        if len(self._clf_params) > index:
-            clf.set_params(**self._clf_params[index])
+        clf = self._get_estimator()
+        clf.set_params(**self._clf_params)
         return clf
 
     @abstractmethod
@@ -76,13 +72,12 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def fit(self, X: Iterable[Iterable[float]], y: Iterable[int]) -> Tuple[np.ndarray, np.ndarray]:
+    async def fit(self, X: Iterable[Iterable[float]], y: Iterable[int]):
         """
         Fit model to data in X with labels from y.
 
         :param X: training samples
         :param y: labels
-        :return: data and labels which actually participated in model fitting (may be the same as input)
         """
         pass
 
@@ -173,14 +168,15 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
             msgpack.pack(out_dict, f)
 
     def reset(self):
-        self._clf = []
+        self._clf = None
+        self._clf_params = {}
 
     @property
-    def params(self) -> List[Dict[str, Any]]:
+    def params(self) -> Dict[str, Any]:
         """Get parameters for each estimator."""
         return self._clf_params
 
     @params.setter
-    def params(self, params: List[Dict[str, Any]]):
+    def params(self, params: Dict[str, Any]):
         """Set parameters for each estimator."""
         self._clf_params = params
