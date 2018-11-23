@@ -87,6 +87,11 @@ class ExpandingExecutor(JobExecutor):
             config_variables = config_vectors.keys()
             expanded_vectors = config_expander.expand(config_vectors.values())
 
+        # Clear configurations directive, we won't need it anymore
+        config_dict = self._config.get()
+        config_dict["job"]["experiment"]["configurations"] = []
+        self._config.set(config_dict)
+
         start_time = time()
         executor = ProcessPoolExecutor()
         try:
@@ -253,7 +258,7 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
             raise RuntimeError("Training input must have labels")
 
         await model.optimize(X, y)
-        X, y = await model.fit(X, y)
+        await model.fit(X, y)
 
         y = [unmasking.numpy_label_to_str(l) for l in y]
         event = ModelFitEvent(input_path, 0, X, y)
