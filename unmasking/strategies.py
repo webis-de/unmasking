@@ -61,6 +61,9 @@ class FeatureRemoval(UnmaskingStrategy):
             coef  = numpy.delete(coef, index)
             data  = numpy.delete(data, index, 1)
 
+            if data.size == 0:
+                break
+
             await asyncio.sleep(0)
         
         return data
