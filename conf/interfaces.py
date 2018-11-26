@@ -117,6 +117,24 @@ class path_property(property):
     pass
 
 
+# noinspection PyPep8Naming
+class recursive_instance_property(property):
+    """
+    Decorator class for properties which expect another configured instance
+    of a certain class instead of a base type.
+    """
+    pass
+
+
+# noinspection PyPep8Naming
+class recursive_instance_list_property(property):
+    """
+    Decorator class for properties which expect a list configured instances
+    of certain classes instead of a base type.
+    """
+    pass
+
+
 class Configurable:
     """
     Base class for classes which are configurable at runtime via @properties.
@@ -155,3 +173,25 @@ class Configurable:
         :return: whether property is a path property
         """
         return isinstance(getattr(self.__class__, name), path_property)
+
+    def is_recursive_instance_property(self, name: str) -> bool:
+        """
+        Check whether a property is a recursive instance property.
+
+        The property has to exist. Check with :meth: has_property first.
+
+        :param name: property name
+        :return: whether property is a recursive instance property
+        """
+        return isinstance(getattr(self.__class__, name), recursive_instance_property)
+
+    def is_recursive_instance_list_property(self, name: str) -> bool:
+        """
+        Check whether a property is a recursive instance list property.
+
+        The property has to exist. Check with :meth: has_property first.
+
+        :param name: property name
+        :return: whether property is a recursive instance list property
+        """
+        return isinstance(getattr(self.__class__, name), recursive_instance_list_property)

@@ -18,12 +18,25 @@ job:
   # Output directory
   output_dir: out
 
-  # Default feature set for representing texts in vectors
+  # The default feature set is a meta feature set which combines
+  # a number of other feature sets into a single feature vector
+  # of the configured total length.
   #
   # You can also specify an optional dictionary of parameters for
   # configuring properties of this feature set.
   classifier.feature_set:
-    name: features.feature_sets.AvgWordFreqFeatureSet
+    name: features.feature_sets.MetaFeatureSet
+    parameters:
+      # Actual features
+      sub_features:
+        - name: features.feature_sets.AvgWordFreqFeatureSet
+        - name: features.feature_sets.AvgCharNgramFreqFeatureSet
+
+      # Proportion to which the individual feature sets have space allocated
+      # in the final feature vector. If the vector size cannot be divided by an
+      # individual feature's proportion, the actual proportion will be rounded up,
+      # which may result in a feature vector that is slightly larger than 2 * n.
+      feature_proportions: [1, 1]
 
   # Default samplers for generating chunk pairs.
   #

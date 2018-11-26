@@ -20,7 +20,7 @@ job:
     name: meta.model.LinearMetaClassificationModel
     parameters:
       # Sample discard threshold
-      threshold: 0.6
+      threshold: 0.1
 
   # Output directory
   output_dir: out_meta

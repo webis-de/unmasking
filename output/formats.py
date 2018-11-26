@@ -203,8 +203,8 @@ class UnmaskingResult(Output):
         """
         Convert UnmaskingResult to a numpy feature matrix containing the curve data and a numpy
         array containing the class labels.
-        The feature matrix rows consist of the original curve values and their first- and
-        second-order point-wise derivative (i.e., vector size = n * 3).
+        The feature matrix rows consist of the original curve values, their first- and second-order point-wise
+        derivative, as well as the inversely sorted first- and second-order derivatives (i.e., vector size = n * 5).
 
         String labels from the given UnmaskingResult are represented by integers (starting at 0) in the
         order in which they appear in :attr:: UnmaskingResult.meta.
@@ -216,7 +216,8 @@ class UnmaskingResult(Output):
 
         curves = self.curves
         num_rows = len(curves)
-        num_cols = max((len(curves[c]["values"]) for c in curves)) * 3
+        vector_size = max((len(curves[c]["values"]) for c in curves))
+        num_cols = vector_size * 5
 
         # noinspection PyPep8Naming
         X = np.zeros((num_rows, num_cols))
@@ -227,8 +228,12 @@ class UnmaskingResult(Output):
             if not curves[c]["values"]:
                 continue
 
-            data = np.array(curves[c]["values"])
-            X[i] = np.concatenate((data, np.gradient(data, edge_order=1), np.gradient(data, edge_order=2)))
+            values = np.array(curves[c]["values"])
+            padding = np.zeros(vector_size - len(values))
+            data = np.concatenate((values, padding))
+            gradient1 = np.gradient(data, edge_order=1)
+            gradient2 = np.gradient(data, edge_order=2)
+            X[i] = np.concatenate((data, gradient1, gradient2, np.sort(gradient1), np.sort(gradient2)))
 
             if no_labels or "cls" not in curves[c]:
                 no_labels = True
@@ -726,5 +731,5 @@ class ModelCurvePlotter(UnmaskingCurvePlotter):
         for i, d in enumerate(event.data):
             if type(d) is not list:
                 d = list(d)
-            d = d[:len(d) // 3]
+            d = d[:len(d) // 5]     # only print actual curve points, not gradient values
             self.plot_curve(d, labels[i], self.start_new_curve())

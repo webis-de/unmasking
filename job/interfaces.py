@@ -111,20 +111,29 @@ class JobExecutor(metaclass=ABCMeta):
         if assert_type is not None:
             self._assert_type(obj, assert_type)
 
-        if "rc_file" in cfg and cfg["rc_file"] is not None:
+        params = {}
+        if "rc_file" in cfg and cfg["rc_file"]:
             rc_file = self._config.resolve_relative_path(cfg["rc_file"])
             with open(rc_file, "r") as f:
-                rc_contents = yaml.safe_load(f)
+                params.update(yaml.safe_load(f))
 
-            for rc in rc_contents:
-                obj.set_property(rc, rc_contents[rc])
+        if "parameters" in cfg and cfg["parameters"]:
+            params.update(cfg["parameters"])
 
-        if "parameters" in cfg and cfg["parameters"] is not None:
-            for p in cfg["parameters"]:
-                val = cfg["parameters"][p]
-                if type(val) is str and obj.has_property(p) and obj.is_path_property(p):
-                    val = self._config.resolve_relative_path(val)
-                obj.set_property(p, val)
+        for p in params:
+            val = params[p]
+            if not obj.has_property(p):
+                continue
+
+            if type(val) is str and obj.is_path_property(p):
+                val = self._config.resolve_relative_path(val)
+            elif obj.is_recursive_instance_property(p):
+                val = self._configure_instance(val, assert_type, ctr_args)
+            elif obj.is_recursive_instance_list_property(p):
+                val = [self._configure_instance(v, assert_type, ctr_args) for v in val]
+
+            obj.set_property(p, val)
+
         return obj
 
     def _subscribe_to_events(self, obj: EventHandler, events: List[Dict[str, Any]]):
