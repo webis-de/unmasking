@@ -27,7 +27,7 @@ from event.dispatch import EventBroadcaster, MultiProcessEventContext
 from event.events import *
 from features.interfaces import ChunkSampler, FeatureSet
 from job.interfaces import JobExecutor, ConfigurationExpander, Strategy
-from input.interfaces import CorpusParser, Tokenizer
+from input.interfaces import CorpusParser, Chunker
 from meta.interfaces import MetaClassificationModel
 from output.formats import UnmaskingResult
 from util.util import clear_lru_caches
@@ -129,7 +129,7 @@ class ExpandingExecutor(JobExecutor):
             config_output_dir = output_dir
             cfg = JobConfigLoader(self._config.get())
 
-        chunk_tokenizer = self._configure_instance(cfg.get("job.input.tokenizer"), Tokenizer)
+        chunk_tokenizer = self._configure_instance(cfg.get("job.input.chunker"), Chunker)
         parser = self._configure_instance(cfg.get("job.input.parser"), CorpusParser, (chunk_tokenizer,))
         repetitions = cfg.get("job.experiment.repetitions")
         strat = self._configure_instance(cfg.get("job.exec.strategy"), Strategy)

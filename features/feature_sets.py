@@ -21,7 +21,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-from conf.interfaces import Configurable, recursive_instance_list_property
+from conf.interfaces import Configurable, instance_list_property
 from features.interfaces import FeatureSet
 from features.sampling import ChunkSampler
 from input.interfaces import SamplePair
@@ -56,7 +56,7 @@ class MetaFeatureSet(FeatureSet, Configurable):
         """
         self._sub_features.append(feature)
 
-    @recursive_instance_list_property
+    @instance_list_property(delegate_args=True)
     def sub_features(self) -> List[FeatureSet]:
         """ Get sub features. """
         return self._sub_features

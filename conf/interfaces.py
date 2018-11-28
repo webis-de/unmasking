@@ -118,16 +118,45 @@ class path_property(property):
 
 
 # noinspection PyPep8Naming
-class recursive_instance_property(property):
+class instance_property(property):
     """
     Decorator class for properties which expect another configured instance
     of a certain class instead of a base type.
     """
-    pass
+
+    def __init__(self, fget=None, fset=None, fdel=None, doc=None, delegate_args=False):
+        """
+        :param fget: getter function
+        :param fset: setter function
+        :param fdel: deleter function
+        :param doc: doc string
+        :param delegate_args: True to delegate __init__ arguments of the parent to instances
+        """
+        super().__init__(fget, fset, fdel, doc)
+        self.delegate_args = delegate_args
+
+    def __call__(self, fget=None, fset=None, fdel=None, doc=None):
+        super().__init__(fget, fset, fdel, doc)
+        return self
+
+    def __get__(self, obj, objtype=None):
+        obj = super().__get__(obj, objtype)
+        if objtype is not None:
+            objtype.delegate_args = self.delegate_args
+        return obj
+
+    def getter(self, fget):
+        return type(self)(fget, self.fset, self.fdel, self.__doc__, self.delegate_args)
+
+    def setter(self, fset):
+        return type(self)(self.fget, fset, self.fdel, self.__doc__, self.delegate_args)
+
+    def deleter(self, fdel):
+        return type(self)(self.fget, self.fset, fdel, self.__doc__, self.delegate_args)
 
 
 # noinspection PyPep8Naming
-class recursive_instance_list_property(property):
+class instance_list_property(instance_property):
     """
     Decorator class for properties which expect a list configured instances
     of certain classes instead of a base type.
@@ -174,7 +203,7 @@ class Configurable:
         """
         return isinstance(getattr(self.__class__, name), path_property)
 
-    def is_recursive_instance_property(self, name: str) -> bool:
+    def is_instance_property(self, name: str) -> bool:
         """
         Check whether a property is a recursive instance property.
 
@@ -183,9 +212,9 @@ class Configurable:
         :param name: property name
         :return: whether property is a recursive instance property
         """
-        return isinstance(getattr(self.__class__, name), recursive_instance_property)
+        return isinstance(getattr(self.__class__, name), instance_property)
 
-    def is_recursive_instance_list_property(self, name: str) -> bool:
+    def is_instance_list_property(self, name: str) -> bool:
         """
         Check whether a property is a recursive instance list property.
 
@@ -194,4 +223,4 @@ class Configurable:
         :param name: property name
         :return: whether property is a recursive instance list property
         """
-        return isinstance(getattr(self.__class__, name), recursive_instance_list_property)
+        return isinstance(getattr(self.__class__, name), instance_list_property)

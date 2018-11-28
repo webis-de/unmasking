@@ -23,7 +23,7 @@
 
 from event.dispatch import EventBroadcaster
 from event.events import PairBuildingProgressEvent, PairChunkingProgressEvent
-from input.interfaces import SamplePair, SamplePairClass, Tokenizer
+from input.interfaces import Chunker, SamplePair, SamplePairClass, Tokenizer
 from input.interfaces import CorpusParser
 
 import math
@@ -48,8 +48,8 @@ class SamplePairImpl(SamplePair):
                             fired during chunk generation to indicate progress
     """
 
-    def __init__(self, cls: SamplePairClass, chunk_tokenizer: Tokenizer):
-        super().__init__(cls, chunk_tokenizer)
+    def __init__(self, cls: SamplePairClass, chunker: Chunker):
+        super().__init__(cls, chunker)
 
         self._pair_id = None
         self._chunks_a = []
@@ -69,13 +69,13 @@ class SamplePairImpl(SamplePair):
         await EventBroadcaster.publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
 
         for text in a:
-            async for tokens in self._chunk_tokenizer.await_tokens(text):
+            async for tokens in self._chunker.await_chunks(text):
                 self._chunks_a.append(tokens)
             self._progress_event = PairChunkingProgressEvent.new_event(self._progress_event)
             await EventBroadcaster.publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
 
         for text in b:
-            async for tokens in self._chunk_tokenizer.await_tokens(text):
+            async for tokens in self._chunker.await_chunks(text):
                 self._chunks_b.append(tokens)
             self._progress_event = PairChunkingProgressEvent.new_event(self._progress_event)
             await EventBroadcaster.publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])

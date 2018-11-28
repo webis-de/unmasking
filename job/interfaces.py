@@ -127,10 +127,16 @@ class JobExecutor(metaclass=ABCMeta):
 
             if type(val) is str and obj.is_path_property(p):
                 val = self._config.resolve_relative_path(val)
-            elif obj.is_recursive_instance_property(p):
-                val = self._configure_instance(val, assert_type, ctr_args)
-            elif obj.is_recursive_instance_list_property(p):
-                val = [self._configure_instance(v, assert_type, ctr_args) for v in val]
+            elif obj.is_instance_property(p):
+                is_list = obj.is_instance_list_property(p)
+                if is_list and obj.delegate_args:
+                    val = [self._configure_instance(v, assert_type, ctr_args) for v in val]
+                elif is_list:
+                    val = [self._configure_instance(v) for v in val]
+                elif obj.delegate_args:
+                    val = self._configure_instance(val, assert_type, ctr_args)
+                else:
+                    val = self._configure_instance(val)
 
             obj.set_property(p, val)
 
