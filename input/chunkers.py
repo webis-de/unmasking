@@ -119,11 +119,11 @@ class RandomTokenChunker(Chunker):
         self._tokenizer = WordTokenizer() if tokenizer is None else tokenizer
 
     def chunk(self, text: str) -> Iterable[str]:
-        words = self._tokenizer.tokenize(text)
-        assert type(words) is list
-        word_freq = nltk.FreqDist(words)
-        # noinspection PyTypeChecker
-        num_words = len(words)
+        tokens = self._tokenizer.tokenize(text)
+        if type(tokens) is not list:
+            tokens = list(tokens)
+        word_freq = nltk.FreqDist(tokens)
+        num_words = len(tokens)
         drawn = {}
         num_drawn = 0
 
@@ -133,7 +133,7 @@ class RandomTokenChunker(Chunker):
 
             while cur_chunk_size < self._chunk_size:
                 # noinspection PyUnresolvedReferences
-                word = words[randint(0, num_words - 1)]
+                word = tokens[randint(0, num_words - 1)]
 
                 if not self._with_replacement:
                     if num_drawn < num_words and word in drawn and drawn[word] >= word_freq[word]:
