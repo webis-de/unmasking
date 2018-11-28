@@ -30,13 +30,12 @@ job:
       # Actual features
       sub_features:
         - name: features.feature_sets.AvgWordFreqFeatureSet
-        - name: features.feature_sets.AvgCharNgramFreqFeatureSet
 
       # Proportion to which the individual feature sets have space allocated
       # in the final feature vector. If the vector size cannot be divided by an
       # individual feature's proportion, the actual proportion will be rounded up,
       # which may result in a feature vector that is slightly larger than 2 * n.
-      feature_proportions: [1, 1]
+      feature_proportions: [1]
 
   # Default samplers for generating chunk pairs.
   #
@@ -52,8 +51,8 @@ job:
       # Number of feature to eliminate in each iterations
       eliminate: 10
 
-      # Number of unmasking iterations
-      iterations: 10
+      # Number of unmasking iterations (auto to eliminate until feature vector is empty)
+      iterations: auto
 
       # Feature vector size
       vector_size: 250

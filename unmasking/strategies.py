@@ -21,10 +21,12 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+from features.feature_sets import FeatureSet
 from unmasking.interfaces import UnmaskingStrategy
 
 import asyncio
 import numpy
+from typing import Union
 
 
 class FeatureRemoval(UnmaskingStrategy):
@@ -45,11 +47,19 @@ class FeatureRemoval(UnmaskingStrategy):
         return self._num_eliminate
     
     @eliminate.setter
-    def eliminate(self, eliminate: int):
+    def eliminate(self, eliminate: Union[int, str]):
         """Set number of eliminations per round"""
         self._num_eliminate = eliminate
 
+    async def run(self, fs: FeatureSet):
+        if self._iterations == "auto":
+            self._iterations = self._vector_size // self._num_eliminate
+        await super().run(fs)
+
     async def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
+        """
+        Eliminate the k / 2 most significant positive and the k / 2 most significant negative features.
+        """
         for i in range(0, self._num_eliminate):
             if data.shape[1] == 0:
                 return data
@@ -58,8 +68,8 @@ class FeatureRemoval(UnmaskingStrategy):
                 index = numpy.argmax(coef)
             else:
                 index = numpy.argmin(coef)
-            coef  = numpy.delete(coef, index)
-            data  = numpy.delete(data, index, 1)
+            coef = numpy.delete(coef, index)
+            data = numpy.delete(data, index, 1)
 
             if data.size == 0:
                 break

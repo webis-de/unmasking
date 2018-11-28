@@ -680,8 +680,8 @@ class PanParser(CorpusParser):
     async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
         # parse ground truth if it exists
         ground_truth = {}
-        if os.path.isfile(self.corpus_path + "/truth.txt"):
-            with open(self.corpus_path + "/truth.txt", "r", encoding="utf-8", errors="ignore") as f:
+        if os.path.isfile(os.path.join(self.corpus_path, "truth.txt")):
+            with open(os.path.join(self.corpus_path, "truth.txt"), "r", encoding="utf-8", errors="ignore") as f:
                 for line in f:
                     tmp = [x.strip().replace("\ufeff", "") for x in re.split("[ \t]+", line)]
                     if 2 != len(tmp):
@@ -691,20 +691,20 @@ class PanParser(CorpusParser):
         pair_num = 0
         total_num_pairs = len(ground_truth)
 
-        for case_dir in glob(self.corpus_path + "/*"):
+        for case_dir in glob(os.path.join(self.corpus_path, "*")):
             if not os.path.isdir(case_dir) or \
-               not os.path.isfile(case_dir + "/unknown.txt") or \
-               not os.path.isfile(case_dir + "/known01.txt"):
+               not os.path.isfile(os.path.join(case_dir, "unknown.txt")) or \
+               not os.path.isfile(os.path.join(case_dir, "known01.txt")):
                 continue
 
             case = os.path.basename(case_dir)
 
             chunks_a = []
-            file_name_a = self.corpus_path + "/" + case + "/unknown.txt"
+            file_name_a = os.path.join(self.corpus_path, case, "unknown.txt")
             chunks_a.append(await self.await_file(file_name_a))
 
             chunks_b = []
-            file_names_b = sorted(glob(self.corpus_path + "/" + case + "/known??.txt"))
+            file_names_b = sorted(glob(os.path.join(self.corpus_path, case, "known??.txt")))
             for b in file_names_b:
                 chunks_b.append(await self.await_file(b))
 
