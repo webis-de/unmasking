@@ -104,19 +104,21 @@ class RandomTokenChunker(Chunker):
     """
 
     def __init__(self, chunk_size: int = 600, num_chunks: int = 25, tokenizer: Tokenizer = None,
-                 with_replacement: bool = True):
+                 with_replacement: bool = True, delimiter: str = " "):
         """
         :param chunk_size: target chunk size
         :param num_chunks: number of chunks to generate
         :param tokenizer: tokenizer for generating tokens from which to draw (default: WordTokenizer())
         :param with_replacement: whether to draw with replacement or without and
                                  full refill once all words have been drawn
+        :param delimiter: delimiter to put between tokens of the generated text
         """
         super().__init__(chunk_size)
         self._num_chunks = num_chunks
         self._with_replacement = with_replacement
         self._tokenizer = tokenizer
         self._tokenizer = WordTokenizer() if tokenizer is None else tokenizer
+        self._delimiter = delimiter
 
     def chunk(self, text: str) -> Iterable[str]:
         tokens = self._tokenizer.tokenize(text)
@@ -146,7 +148,7 @@ class RandomTokenChunker(Chunker):
                     num_drawn += 1
 
                 if chunk != "":
-                    chunk += " "
+                    chunk += self._delimiter
                 chunk += word
                 cur_chunk_size += 1
 
@@ -171,6 +173,16 @@ class RandomTokenChunker(Chunker):
     def tokenizer(self, tokenizer: Tokenizer):
         """Set tokenizer to generate chunks from"""
         self._tokenizer = tokenizer
+
+    @property
+    def delimiter(self) -> str:
+        """Delimiter to put between words of the generated text"""
+        return self._delimiter
+
+    @delimiter.setter
+    def delimiter(self, delimiter: str):
+        """Set delimiter to put between words of the generated text"""
+        self._delimiter = delimiter
 
     @property
     def with_replacement(self) -> bool:
