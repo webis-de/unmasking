@@ -173,6 +173,21 @@ class ExpandingExecutor(JobExecutor):
             loop.run_until_complete(loop.shutdown_asyncgens())
             loop.stop()
 
+    @staticmethod
+    def _replace_config_variables(input_value: Any, keys: Tuple[str], values: Tuple) -> Any:
+        if type(input_value) is not str:
+            return input_value
+
+        for repl, val in zip(keys, values):
+            if "$" + repl in input_value:
+                new_value = input_value.replace("$" + repl, str(val))
+                try:
+                    input_value = type(val)(new_value)
+                except (TypeError, ValueError):
+                    input_value = new_value
+
+        return input_value
+
     def _expand_dict(self, d: Dict[str, Any], keys: Tuple[str], values: Tuple) -> Dict[str, Any]:
         """
         Expand configuration variables.
@@ -184,18 +199,17 @@ class ExpandingExecutor(JobExecutor):
         """
         expanded = {}
         for k in d:
-            expanded[k] = d[k]
 
             if type(d[k]) is dict:
                 expanded[k] = self._expand_dict(d[k], keys, values)
+            elif type(d[k]) is list:
+                expanded[k] = [self._expand_dict(v, keys, values) if type(v) is dict
+                               else self._replace_config_variables(v, keys, values) for v in d[k]]
             elif type(d[k]) is str:
-                for repl, val in zip(keys, values):
-                    if "$" + repl in d[k]:
-                        new_value = d[k].replace("$" + repl, str(val))
-                        try:
-                            expanded[k] = type(val)(new_value)
-                        except (TypeError, ValueError):
-                            expanded[k] = new_value
+                expanded[k] = self._replace_config_variables(d[k], keys, values)
+            else:
+                expanded[k] = d[k]
+
         return expanded
 
 
