@@ -13,9 +13,9 @@ job%:
         # Corpus path relative to the application directory
         corpus_path: examples/gutenberg_test/corpus
 
-    # Tokenizer for creating chunks from input texts
-    tokenizer:
-      name: input.tokenizers.SentenceChunkTokenizer
+    # Chunker for creating chunks from input texts
+    chunker:
+      name: input.chunkers.SentenceChunker
 
       # Tokenizer-specific parameters
       parameters:

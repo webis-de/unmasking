@@ -91,6 +91,10 @@ class SamplePairImpl(SamplePair):
 
         return self._pair_id
 
+    @pair_id.setter
+    def pair_id(self, pair_id: str):
+        self._pair_id = pair_id
+
     @property
     def chunks_a(self) -> List[str]:
         return self._chunks_a
@@ -98,6 +102,10 @@ class SamplePairImpl(SamplePair):
     @property
     def chunks_b(self) -> List[str]:
         return self._chunks_b
+
+    def replace_chunks(self, chunks_a, chunks_b):
+        self._chunks_a = chunks_a
+        self._chunks_b = chunks_b
 
 
 class TextPairParser(CorpusParser):

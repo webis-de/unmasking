@@ -21,6 +21,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+from conf.interfaces import Configurable
 from input.interfaces import SamplePair
 
 from abc import ABCMeta, abstractmethod
@@ -28,7 +29,7 @@ import numpy
 from typing import Iterable, Tuple
 
 
-class ChunkSampler(metaclass=ABCMeta):
+class ChunkSampler(Configurable, metaclass=ABCMeta):
     """
     Base class for chunk samplers used for generating pairs of chunks from :class:`SamplePair`s.
 
@@ -47,7 +48,7 @@ class ChunkSampler(metaclass=ABCMeta):
         pass
 
 
-class FeatureSet(metaclass=ABCMeta):
+class FeatureSet(Configurable, metaclass=ABCMeta):
     """
     Base class for text discrimination feature sets.
 
@@ -55,7 +56,7 @@ class FeatureSet(metaclass=ABCMeta):
     can be set at runtime via job configuration.
     """
     
-    def __init__(self, pair: SamplePair, sampler: ChunkSampler):
+    def __init__(self, pair: SamplePair = None, sampler: ChunkSampler = None):
         """
         :param pair: pair of chunked texts
         :param sampler: :class:`ChunkSampler` for sampling chunks from ``pair``
@@ -67,7 +68,20 @@ class FeatureSet(metaclass=ABCMeta):
     def pair(self) -> SamplePair:
         """Pair from which this feature set has been generated."""
         return self._pair
-    
+
+    @pair.setter
+    def pair(self, pair):
+        self._pair = pair
+
+    @property
+    def chunk_sampler(self) -> ChunkSampler:
+        """Chunk sampler"""
+        return self._sampler
+
+    @chunk_sampler.setter
+    def chunk_sampler(self, sampler):
+        self._sampler = sampler
+
     @abstractmethod
     def get_features_absolute(self, n: int) -> Iterable[numpy.ndarray]:
         """
