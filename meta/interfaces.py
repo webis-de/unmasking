@@ -119,7 +119,7 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
 
         if in_data[b"version"] == 1:
             for i, clf_dict in enumerate(in_data[b"clf"]):
-                clf = self.get_configured_estimator(i)
+                clf = self.get_configured_estimator()
 
                 for k in clf_dict:
                     key = k[1:].decode("utf-8")
@@ -134,7 +134,7 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
                         clf.__dict__[key] = np.float64(clf_dict[k])
                     else:
                         clf.__dict__[key] = clf_dict[k]
-                self._clf.append(clf)
+                self._clf = clf
 
     async def save(self, output_dir: str, file_name: Optional[str] = None):
         out_dict = {
@@ -142,22 +142,21 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
             "clf": []
         }
 
-        for clf in self._clf:
-            clf_dict = {}
-            for k in clf.__dict__:
-                if isinstance(clf.__dict__[k], np.ndarray):
-                    if len(clf.__dict__[k].shape) > 1:
-                        clf_dict["m" + k] = tuple(map(tuple, clf.__dict__[k]))
-                    else:
-                        clf_dict["a" + k] = tuple(clf.__dict__[k])
-                elif isinstance(clf.__dict__[k], np.integer):
-                    clf_dict["i" + k] = int(clf.__dict__[k])
-                elif isinstance(clf.__dict__[k], np.inexact):
-                    clf_dict["f" + k] = float(clf.__dict__[k])
-                elif isinstance(clf.__dict__[k], str):
-                    clf_dict["s" + k] = clf.__dict__[k]
+        clf_dict = {}
+        for k in self._clf.__dict__:
+            if isinstance(self._clf.__dict__[k], np.ndarray):
+                if len(self._clf.__dict__[k].shape) > 1:
+                    clf_dict["m" + k] = tuple(map(tuple, self._clf.__dict__[k]))
                 else:
-                    clf_dict["t" + k] = clf.__dict__[k]
+                    clf_dict["a" + k] = tuple(self._clf.__dict__[k])
+            elif isinstance(self._clf.__dict__[k], np.integer):
+                clf_dict["i" + k] = int(self._clf.__dict__[k])
+            elif isinstance(self._clf.__dict__[k], np.inexact):
+                clf_dict["f" + k] = float(self._clf.__dict__[k])
+            elif isinstance(self._clf.__dict__[k], str):
+                clf_dict["s" + k] = self._clf.__dict__[k]
+            else:
+                clf_dict["t" + k] = self._clf.__dict__[k]
 
             out_dict["clf"].append(clf_dict)
 
