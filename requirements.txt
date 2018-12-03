@@ -3,6 +3,6 @@ matplotlib
 msgpack-python
 nltk
 numpy
-sklearn
+scikit-learn>=0.20
 scipy
 typing

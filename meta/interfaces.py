@@ -25,11 +25,13 @@ from output.interfaces import Output
 
 from abc import ABCMeta, abstractmethod
 from sklearn.base import BaseEstimator
+from sklearn.exceptions import ConvergenceWarning
 from typing import Any, Dict, Iterable, Optional
 
 import msgpack
 import numpy as np
 import os
+import warnings
 
 
 # noinspection PyPep8Naming
@@ -42,6 +44,7 @@ class MetaClassificationModel(Output, metaclass=ABCMeta):
         self._version = 1
         self._clf = None
         self._clf_params = {}
+        warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
     @abstractmethod
     def _get_estimator(self) -> BaseEstimator:

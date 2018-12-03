@@ -31,6 +31,7 @@ from typing import Any, Iterable
 
 import asyncio
 import numpy as np
+import warnings
 
 
 # noinspection PyPep8Naming
@@ -66,8 +67,10 @@ class LinearMetaClassificationModel(MetaClassificationModel):
             "loss": ["hinge", "squared_hinge"],
             "class_weight": [None, "balanced", {0: 1, 1: 2}, {0: 2, 1: 1}]
         }
-        grid = GridSearchCV(estimator, parameters, cv=5, n_jobs=-1)
-        grid.fit(X, y)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            grid = GridSearchCV(estimator, parameters, cv=5, n_jobs=-1)
+            grid.fit(X, y)
         self._clf_params = grid.best_estimator_.get_params()
 
     async def predict(self, X: Iterable[Iterable[float]]) -> np.ndarray:

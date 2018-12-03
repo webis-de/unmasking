@@ -24,7 +24,6 @@
 from features.feature_sets import FeatureSet
 from unmasking.interfaces import UnmaskingStrategy
 
-import asyncio
 import numpy
 from typing import Union
 
@@ -40,12 +39,12 @@ class FeatureRemoval(UnmaskingStrategy):
         """
         super().__init__()
         self._num_eliminate = num_eliminate
-    
+
     @property
     def eliminate(self) -> int:
         """Get number of eliminations per round"""
         return self._num_eliminate
-    
+
     @eliminate.setter
     def eliminate(self, eliminate: Union[int, str]):
         """Set number of eliminations per round"""
@@ -56,24 +55,13 @@ class FeatureRemoval(UnmaskingStrategy):
             self._iterations = self._vector_size // self._num_eliminate
         await super().run(fs)
 
-    async def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
-        """
-        Eliminate the k / 2 most significant positive and the k / 2 most significant negative features.
-        """
-        for i in range(0, self._num_eliminate):
-            if data.shape[1] == 0:
-                return data
-
+    async def transform(self, data: numpy.ndarray, coefs: numpy.ndarray) -> numpy.ndarray:
+        for i in range(self._num_eliminate):
             if i < self._num_eliminate / 2:
-                index = numpy.argmax(coef)
+                indices = numpy.argmax(coefs) if self.use_mean_coefs else numpy.argmax(numpy.max(coefs, axis=0))
             else:
-                index = numpy.argmin(coef)
-            coef = numpy.delete(coef, index)
-            data = numpy.delete(data, index, 1)
+                indices = numpy.argmin(coefs) if self.use_mean_coefs else numpy.argmin(numpy.min(coefs, axis=0))
+            coefs = numpy.delete(coefs, indices) if self.use_mean_coefs else numpy.delete(coefs, indices, axis=1)
+            data = numpy.delete(data, indices, axis=1)
 
-            if data.size == 0:
-                break
-
-            await asyncio.sleep(0)
-        
         return data

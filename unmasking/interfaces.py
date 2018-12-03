@@ -26,12 +26,13 @@ from event.dispatch import EventBroadcaster, MultiProcessEventContext
 from event.events import UnmaskingTrainCurveEvent
 from job.interfaces import Strategy
 
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_validate
 from sklearn.svm import LinearSVC
 import numpy
 
 from abc import ABCMeta, abstractmethod
 from typing import List
+import warnings
 
 
 class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
@@ -58,6 +59,7 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
         self._relative = False
         self._folds = 10
         self._monotonize = False
+        self._use_mean_coefs = True
 
     @property
     def iterations(self) -> int:
@@ -98,6 +100,16 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
     def folds(self, folds: int):
         """Set number of cross-validation folds to use for discriminating feature vectors."""
         self._folds = folds
+
+    @property
+    def use_mean_coefs(self) -> bool:
+        """Whether to use mean feature coefficients for vector transformation."""
+        return self._use_mean_coefs
+
+    @use_mean_coefs.setter
+    def use_mean_coefs(self, use_mean_coefs: bool):
+        """Set whether to use mean coefficients"""
+        self._use_mean_coefs = use_mean_coefs
 
     @property
     def monotonize(self) -> bool:
@@ -153,9 +165,11 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
                 return
 
             try:
-                clf.fit(X, y)
-                scores = cross_val_score(clf, X, y, cv=self._folds)
-                score = max(0.0, (scores.mean() - .5) * 2)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    cv = cross_validate(clf, X, y, cv=self._folds, return_estimator=True, return_train_score=False)
+                score = max(0.0, (cv['test_score'].mean() - .5) * 2)
+                cv_models = cv["estimator"]
 
                 if self._monotonize:
                     values.append(score)
@@ -163,10 +177,13 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
                     values.append(score)
                     event.values = values
 
-                if isinstance(clf.coef_, list):
-                    coef = numpy.array(clf.coef_[0])
+                if len(cv_models[0].coef_.shape) > 1:
+                    coef = numpy.array([c.coef_[0] for c in cv_models])
                 else:
-                    coef = numpy.array(clf.coef_)
+                    coef = numpy.array([c.coef_ for c in cv_models])
+
+                if self._use_mean_coefs:
+                    coef = numpy.mean(coef, axis=0)
 
                 if not self._monotonize and not self._buffer_curves:
                     await EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
@@ -212,12 +229,13 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
         return list(values_r)
 
     @abstractmethod
-    async def transform(self, data: numpy.ndarray, coef: numpy.ndarray) -> numpy.ndarray:
+    async def transform(self, data: numpy.ndarray, coefs: numpy.ndarray) -> numpy.ndarray:
         """
         Transform the input tensor according to the chosen unmasking strategy.
         
-        :param data: input rank-2 feature tensor of form [n_samples, n_features]
-        :param coef: trained feature coefficients
+        :param data: input feature matrix of shape (m_samples, n_features)
+        :param coefs: trained feature coefficients for each CV fold (of shape (k_folds, n_features)
+                      or (1, n_features) if use_mean_coefs is True)
         :return: output feature tensor (may have contain different number of features,
                  but the number of samples must be the same)
         """
