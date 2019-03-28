@@ -238,9 +238,10 @@ class AggregateExecutor(JobExecutor):
 
         start_time = time()
 
-        for res in self._unmasking_results:
-            for curve_id in res.curves:
-                for agg in self.aggregators:
+        for agg in self.aggregators:
+            agg.meta_data["input_runs"] = [f.filename for f in self._unmasking_results]
+            for res in self._unmasking_results:
+                for curve_id in res.curves:
                     try:
                         agg.add_curve(curve_id, res.curves[curve_id]['cls'], res.curves[curve_id]['values'])
                     except NotImplementedError:

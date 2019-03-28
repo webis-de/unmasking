@@ -61,6 +61,7 @@ class UnmaskingResult(Output):
         self._classes = set()
         self._classes_mapping = None
         self._inv_classes_mapping = None
+        self._filename = None
 
     @property
     def curves(self) -> Dict[str, Any]:
@@ -72,6 +73,11 @@ class UnmaskingResult(Output):
         """Get meta data as ordered dict"""
         self._meta["classes"] = sorted(self._classes)
         return self._meta
+
+    @property
+    def filename(self) -> Optional[str]:
+        """Filename of loaded configuration (if it exists)."""
+        return self._filename
 
     def add_curve(self, curve_id: str, cls: Optional[str], values: List[float],
                   files: List[Union[List[str], str]], **kwargs):
@@ -136,17 +142,17 @@ class UnmaskingResult(Output):
                 ("curves", self.curves)
             ]), f, indent=2)
 
-    def load(self, file_name: str):
+    def load(self, filename: str):
         """
         Load saved results from JSON file.
         The order of loaded curves will be preserved from the file.
 
-        :param file_name: JSON file name
+        :param filename: JSON file name
         """
-        if not os.path.isfile(file_name):
-            raise IOError("Input file '{}' does not exist.".format(file_name))
+        if not os.path.isfile(filename):
+            raise IOError("Input file '{}' does not exist.".format(filename))
 
-        with open(file_name) as f:
+        with open(filename) as f:
             json_data = json.load(f, object_pairs_hook=OrderedDict)
 
         if "meta" not in json_data:
@@ -155,6 +161,7 @@ class UnmaskingResult(Output):
         if "curves" not in json_data:
             raise ValueError("No curves section")
 
+        self._filename = filename
         self._meta = json_data["meta"]
         self._classes = set()
         if "classes" not in self._meta:

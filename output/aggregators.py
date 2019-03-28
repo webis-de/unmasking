@@ -42,10 +42,9 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         :param meta_data: dict with experiment meta data
         :param aggregate_by_class: True to aggregate by class instead of curve id
         """
+        super().__init__(meta_data)
         self._curves = {}
         self._curve_files = {}
-        self._initial_meta_data = meta_data if meta_data is not None else {}
-        self._meta_data = self._initial_meta_data
         self._classes = set()
         self._aggregate_by_class = aggregate_by_class
 
@@ -125,9 +124,6 @@ class CurveAverageAggregator(EventHandler, Aggregator):
         output = self.get_aggregated_output()
         await output.save(output_dir, file_name)
 
-    def reset(self):
-        self.__init__(self._initial_meta_data)
-
     @property
     def aggregate_by_class(self):
         """ Whether to aggregate by class (default: False, i.e. aggregate by identifier) """
@@ -136,16 +132,6 @@ class CurveAverageAggregator(EventHandler, Aggregator):
     @aggregate_by_class.setter
     def aggregate_by_class(self, agg_by_class: bool):
         self._aggregate_by_class = agg_by_class
-
-    @property
-    def meta_data(self) -> Dict[str, Any]:
-        """Get experiment meta data"""
-        return self._meta_data
-
-    @meta_data.setter
-    def meta_data(self, meta_data: Dict[str, Any]):
-        """Add experiment meta data"""
-        self._meta_data.update(meta_data)
 
 
 class AggregatedCurvePlotter(UnmaskingCurvePlotter, Aggregator):
@@ -156,6 +142,7 @@ class AggregatedCurvePlotter(UnmaskingCurvePlotter, Aggregator):
     def __init__(self, markers: Dict[SamplePairClass, Tuple[str, str, Optional[str]]] = None,
                  ylim: Tuple[float, float] = (0.5, 1.0), display: bool = False):
         super().__init__(markers, ylim, display)
+        super(Aggregator, self).__init__()
         self._aggregators = []
 
     async def handle(self, name: str, event: Event, sender: type):

@@ -65,6 +65,10 @@ class Aggregator(Output, metaclass=ABCMeta):
     This can be used for building ensembles of multiple runs.
     """
 
+    def __init__(self, meta_data: Dict[str, Any] = None):
+        self._initial_meta_data = meta_data if meta_data is not None else {}
+        self._meta_data = self._initial_meta_data
+
     @abstractmethod
     def add_curve(self, identifier: str, cls: SamplePairClass, values: List[float]):
         """
@@ -91,3 +95,16 @@ class Aggregator(Output, metaclass=ABCMeta):
         :return: configured output instance containing aggregated results
         """
         pass
+
+    def reset(self):
+        self.__init__(self._initial_meta_data)
+
+    @property
+    def meta_data(self) -> Dict[str, Any]:
+        """Get experiment meta data"""
+        return self._meta_data
+
+    @meta_data.setter
+    def meta_data(self, meta_data: Dict[str, Any]):
+        """Add experiment meta data"""
+        self._meta_data.update(meta_data)
