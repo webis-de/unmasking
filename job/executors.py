@@ -213,6 +213,49 @@ class ExpandingExecutor(JobExecutor):
         return expanded
 
 
+class AggregateExecutor(JobExecutor):
+    """
+    Executor for aggregating existing unmasking run outputs.
+
+    Events published by this class:
+
+    * `onJobFinished`: [type JobFinishedEvent]
+                       fired when the job has finished
+    """
+
+    def __init__(self, unmasking_results: List[UnmaskingResult]):
+        """
+        :param unmasking_results: loaded run output files
+        """
+        super().__init__()
+        self._unmasking_results = unmasking_results
+
+    async def run(self, conf: ConfigLoader, output_dir: str = None):
+        self._config = conf
+        self._load_aggregators(self._config.get("job.experiment.aggregators"))
+
+        job_id, output_dir = self._init_job_output(conf, output_dir)
+
+        start_time = time()
+
+        for res in self._unmasking_results:
+            for curve_id in res.curves:
+                for agg in self.aggregators:
+                    try:
+                        agg.add_curve(curve_id, res.curves[curve_id]['cls'], res.curves[curve_id]['values'])
+                    except NotImplementedError:
+                        pass
+
+        event = JobFinishedEvent(job_id, 0, self.aggregators)
+        await EventBroadcaster.publish("onJobFinished", event, self.__class__)
+
+        for aggregator in self.aggregators:
+            await aggregator.save(output_dir)
+            aggregator.reset()
+
+        print("Time taken: {:.03f} seconds.".format(time() - start_time))
+
+
 class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
     """
     Base class for meta classification executors.
