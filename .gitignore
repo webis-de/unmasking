@@ -5,6 +5,7 @@ out_meta/
 # Cache and compiled files
 *.pyc
 __pycache__/
+venv/
 
 # Project files
 .idea
