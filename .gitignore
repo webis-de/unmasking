@@ -6,6 +6,9 @@ out_meta/
 *.pyc
 __pycache__/
 venv/
+dist/
+*.egg-info/
+build/
 
 # Project files
 .idea
