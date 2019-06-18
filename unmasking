@@ -15,9 +15,9 @@
 # limitations under the License.
 
 if command -v python3 > /dev/null && [[ $(python3 --version) > "Python 3.5.99" ]]; then
-    exec python3 lib/$(basename $0).py "$@"
+    exec python3 authorship_unmasking/$(basename $0).py "$@"
 elif command -v python3.6 > /dev/null; then
-    exec python3.6 lib/$(basename $0).py "$@"
+    exec python3.6 authorship_unmasking/$(basename $0).py "$@"
 else
     echo "Minimum required Python version not satisfied. Need at least Python 3.6." >&2
     exit 1
