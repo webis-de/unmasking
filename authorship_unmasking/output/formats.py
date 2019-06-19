@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from event.events import *
-from event.interfaces import EventHandler
-from input.interfaces import SamplePairClass
-from output.interfaces import Output
+from authorship_unmasking.event.events import *
+from authorship_unmasking.event.interfaces import EventHandler
+from authorship_unmasking.input.interfaces import SamplePairClass
+from authorship_unmasking.output.interfaces import Output
 
 from collections import OrderedDict
 from random import randint

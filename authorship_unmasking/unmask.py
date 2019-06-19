@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from conf.loader import JobConfigLoader
-from event.dispatch import MultiProcessEventContext
-from job.executors import AggregateExecutor, ExpandingExecutor
-from output.formats import UnmaskingResult
-from util.util import SoftKeyboardInterrupt, base_coroutine
+from authorship_unmasking.conf.loader import JobConfigLoader
+from authorship_unmasking.event.dispatch import MultiProcessEventContext
+from authorship_unmasking.job.executors import AggregateExecutor, ExpandingExecutor
+from authorship_unmasking.output.formats import UnmaskingResult
+from authorship_unmasking.util.util import SoftKeyboardInterrupt, base_coroutine
 
 from concurrent.futures import ThreadPoolExecutor
 

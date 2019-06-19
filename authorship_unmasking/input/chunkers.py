@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from conf.interfaces import instance_property, instance_list_property
-from input.interfaces import Chunker, Tokenizer
-from input.tokenizers import CharNgramTokenizer, DisjunctCharNgramTokenizer, WordTokenizer
+from authorship_unmasking.conf.interfaces import instance_property, instance_list_property
+from authorship_unmasking.input.interfaces import Chunker, Tokenizer
+from authorship_unmasking.input.tokenizers import CharNgramTokenizer, DisjunctCharNgramTokenizer, WordTokenizer
 
 import nltk
 

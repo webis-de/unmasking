@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from features.feature_sets import FeatureSet
-from unmasking.interfaces import UnmaskingStrategy
+from authorship_unmasking.features.feature_sets import FeatureSet
+from authorship_unmasking.unmasking.interfaces import UnmaskingStrategy
 
 import numpy
 from typing import Union

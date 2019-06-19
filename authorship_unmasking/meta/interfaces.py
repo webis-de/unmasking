@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from output.interfaces import Output
+from authorship_unmasking.output.interfaces import Output
 
 from abc import ABCMeta, abstractmethod
 from sklearn.base import BaseEstimator

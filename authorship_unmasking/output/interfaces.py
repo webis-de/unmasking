@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from conf.interfaces import Configurable
-from input.interfaces import SamplePairClass
+from authorship_unmasking.conf.interfaces import Configurable
+from authorship_unmasking.input.interfaces import SamplePairClass
 
 from abc import ABCMeta, abstractmethod
 from time import time

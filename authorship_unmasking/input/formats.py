@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from conf.interfaces import path_property
-from event.dispatch import EventBroadcaster
-from event.events import PairBuildingProgressEvent, PairChunkingProgressEvent
-from input.interfaces import Chunker, SamplePair, SamplePairClass, Tokenizer
-from input.interfaces import CorpusParser
+from authorship_unmasking.conf.interfaces import path_property
+from authorship_unmasking.event.dispatch import EventBroadcaster
+from authorship_unmasking.event.events import PairBuildingProgressEvent, PairChunkingProgressEvent
+from authorship_unmasking.input.interfaces import Chunker, SamplePair, SamplePairClass, Tokenizer
+from authorship_unmasking.input.interfaces import CorpusParser
 
 import math
 import hashlib

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from input.interfaces import Tokenizer
-from util.util import lru_cache
+from authorship_unmasking.input.interfaces import Tokenizer
+from authorship_unmasking.util.util import lru_cache
 
 import nltk
 

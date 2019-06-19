@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from conf.interfaces import Configurable, path_property
-from util.util import lru_cache, get_base_path
+from authorship_unmasking.conf.interfaces import Configurable, path_property
+from authorship_unmasking.util.util import lru_cache, get_base_path
 
 from abc import ABCMeta, abstractmethod
 from enum import Enum, unique

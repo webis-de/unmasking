@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from event.interfaces import EventHandler
+from authorship_unmasking.event.interfaces import EventHandler
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor

@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from features.interfaces import FeatureSet
-from event.dispatch import EventBroadcaster, MultiProcessEventContext
-from event.events import UnmaskingTrainCurveEvent
-from job.interfaces import Strategy
+from authorship_unmasking.features.interfaces import FeatureSet
+from authorship_unmasking.event.dispatch import EventBroadcaster, MultiProcessEventContext
+from authorship_unmasking.event.events import UnmaskingTrainCurveEvent
+from authorship_unmasking.job.interfaces import Strategy
 
 from sklearn.model_selection import cross_validate
 from sklearn.svm import LinearSVC

@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from event.interfaces import Event
-from input.interfaces import SamplePair
-from output.interfaces import Aggregator
+from authorship_unmasking.event.interfaces import Event
+from authorship_unmasking.input.interfaces import SamplePair
+from authorship_unmasking.output.interfaces import Aggregator
 
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 

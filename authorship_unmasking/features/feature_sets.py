@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from conf.interfaces import instance_property, instance_list_property
-from features.interfaces import ChunkSampler, FeatureSet
-from input.interfaces import SamplePair, Tokenizer
-from input.tokenizers import WordTokenizer, CharNgramTokenizer, DisjunctCharNgramTokenizer
-from util.util import lru_cache
+from authorship_unmasking.conf.interfaces import instance_property, instance_list_property
+from authorship_unmasking.features.interfaces import ChunkSampler, FeatureSet
+from authorship_unmasking.input.interfaces import SamplePair, Tokenizer
+from authorship_unmasking.input.tokenizers import WordTokenizer, CharNgramTokenizer, DisjunctCharNgramTokenizer
+from authorship_unmasking.util.util import lru_cache
 
 from copy import deepcopy
 import numpy

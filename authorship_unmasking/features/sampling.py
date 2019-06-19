@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from features.interfaces import ChunkSampler
-from input.interfaces import SamplePair
+from authorship_unmasking.features.interfaces import ChunkSampler
+from authorship_unmasking.input.interfaces import SamplePair
 
 import random
 from typing import Iterable, Tuple

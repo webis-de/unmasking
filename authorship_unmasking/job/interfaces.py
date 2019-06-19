@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from conf.interfaces import ConfigLoader, Configurable
-from event.dispatch import EventBroadcaster
-from event.interfaces import EventHandler
-from features.interfaces import FeatureSet
-from output.interfaces import Output, Aggregator
+from authorship_unmasking.conf.interfaces import ConfigLoader, Configurable
+from authorship_unmasking.event.dispatch import EventBroadcaster
+from authorship_unmasking.event.interfaces import EventHandler
+from authorship_unmasking.features.interfaces import FeatureSet
+from authorship_unmasking.output.interfaces import Output, Aggregator
 
 from abc import abstractmethod, ABCMeta
 from importlib import import_module

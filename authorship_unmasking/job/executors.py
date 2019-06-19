@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from conf.interfaces import ConfigLoader
-from conf.loader import JobConfigLoader
-from event.dispatch import EventBroadcaster, MultiProcessEventContext
-from event.events import *
-from features.feature_sets import ChunkSampler, FeatureSet
-from job.interfaces import JobExecutor, ConfigurationExpander, Strategy
-from input.interfaces import CorpusParser, Chunker
-from meta.interfaces import MetaClassificationModel
-from output.formats import UnmaskingResult
-from util.util import clear_lru_caches
+from authorship_unmasking.conf.interfaces import ConfigLoader
+from authorship_unmasking.conf.loader import JobConfigLoader
+from authorship_unmasking.event.dispatch import EventBroadcaster, MultiProcessEventContext
+from authorship_unmasking.event.events import *
+from authorship_unmasking.features.feature_sets import ChunkSampler, FeatureSet
+from authorship_unmasking.job.interfaces import JobExecutor, ConfigurationExpander, Strategy
+from authorship_unmasking.input.interfaces import CorpusParser, Chunker
+from authorship_unmasking.meta.interfaces import MetaClassificationModel
+from authorship_unmasking.output.formats import UnmaskingResult
+from authorship_unmasking.util.util import clear_lru_caches
 
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict

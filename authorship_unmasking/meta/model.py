@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from meta.interfaces import MetaClassificationModel
+from authorship_unmasking.meta.interfaces import MetaClassificationModel
 
 from concurrent.futures import ThreadPoolExecutor
 from sklearn.base import BaseEstimator

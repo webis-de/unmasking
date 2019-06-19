@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from util.util import get_base_path
+from authorship_unmasking.util.util import get_base_path
 
 from abc import abstractmethod, ABCMeta
 import os

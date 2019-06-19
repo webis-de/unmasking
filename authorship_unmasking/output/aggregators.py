@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from event.events import *
-from event.interfaces import EventHandler, Event
-from input.interfaces import SamplePairClass
-from output.formats import UnmaskingResult, UnmaskingCurvePlotter
-from output.interfaces import Aggregator, Output
+from authorship_unmasking.event.events import *
+from authorship_unmasking.event.interfaces import EventHandler, Event
+from authorship_unmasking.input.interfaces import SamplePairClass
+from authorship_unmasking.output.formats import UnmaskingResult, UnmaskingCurvePlotter
+from authorship_unmasking.output.interfaces import Aggregator, Output
 
 from typing import Dict, Any, List, Tuple, Optional
 
