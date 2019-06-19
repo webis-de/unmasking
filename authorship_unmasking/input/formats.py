@@ -12,19 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from conf.interfaces import path_property
 from event.dispatch import EventBroadcaster
 from event.events import PairBuildingProgressEvent, PairChunkingProgressEvent
 from input.interfaces import Chunker, SamplePair, SamplePairClass, Tokenizer
 from input.interfaces import CorpusParser
 
 import math
+import hashlib
 import os
 import random
 import re
 import xml.etree.ElementTree as etree
 from glob import glob
 from itertools import combinations, combinations_with_replacement
-from typing import Callable, AsyncGenerator, List, Optional
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 from uuid import uuid5
 
@@ -97,6 +99,69 @@ class SamplePairImpl(SamplePair):
     def replace_chunks(self, chunks_a, chunks_b):
         self._chunks_a = chunks_a
         self._chunks_b = chunks_b
+
+
+class TextListParser(CorpusParser):
+    """
+    Parser for generating all possible combinations of text pairs from a Python list of input texts.
+    The input is expected to be a dict mapping author IDs to texts. A `None` key can be used
+    to map texts with unknown / unspecified authorship.
+
+    This parser is meant for programmatic API usage and does not read any actual files.
+
+    Events published by this class:
+
+    * `onPairGenerated`: [type PairBuildingProgressEvent]
+                         fired when a pair has been generated
+    """
+
+    class Class(SamplePairClass):
+        UNSPECIFIED = -1
+        DIFFERENT_AUTHORS = 0
+        SAME_AUTHOR = 1
+
+    def __init__(self, chunk_tokenizer: Tokenizer, text_dict: Dict[Any, str] = None):
+        super().__init__(chunk_tokenizer, None)
+
+        self._text_dict = text_dict
+        self._input_authors = {}
+
+    @path_property
+    def corpus_path(self):
+        return None
+
+    @property
+    def text_dict(self) -> Dict[Any, str]:
+        return self._text_dict
+
+    @text_dict.setter
+    def text_dict(self, text_list: Dict[Any, str]):
+        self._text_dict = text_list
+
+    async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
+        texts = []
+        for a in self._text_dict:
+            texts.extend([(a, t, hashlib.sha1(t.encode('utf-8')).hexdigest()) for t in self._text_dict[a]])
+
+        num_combinations = math.factorial(len(texts)) // 2 // math.factorial(len(texts) - 2)
+
+        for pair_num, (t1, t2) in enumerate(combinations(texts, 2)):
+            if t1[0] is None or t2[0] is None:
+                cls = self.Class.UNSPECIFIED
+            elif t1[0] == t2[0]:
+                cls = self.Class.SAME_AUTHOR
+            else:
+                cls = self.Class.DIFFERENT_AUTHORS
+
+            pair = SamplePairImpl(cls, self.chunk_tokenizer)
+            await pair.chunk([t1[1]], [t2[1]])
+
+            group_id = PairBuildingProgressEvent.generate_group_id([t1[2], t2[2]])
+            await EventBroadcaster.publish("onPairGenerated",
+                                           PairBuildingProgressEvent(group_id, pair_num, num_combinations,
+                                                                     pair, [t1[2]], [t2[2]]),
+                                           self.__class__)
+            yield pair
 
 
 class TextPairParser(CorpusParser):

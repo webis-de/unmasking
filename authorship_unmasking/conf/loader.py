@@ -15,7 +15,7 @@
 from conf.interfaces import ConfigLoader
 from util.util import get_base_path
 
-from typing import Any, Dict
+from typing import Any, Dict, Union
 import os
 import yaml
 
@@ -54,14 +54,14 @@ class YamlLoader(ConfigLoader):
 
         return cfg
 
-    def load(self, filename: str):
-        with open(filename, 'r') as f:
-            cfg = yaml.safe_load(f)
+    def load(self, cfg: Union[str, Dict[str, Any]]):
+        if type(cfg) is str:
+            self._config_dir = os.path.realpath(os.path.dirname(cfg))
+            cfg = yaml.safe_load(open(cfg, 'r'))
 
         if type(cfg) is not dict:
-            raise RuntimeError("Invalid configuration file")
+            raise RuntimeError("Invalid configuration")
 
-        self._config_dir = os.path.realpath(os.path.dirname(filename))
         self._config = self._parse_dot_notation(cfg)
 
     def set(self, cfg: Dict[str, Any]):

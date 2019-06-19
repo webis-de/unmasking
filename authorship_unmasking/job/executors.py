@@ -93,14 +93,15 @@ class ExpandingExecutor(JobExecutor):
             await EventBroadcaster.publish("onJobFinished", event, self.__class__)
 
             for aggregator in self.aggregators:
-                await aggregator.save(output_dir)
+                if output_dir:
+                    await aggregator.save(output_dir)
                 aggregator.reset()
         finally:
             executor.shutdown()
             print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
     async def _run_configuration(self, executor: Executor, config_index: int, vector: Tuple,
-                                 config_variables: Tuple[str], job_id: str, output_dir: str):
+                                 config_variables: Tuple[str], job_id: str, output_dir: str = None):
         """
         Run a single configuration in multiple parallel processes.
 
@@ -111,13 +112,18 @@ class ExpandingExecutor(JobExecutor):
         :param job_id: string id of the running job
         :param output_dir: output directory
         """
+        config_output_dir = None
+
         if vector:
-            config_output_dir = os.path.join(output_dir, "config_{:05d}".format(config_index))
+            if output_dir:
+                config_output_dir = os.path.join(output_dir, "config_{:05d}".format(config_index))
+                os.makedirs(config_output_dir)
             cfg = JobConfigLoader(self._expand_dict(self._config.get(), config_variables, vector))
-            os.makedirs(config_output_dir)
-            cfg.save(os.path.join(config_output_dir, "job_expanded"))
+            if config_output_dir:
+                cfg.save(os.path.join(config_output_dir, "job_expanded"))
         else:
-            config_output_dir = output_dir
+            if output_dir:
+                config_output_dir = output_dir
             cfg = JobConfigLoader(self._config.get())
 
         chunk_tokenizer = self._configure_instance(cfg.get("job.input.chunker"), Chunker)
@@ -140,7 +146,8 @@ class ExpandingExecutor(JobExecutor):
                 await asyncio.wait(futures)
 
             for output in self.outputs:
-                await output.save(config_output_dir)
+                if config_output_dir:
+                    await output.save(config_output_dir)
                 output.reset()
 
         clear_lru_caches()

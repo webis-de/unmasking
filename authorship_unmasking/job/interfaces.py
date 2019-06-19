@@ -21,7 +21,7 @@ from output.interfaces import Output, Aggregator
 from abc import abstractmethod, ABCMeta
 from importlib import import_module
 from time import time
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import os
 import yaml
@@ -47,7 +47,7 @@ class JobExecutor(metaclass=ABCMeta):
         """Get configured aggregators"""
         return self._aggregators
 
-    def _init_job_output(self, conf: ConfigLoader, output_dir: str = None) -> Tuple[str, str]:
+    def _init_job_output(self, conf: ConfigLoader, output_dir: str = None) -> Tuple[str, Optional[str]]:
         """
         Initialize job output directory and return job ID.
         If `output_dir` is not set, the `job.output_dir` directive provided by
@@ -58,18 +58,20 @@ class JobExecutor(metaclass=ABCMeta):
         :return: tuple of generated job ID and absolute output directory path
         """
         job_id = "job_" + str(int(time()))
-        output_dir = conf.get("job.output_dir") if not output_dir else output_dir
-        if not os.path.isabs(output_dir):
-            output_dir = os.path.join(conf.get_config_path(), output_dir)
 
-        output_dir = os.path.relpath(os.path.join(output_dir, job_id))
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        if output_dir:
+            output_dir = conf.get("job.output_dir") if not output_dir else output_dir
+            if not os.path.isabs(output_dir):
+                output_dir = os.path.join(conf.get_config_path(), output_dir)
 
-        if not os.path.isdir(output_dir):
-            raise IOError("Failed to create output directory '{}', maybe it exists already?".format(output_dir))
+            output_dir = os.path.relpath(os.path.join(output_dir, job_id))
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
 
-        conf.save(os.path.join(output_dir, "job"))
+            if not os.path.isdir(output_dir):
+                raise IOError("Failed to create output directory '{}', maybe it exists already?".format(output_dir))
+
+            conf.save(os.path.join(output_dir, "job"))
 
         return job_id, output_dir
 

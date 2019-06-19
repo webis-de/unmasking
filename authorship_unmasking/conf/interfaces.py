@@ -16,17 +16,17 @@ from util.util import get_base_path
 
 from abc import abstractmethod, ABCMeta
 import os
-import sys
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 
 class ConfigLoader(metaclass=ABCMeta):
     @abstractmethod
-    def load(self, filename: str):
+    def load(self, cfg: Union[str, Dict[str, Any]]):
         """
         Load configuration from given file.
+        It is also possible to pass a dict containing the configuration directives and their values.
 
-        :param filename: configuration file name
+        :param cfg: configuration file name or pre-parsed config dict
         """
         pass
 
