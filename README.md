@@ -27,13 +27,13 @@ please have a look at their contents as well.
 
 ### Unmasking
 
-To generate unmasking curve plots, use the `unmasking` tool with the `run` command. This will
+To generate unmasking curve plots, use the `unmask` tool with the `run` command. This will
 parse the given job configuration and generate unmasking curves on the provided input data.
 The job's output is saved to an `out` folder next to the job configuration.
 
 **Example:**
 
-    ./unmasking run examples/gutenberg_test/job.yml
+    ./unmask run examples/gutenberg_test/job.yml
 
 Output will be saved to `examples/gutenberg_test/out`.
 
@@ -42,14 +42,14 @@ raw numbers as JSON, as well as an average aggregation of all individual paramet
 configurations (see the example job configuration file for more details). If you only want
 to aggregate existing runs, use
 
-    ./unmasking aggregate JSON_FILE [JSON_FILE ...]
+    ./unmask aggregate JSON_FILE [JSON_FILE ...]
 
 where `JSON_FILE` is the generated raw JSON file of one or more existing runs.
 
 For a full list of all parameters, specify the `-h` flag:
 
-    ./unmasking run -h
-    ./unmasking aggregate -h
+    ./unmask run -h
+    ./unmask aggregate -h
 
 ### Meta Classification
 
