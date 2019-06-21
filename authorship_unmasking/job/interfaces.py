@@ -59,8 +59,8 @@ class JobExecutor(metaclass=ABCMeta):
         """
         job_id = "job_" + str(int(time()))
 
+        output_dir = conf.get("job.output_dir") if not output_dir else output_dir
         if output_dir:
-            output_dir = conf.get("job.output_dir") if not output_dir else output_dir
             if not os.path.isabs(output_dir):
                 output_dir = os.path.join(conf.get_config_path(), output_dir)
 
