@@ -67,6 +67,16 @@ class YamlLoader(ConfigLoader):
     def set(self, cfg: Dict[str, Any]):
         self._config = cfg
 
+    def set_option(self, name, value):
+        name = name.split('.')
+        cfg = self._config
+        n = name[0]
+        for i in range(len(name) - 1):
+            cfg = cfg[n]
+            n = name[i + 1]
+
+        cfg[n] = value
+
     def _parse_dot_notation(self, cfg: Dict[str, Any]) -> Dict[str, Any]:
         parsed_cfg = {}
         for i in cfg:
@@ -122,7 +132,16 @@ class JobConfigLoader(YamlLoader):
     def set(self, cfg: Dict[str, Any]):
         super().set(cfg)
         self._config.update(self._resolve_inheritance(self._config))
-    
+
+    def update(self, cfg: Dict[str, Any]):
+        """
+        Update configuration from a dict.
+        Unlike `JobConfigLoader.get().update()`, this resolves inheritance.
+
+        :param cfg: update dict
+        """
+        self._config.update(self._resolve_inheritance(cfg))
+
     def _resolve_inheritance(self, d: Dict[str, Any], path: str = ""):
         for k in d:
             if k.endswith("%"):

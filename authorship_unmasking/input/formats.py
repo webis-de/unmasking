@@ -131,11 +131,11 @@ class TextListParser(CorpusParser):
         return None
 
     @property
-    def text_dict(self) -> Dict[Any, str]:
+    def texts(self) -> Dict[Any, str]:
         return self._text_dict
 
-    @text_dict.setter
-    def text_dict(self, text_list: Dict[Any, str]):
+    @texts.setter
+    def texts(self, text_list: Dict[Any, str]):
         self._text_dict = text_list
 
     async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:

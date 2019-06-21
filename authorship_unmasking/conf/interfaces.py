@@ -40,6 +40,16 @@ class ConfigLoader(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def set_option(self, name, value):
+        """
+        Set configuration option value
+
+        :param name: full config option name
+        :param value: option value
+        """
+        pass
+
+    @abstractmethod
     def get(self, name: str = None) -> Any:
         """
         Get configuration option.
