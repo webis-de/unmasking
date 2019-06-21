@@ -65,7 +65,7 @@ def get_base_path():
 
     :return: absolute path to application directory
     """
-    return os.path.realpath(os.path.join(os.path.dirname(sys.argv[0]), '..'))
+    return os.path.realpath(os.path.join(os.path.dirname(__file__), '../..'))
 
 
 class SoftKeyboardInterrupt(Exception):

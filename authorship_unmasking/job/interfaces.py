@@ -83,7 +83,12 @@ class JobExecutor(metaclass=ABCMeta):
         :return: class
         """
         modules = name.split(".")
-        return getattr(import_module(".".join(modules[0:-1])), modules[-1])
+        mod_path = ".".join(modules[0:-1])
+        mod_name = modules[-1]
+        try:
+            return getattr(import_module(mod_path), mod_name)
+        except ModuleNotFoundError:
+            return getattr(import_module('authorship_unmasking.' + mod_path), mod_name)
 
     def _configure_instance(self, cfg: Dict[str, Any], assert_type: type = None, ctr_args: Iterable[Any] = None):
         """
