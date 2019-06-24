@@ -154,7 +154,7 @@ class TextListParser(CorpusParser):
 
             group_id = PairBuildingProgressEvent.generate_group_id([t1[2], t2[2]])
             await EventBroadcaster.publish("onPairGenerated",
-                                           PairBuildingProgressEvent(group_id, pair_num, num_combinations,
+                                           PairBuildingProgressEvent(group_id, pair_num + 1, num_combinations,
                                                                      pair, [t1[2]], [t2[2]]),
                                            self.__class__)
             yield pair
