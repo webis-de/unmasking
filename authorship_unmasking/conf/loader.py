@@ -65,7 +65,7 @@ class YamlLoader(ConfigLoader):
         self._config = self._parse_dot_notation(cfg)
 
     def set(self, cfg: Dict[str, Any]):
-        self._config = cfg
+        self._config = self._parse_dot_notation(cfg)
 
     def set_option(self, name, value):
         name = name.split('.')
@@ -127,11 +127,11 @@ class JobConfigLoader(YamlLoader):
 
     def load(self, filename: str):
         super().load(filename)
-        self._config.update(self._resolve_inheritance(self._config))
+        self._config.update(self._resolve_inheritance(self._config, self._default_config))
 
     def set(self, cfg: Dict[str, Any]):
         super().set(cfg)
-        self._config.update(self._resolve_inheritance(self._config))
+        self._config.update(self._resolve_inheritance(self._config, self._default_config))
 
     def update(self, cfg: Dict[str, Any]):
         """
@@ -140,9 +140,9 @@ class JobConfigLoader(YamlLoader):
 
         :param cfg: update dict
         """
-        self._config.update(self._resolve_inheritance(cfg))
+        self._config.update(self._resolve_inheritance(self._parse_dot_notation(cfg), self))
 
-    def _resolve_inheritance(self, d: Dict[str, Any], path: str = ""):
+    def _resolve_inheritance(self, d: Dict[str, Any], default: ConfigLoader, path: str = ""):
         for k in d:
             if k.endswith("%"):
                 t = type(d[k])
@@ -152,18 +152,18 @@ class JobConfigLoader(YamlLoader):
                     raise KeyError("Config option '{}' is of non-inheritable type {}".format(p, t))
                 
                 try:
-                    inherit = self._default_config.get(p)
+                    inherit = default.get(p)
                 except KeyError:
                     raise KeyError("Config option '{}' has no inheritable defaults".format(p))
                 
                 d[k[0:-1]] = inherit
                 if t is dict:
-                    d[k[0:-1]].update(self._resolve_inheritance(d[k], p))
+                    d[k[0:-1]].update(self._resolve_inheritance(d[k], default, p))
                 elif t is list:
                     d[k[0:-1]].extend(d[k])
                 
                 del d[k]
             elif type(d[k]) is dict:
-                d[k] = self._resolve_inheritance(d[k], path + "." + k if path != "" else k)
+                d[k] = self._resolve_inheritance(d[k], default, path + "." + k if path != "" else k)
 
         return d

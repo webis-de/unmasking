@@ -182,7 +182,7 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
 
                 if i < self._iterations - 1:
                     X = await self.transform(X, coef)
-                    if not X:
+                    if X.size == 0:
                         # Nothing to do anymore
                         break
             except ValueError:

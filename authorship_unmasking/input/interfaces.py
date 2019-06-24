@@ -233,10 +233,7 @@ class CorpusParser(Configurable, metaclass=ABCMeta):
     @corpus_path.setter
     def corpus_path(self, path: str):
         """Set corpus path"""
-        if path is not None:
-            self._corpus_path = os.path.join(get_base_path(), path)
-        else:
-            self._corpus_path = None
+        self._corpus_path = os.path.join(get_base_path(), path) if path is not None else None
 
     @abstractmethod
     async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:

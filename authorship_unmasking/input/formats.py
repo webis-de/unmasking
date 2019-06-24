@@ -120,23 +120,19 @@ class TextListParser(CorpusParser):
         DIFFERENT_AUTHORS = 0
         SAME_AUTHOR = 1
 
-    def __init__(self, chunk_tokenizer: Tokenizer, text_dict: Dict[Any, str] = None):
+    def __init__(self, chunk_tokenizer: Tokenizer, text_dict: Dict[Any, List[str]] = None):
         super().__init__(chunk_tokenizer, None)
 
         self._text_dict = text_dict
         self._input_authors = {}
 
-    @path_property
-    def corpus_path(self):
-        return None
-
     @property
-    def texts(self) -> Dict[Any, str]:
+    def texts(self) -> Dict[Any, List[str]]:
         return self._text_dict
 
     @texts.setter
-    def texts(self, text_list: Dict[Any, str]):
-        self._text_dict = text_list
+    def texts(self, texts: Dict[Any, List[str]]):
+        self._text_dict = texts
 
     async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
         texts = []

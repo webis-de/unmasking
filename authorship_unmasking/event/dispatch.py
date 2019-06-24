@@ -42,7 +42,7 @@ class EventBroadcaster:
             cls.__subscribers[event_name] = []
 
         cls.__subscribers[event_name].append((senders, handler))
-    
+
     @classmethod
     def unsubscribe(cls, event_name: str, handler, senders: Set[type] = None):
         """
@@ -57,7 +57,7 @@ class EventBroadcaster:
 
         for e in cls.__subscribers:
             cls.__subscribers[e] = [i for i in cls.__subscribers[e] if i != (senders, handler)]
-    
+
     @classmethod
     async def publish(cls, event_name: str, event: Event, sender: type):
         """
@@ -71,7 +71,9 @@ class EventBroadcaster:
         :param event: event to publish, which must have its :attr:`Event.name` property set
         :param sender: ``__class__`` type object of the sending class or object
         """
-        if current_process().name != "MainProcess" or current_thread().name != "MainThread":
+        if current_process().name != MultiProcessEventContext.main_process_name \
+                or current_thread().name != MultiProcessEventContext.main_thread_name:
+
             if MultiProcessEventContext.terminate_event.is_set():
                 # application is about to terminate, don't accept any new events from workers
                 return
@@ -95,6 +97,8 @@ class _MultiProcessEventContextType(type):
 
     queue = JoinableQueue()
     terminate_event = Event()
+    main_process_name = None
+    main_thread_name = None
 
     _initialized = False
 
@@ -105,9 +109,10 @@ class _MultiProcessEventContextType(type):
 
         if self._initialized:
             return
+            # raise RuntimeError("MultiProcessEventContext already initialized")
 
-        if current_process().name != "MainProcess" and current_thread().name != "MainThread":
-            raise RuntimeError("MultiProcessEventContext must only be opened from main process / thread")
+        self.main_process_name = current_process().name
+        self.main_thread_name = current_thread().name
 
         self._initialized = True
         self.terminate_event.clear()
