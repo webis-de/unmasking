@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from authorship_unmasking.event.dispatch import MultiProcessEventContext
+
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import functools
 import os
-import sys
-
 
 __cached_functions = []
 __protected_cached_functions = []
@@ -90,3 +92,27 @@ async def base_coroutine(cr):
         return await cr
     except KeyboardInterrupt as k:
         raise SoftKeyboardInterrupt() from k
+
+
+def run_in_event_loop(executor, config_loader, output_dir=None):
+    """
+    Run executor in event loop.
+
+    :param executor: executor to run
+    :param config_loader: initialized config loader
+    :param output_dir: optional output directory
+    """
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=os.cpu_count()))
+    try:
+        future = asyncio.ensure_future(base_coroutine(executor.run(config_loader, output_dir)))
+        loop.run_until_complete(future)
+    finally:
+        loop.run_until_complete(base_coroutine(loop.shutdown_asyncgens()))
+        loop.stop()
+        MultiProcessEventContext.cleanup()
