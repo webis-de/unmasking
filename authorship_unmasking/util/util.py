@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from authorship_unmasking.event.dispatch import MultiProcessEventContext
-
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import functools
@@ -103,8 +101,10 @@ def run_in_event_loop(executor, config_loader, output_dir=None):
     :param output_dir: optional output directory
     """
     try:
+        stop_when_done = False
         loop = asyncio.get_event_loop()
     except RuntimeError:
+        stop_when_done = True
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
@@ -114,5 +114,5 @@ def run_in_event_loop(executor, config_loader, output_dir=None):
         loop.run_until_complete(future)
     finally:
         loop.run_until_complete(base_coroutine(loop.shutdown_asyncgens()))
-        loop.stop()
-        MultiProcessEventContext.cleanup()
+        if stop_when_done:
+            loop.stop()

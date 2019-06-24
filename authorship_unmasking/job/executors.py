@@ -84,20 +84,20 @@ class ExpandingExecutor(JobExecutor):
         self._config.set(config_dict)
 
         start_time = time()
-        executor = ProcessPoolExecutor()
         try:
-            for config_index, vector in enumerate(expanded_vectors):
-                await self._run_configuration(executor, config_index, vector, config_variables, job_id, output_dir)
+            with ProcessPoolExecutor() as executor:
+                for config_index, vector in enumerate(expanded_vectors):
+                    await self._run_configuration(executor, config_index, vector, config_variables, job_id, output_dir)
 
-            event = JobFinishedEvent(job_id, 0, self.aggregators)
-            await EventBroadcaster.publish("onJobFinished", event, self.__class__)
+                event = JobFinishedEvent(job_id, 0, self.aggregators)
+                await EventBroadcaster.publish("onJobFinished", event, self.__class__)
 
-            for aggregator in self.aggregators:
-                if output_dir:
-                    await aggregator.save(output_dir)
-                aggregator.reset()
+                for aggregator in self.aggregators:
+                    if output_dir:
+                        await aggregator.save(output_dir)
+                    aggregator.reset()
         finally:
-            executor.shutdown()
+            MultiProcessEventContext.cleanup()
             print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
     async def _run_configuration(self, executor: Executor, config_index: int, vector: Tuple,

@@ -188,7 +188,7 @@ class MultiProcessEventContext(metaclass=_MultiProcessEventContextType):
         Cleanup method to ensure all event queues are cleared and worker processes
         are signaled to shut down.
 
-        This method should be called once when shutting down the application.
+        This method should be called once when a job is finished.
         """
         # noinspection PyProtectedMember
         if MultiProcessEventContext._initialized:
@@ -202,4 +202,8 @@ class MultiProcessEventContext(metaclass=_MultiProcessEventContextType):
         except Empty:
             pass
 
+        # Quit any workers still waiting for the queue
         MultiProcessEventContext.queue.put(None)
+
+        while not MultiProcessEventContext.queue.empty():
+            MultiProcessEventContext.queue.get(False)
