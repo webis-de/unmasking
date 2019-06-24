@@ -104,7 +104,7 @@ def main():
     else:
         raise RuntimeError("Invalid sub command: {}".format(args.command))
 
-    run_in_event_loop(executor, config_loader, args.output)
+    run_in_event_loop(executor.run(config_loader, args.output))
 
     if args.wait:
         input("Press enter to terminate...")

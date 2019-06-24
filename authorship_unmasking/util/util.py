@@ -92,13 +92,11 @@ async def base_coroutine(cr):
         raise SoftKeyboardInterrupt() from k
 
 
-def run_in_event_loop(executor, config_loader, output_dir=None):
+def run_in_event_loop(coroutine):
     """
-    Run executor in event loop.
+    Wrap and run coroutine in event loop.
 
-    :param executor: executor to run
-    :param config_loader: initialized config loader
-    :param output_dir: optional output directory
+    :param coroutine: coroutine to run in the event loop
     """
     try:
         stop_when_done = False
@@ -110,7 +108,7 @@ def run_in_event_loop(executor, config_loader, output_dir=None):
 
     loop.set_default_executor(ThreadPoolExecutor(max_workers=os.cpu_count()))
     try:
-        future = asyncio.ensure_future(base_coroutine(executor.run(config_loader, output_dir)))
+        future = asyncio.ensure_future(base_coroutine(coroutine))
         loop.run_until_complete(future)
     finally:
         loop.run_until_complete(base_coroutine(loop.shutdown_asyncgens()))
