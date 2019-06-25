@@ -83,22 +83,18 @@ class ExpandingExecutor(JobExecutor):
         config_dict["job"]["experiment"]["configurations"] = []
         self._config.set(config_dict)
 
-        start_time = time()
-        try:
-            with ProcessPoolExecutor() as executor:
+        with ProcessPoolExecutor() as executor:
+            async with MultiProcessEventContext():
                 for config_index, vector in enumerate(expanded_vectors):
                     await self._run_configuration(executor, config_index, vector, config_variables, job_id, output_dir)
 
                 event = JobFinishedEvent(job_id, 0, self.aggregators)
-                await EventBroadcaster.publish("onJobFinished", event, self.__class__)
+                await EventBroadcaster().publish("onJobFinished", event, self.__class__)
 
                 for aggregator in self.aggregators:
                     if output_dir:
                         await aggregator.save(output_dir)
                     aggregator.reset()
-        finally:
-            MultiProcessEventContext.cleanup()
-            print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
     async def _run_configuration(self, executor: Executor, config_index: int, vector: Tuple,
                                  config_variables: Tuple[str], job_id: str, output_dir: str = None):
@@ -134,16 +130,15 @@ class ExpandingExecutor(JobExecutor):
 
         loop = asyncio.get_event_loop()
         for _ in range(repetitions):
-            async with MultiProcessEventContext:
-                futures = []
+            futures = []
 
-                async for pair in parser:
-                    feature_set = self._configure_instance(
-                        cfg.get("job.classifier.feature_set"), FeatureSet, (pair, sampler))
-                    futures.append(loop.run_in_executor(executor, self._exec, strat, feature_set))
-                    await asyncio.sleep(0)
+            async for pair in parser:
+                feature_set = self._configure_instance(
+                    cfg.get("job.classifier.feature_set"), FeatureSet, (pair, sampler))
+                futures.append(loop.run_in_executor(executor, self._exec, strat, feature_set))
+                await asyncio.sleep(0)
 
-                await asyncio.wait(futures)
+            await asyncio.wait(futures)
 
             for output in self.outputs:
                 if config_output_dir:
@@ -153,7 +148,7 @@ class ExpandingExecutor(JobExecutor):
         clear_lru_caches()
 
         event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
-        await EventBroadcaster.publish("onConfigurationFinished", event, self.__class__)
+        await EventBroadcaster().publish("onConfigurationFinished", event, self.__class__)
 
     @staticmethod
     def _exec(strat: Strategy, feature_set: FeatureSet):
@@ -246,7 +241,7 @@ class AggregateExecutor(JobExecutor):
                         pass
 
         event = JobFinishedEvent(job_id, 0, self.aggregators)
-        await EventBroadcaster.publish("onJobFinished", event, self.__class__)
+        await EventBroadcaster().publish("onJobFinished", event, self.__class__)
 
         for aggregator in self.aggregators:
             await aggregator.save(output_dir)
@@ -280,7 +275,7 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
         try:
             await self._exec(job_id, output_dir)
             event = JobFinishedEvent(job_id, 0, [])
-            await EventBroadcaster.publish("onJobFinished", event, self.__class__)
+            await EventBroadcaster().publish("onJobFinished", event, self.__class__)
 
             for output in self.outputs:
                 await output.save(output_dir)
@@ -318,7 +313,7 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
 
         y = [unmasking.numpy_label_to_str(l) for l in y]
         event = ModelFitEvent(input_path, 0, X, y)
-        await EventBroadcaster.publish("onModelFit", event, self.__class__)
+        await EventBroadcaster().publish("onModelFit", event, self.__class__)
 
     @staticmethod
     def c_at_1_score(y_true: Union[List[float], np.ndarray], y_pred: Union[List[float], np.ndarray]):
@@ -485,7 +480,7 @@ class MetaApplyExecutor(MetaClassificationExecutor):
         X_filtered = [x for i, x in enumerate(X) if y[i] > -1]
         y_filtered = [self._test_data.numpy_label_to_str(l) for l in y if l > -1]
         event = ModelPredictEvent(job_id, 0, X_filtered, y_filtered, False)
-        await EventBroadcaster.publish("onDataPredicted", event, self.__class__)
+        await EventBroadcaster().publish("onDataPredicted", event, self.__class__)
 
         await self._test_data.save(output_dir)
 
@@ -553,7 +548,7 @@ class MetaEvalExecutor(MetaApplyExecutor):
         self._test_data.meta["metrics"] = metrics
 
         event = ModelMetricsEvent(job_id, 0, X_filtered, y_actual_str, True, metrics)
-        await EventBroadcaster.publish("onDataPredicted", event, self.__class__)
+        await EventBroadcaster().publish("onDataPredicted", event, self.__class__)
 
         await self._test_data.save(output_dir)
 
@@ -612,9 +607,9 @@ class MetaModelSelectionExecutor(MetaClassificationExecutor):
                 best_model = (cv_score, agg, conf_folder)
 
             event = UnmaskingModelEvaluatedEvent(job_id, 0, conf_folder, cv_score)
-            await EventBroadcaster.publish("onUnmaskingModelEvaluated", event, self.__class__)
+            await EventBroadcaster().publish("onUnmaskingModelEvaluated", event, self.__class__)
 
         event = UnmaskingModelSelectedEvent(job_id, 0, best_model[2], best_model[0],
                                             best_model[1].get_aggregated_output())
-        await EventBroadcaster.publish("onUnmaskingModelSelected", event, self.__class__)
+        await EventBroadcaster().publish("onUnmaskingModelSelected", event, self.__class__)
         await best_model[1].save(output_dir)

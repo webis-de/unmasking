@@ -154,7 +154,7 @@ class JobExecutor(metaclass=ABCMeta):
             senders = None
             if "senders" in event and type(event["senders"]) is list:
                 senders = {self._load_class(s) if type(s) is str else s for s in event["senders"]}
-            EventBroadcaster.subscribe(event["name"], obj, senders)
+            EventBroadcaster().subscribe(event["name"], obj, senders)
 
     def _load_outputs(self, outputs: List[Dict[str, Any]]):
         """

@@ -152,7 +152,7 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
         event = UnmaskingTrainCurveEvent(group_id, 0, self._iterations, fs.pair, fs.__class__)
         values = []
         for i in range(self._iterations):
-            if MultiProcessEventContext.terminate_event.is_set():
+            if MultiProcessEventContext().terminate_event.is_set():
                 return
 
             try:
@@ -177,7 +177,7 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
                     coef = numpy.mean(coef, axis=0)
 
                 if not self._monotonize and not self._buffer_curves:
-                    await EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
+                    await EventBroadcaster().publish("onUnmaskingRoundFinished", event, self.__class__)
                     event = UnmaskingTrainCurveEvent.new_event(event)
 
                 if i < self._iterations - 1:
@@ -191,9 +191,9 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
         if self._monotonize:
             event.values = self._do_monotonize(values)
         if self._monotonize or self._buffer_curves:
-            await EventBroadcaster.publish("onUnmaskingRoundFinished", event, self.__class__)
+            await EventBroadcaster().publish("onUnmaskingRoundFinished", event, self.__class__)
         event = UnmaskingTrainCurveEvent.new_event(event)
-        await EventBroadcaster.publish("onUnmaskingFinished", event, self.__class__)
+        await EventBroadcaster().publish("onUnmaskingFinished", event, self.__class__)
 
     def _do_monotonize(self, values: List[float]):
         # monotonize from the left

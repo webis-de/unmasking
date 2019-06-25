@@ -59,19 +59,19 @@ class SamplePairImpl(SamplePair):
         total_events = len(a) + len(b)
         self._progress_event = PairChunkingProgressEvent(group_id, 0, total_events)
 
-        await EventBroadcaster.publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
+        await EventBroadcaster().publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
 
         for text in a:
             async for tokens in self._chunker.await_chunks(text):
                 self._chunks_a.append(tokens)
             self._progress_event = PairChunkingProgressEvent.new_event(self._progress_event)
-            await EventBroadcaster.publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
+            await EventBroadcaster().publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
 
         for text in b:
             async for tokens in self._chunker.await_chunks(text):
                 self._chunks_b.append(tokens)
             self._progress_event = PairChunkingProgressEvent.new_event(self._progress_event)
-            await EventBroadcaster.publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
+            await EventBroadcaster().publish("onChunkingProgress", self._progress_event, self.__class__.__bases__[0])
 
     @property
     def cls(self) -> type:
@@ -153,7 +153,7 @@ class TextListParser(CorpusParser):
             await pair.chunk([t1[1]], [t2[1]])
 
             group_id = PairBuildingProgressEvent.generate_group_id([t1[2], t2[2]])
-            await EventBroadcaster.publish("onPairGenerated",
+            await EventBroadcaster().publish("onPairGenerated",
                                            PairBuildingProgressEvent(group_id, pair_num + 1, num_combinations,
                                                                      pair, [t1[2]], [t2[2]]),
                                            self.__class__)
@@ -243,7 +243,7 @@ class TextPairParser(CorpusParser):
             await pair.chunk([f1_contents], [f2_contents])
 
             group_id = PairBuildingProgressEvent.generate_group_id(["a:" + f1] + ["b:" + f2])
-            await EventBroadcaster.publish("onPairGenerated",
+            await EventBroadcaster().publish("onPairGenerated",
                                            PairBuildingProgressEvent(group_id, pair_num, num_combinations,
                                                                      pair, [f1], [f2]),
                                            self.__class__)
@@ -288,7 +288,7 @@ class AuthorPairParser(TextPairParser):
                 await pair.chunk([f1_contents], f2_contents)
 
                 group_id = PairBuildingProgressEvent.generate_group_id(["a:" + f1] + ["b:" + ",".join(f2)])
-                await EventBroadcaster.publish("onPairGenerated",
+                await EventBroadcaster().publish("onPairGenerated",
                                                PairBuildingProgressEvent(group_id, pair_num, None,
                                                                          pair, [f1], f2),
                                                self.__class__)
@@ -435,7 +435,7 @@ class WebisBuzzfeedAuthorshipCorpusParser(CorpusParser):
                 pair = SamplePairImpl(pair_class, self.chunk_tokenizer)
                 await pair.chunk(chunks_a, chunks_b)
                 group_id = PairBuildingProgressEvent.generate_group_id([pair.pair_id])
-                await EventBroadcaster.publish("onPairGenerated",
+                await EventBroadcaster().publish("onPairGenerated",
                                                PairBuildingProgressEvent(group_id, pair_num, None,
                                                                          pair, file_names_a, file_names_b),
                                                self.__class__)
@@ -716,7 +716,7 @@ class WebisBuzzfeedCatCorpusParser(CorpusParser):
                 pair = SamplePairImpl(pair_class, self.chunk_tokenizer)
                 await pair.chunk(chunks_a, chunks_b)
                 group_id = PairBuildingProgressEvent.generate_group_id([pair.pair_id])
-                await EventBroadcaster.publish("onPairGenerated",
+                await EventBroadcaster().publish("onPairGenerated",
                                                PairBuildingProgressEvent(group_id, pair_num, None,
                                                                          pair, file_names_a, file_names_b),
                                                self.__class__)
@@ -775,7 +775,7 @@ class PanParser(CorpusParser):
             pair = SamplePairImpl(cls, self.chunk_tokenizer)
             await pair.chunk(chunks_a, chunks_b)
             group_id = PairBuildingProgressEvent.generate_group_id([pair.pair_id])
-            await EventBroadcaster.publish("onPairGenerated",
+            await EventBroadcaster().publish("onPairGenerated",
                                            PairBuildingProgressEvent(group_id, pair_num, total_num_pairs,
                                                                      pair, [file_name_a], file_names_b),
                                            self.__class__)
