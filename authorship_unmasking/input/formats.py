@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from authorship_unmasking.conf.interfaces import path_property
 from authorship_unmasking.event.dispatch import EventBroadcaster
 from authorship_unmasking.event.events import PairBuildingProgressEvent, PairChunkingProgressEvent
 from authorship_unmasking.input.interfaces import Chunker, SamplePair, SamplePairClass, Tokenizer
@@ -154,9 +153,9 @@ class TextListParser(CorpusParser):
 
             group_id = PairBuildingProgressEvent.generate_group_id([t1[2], t2[2]])
             await EventBroadcaster().publish("onPairGenerated",
-                                           PairBuildingProgressEvent(group_id, pair_num + 1, num_combinations,
-                                                                     pair, [t1[2]], [t2[2]]),
-                                           self.__class__)
+                                             PairBuildingProgressEvent(group_id, pair_num + 1, num_combinations,
+                                                                       pair, [t1[0]], [t2[0]]),
+                                             self.__class__)
             yield pair
 
 
