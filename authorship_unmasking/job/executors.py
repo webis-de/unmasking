@@ -88,6 +88,7 @@ class ExpandingExecutor(JobExecutor):
                 for config_index, vector in enumerate(expanded_vectors):
                     await self._run_configuration(executor, config_index, vector, config_variables, job_id, output_dir)
 
+                await asyncio.sleep(0)
                 event = JobFinishedEvent(job_id, 0, self.aggregators)
                 await EventBroadcaster().publish("onJobFinished", event, self.__class__)
 
@@ -145,6 +146,7 @@ class ExpandingExecutor(JobExecutor):
                     await output.save(config_output_dir)
                 output.reset()
 
+            await asyncio.sleep(0)
             event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
             await EventBroadcaster().publish("onConfigurationFinished", event, self.__class__)
 
@@ -240,6 +242,7 @@ class AggregateExecutor(JobExecutor):
                     except NotImplementedError:
                         pass
 
+        await asyncio.sleep(0)
         event = JobFinishedEvent(job_id, 0, self.aggregators)
         await EventBroadcaster().publish("onJobFinished", event, self.__class__)
 
