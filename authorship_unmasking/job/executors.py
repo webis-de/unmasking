@@ -145,10 +145,10 @@ class ExpandingExecutor(JobExecutor):
                     await output.save(config_output_dir)
                 output.reset()
 
-        clear_lru_caches()
+            event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
+            await EventBroadcaster().publish("onConfigurationFinished", event, self.__class__)
 
-        event = ConfigurationFinishedEvent(job_id + "_cfg", config_index, self.aggregators)
-        await EventBroadcaster().publish("onConfigurationFinished", event, self.__class__)
+        clear_lru_caches()
 
     @staticmethod
     def _exec(strat: Strategy, feature_set: FeatureSet):
