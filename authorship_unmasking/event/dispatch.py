@@ -13,12 +13,12 @@
 # limitations under the License.
 
 
-from authorship_unmasking.event.interfaces import EventHandler
+from authorship_unmasking.event.interfaces import Event, EventHandler
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from multiprocessing import current_process, Event, JoinableQueue, Lock
-from queue import Empty
+from enum import Enum
+from multiprocessing import current_process, Event as MPEvent, JoinableQueue, Lock
 from threading import current_thread
 from typing import Set
 
@@ -123,6 +123,11 @@ class EventBroadcaster:
 
                 # We are in a worker process, delegate events to main process
                 MultiProcessEventContext().queue.put((event_name, event, sender))
+
+                # Wait for new queue item to populate to main process
+                # TODO: find a better solution
+                await asyncio.sleep(0.1)
+
                 return
 
             if event_name not in self.__subscribers:
@@ -167,13 +172,15 @@ class MultiProcessEventContext:
             return cls._instances[instance]
 
     class _MultiProcessEventContext:
+        class QueueCtrl(Enum):
+            SHUTDOWN = 0
 
         def __init__(self, instance_id):
             self.main_process_name = None
             self.main_thread_name = None
             self.initialized = False
 
-            self.terminate_event = Event()
+            self.terminate_event = MPEvent()
             self.queue = JoinableQueue()
 
             self._instance_id = instance_id
@@ -202,26 +209,23 @@ class MultiProcessEventContext:
             are signaled to shut down.
             """
 
+            # do not accept any further events
             self.terminate_event.set()
 
-            # wait for remaining events to be processes before exiting the context
+            # wait for remaining events to be processed
             loop = asyncio.get_event_loop()
             executor = ThreadPoolExecutor(max_workers=1)
-
             await loop.run_in_executor(executor, self.queue.join)
 
-            try:
-                while not self.queue.empty():
-                    self.queue.get(False)
-            except Empty:
-                pass
+            # quit queue consumers
+            self.queue.put(self.QueueCtrl.SHUTDOWN)
+            await loop.run_in_executor(executor, self.queue.join)
 
-            # quit any workers still waiting for the queue
-            self.queue.put(None)
-
+            # queue should be empty now, but consume any leftover items anyway (just in case)
             while not MultiProcessEventContext().queue.empty():
                 self.queue.get(False)
 
+            # tear down EventBroadcaster instances
             EventBroadcaster.teardown(self._instance_id)
             with MultiProcessEventContext._lock:
                 if self._instance_id in MultiProcessEventContext._instances:
@@ -237,12 +241,13 @@ class MultiProcessEventContext:
                 f = loop.run_in_executor(executor, self.queue.get, True)
 
                 await f
-                self.queue.task_done()
 
-                if f.result() is None:
+                if f.result() is self.QueueCtrl.SHUTDOWN:
+                    self.queue.task_done()
                     return
 
                 await EventBroadcaster().publish(*f.result())
+                self.queue.task_done()
 
         async def __aenter__(self):
             """

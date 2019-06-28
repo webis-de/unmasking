@@ -15,12 +15,17 @@ job%:
 
     # Chunker for creating chunks from input texts
     chunker:
-      name: input.chunkers.SentenceChunker
+      # Option 1: split on sentences (long texts only, slower)
+#      name: input.chunkers.SentenceChunker
+#      parameters:
+#        chunk_size: $chunk_size
+#        language: "english"
 
-      # Tokenizer-specific parameters
+      # Option 2: sample chunks randomly (long and short texts, much faster)
+      name: input.chunkers.RandomWordTokenChunker
       parameters:
-        chunk_size: $chunk_size
-        language: "english"
+        chunk_size: 700
+        num_chunks: 30
 
   exec%.strategy%:
     parameters%:
@@ -62,3 +67,18 @@ job%:
 
     # Repeat each configuration three times
     repetitions: 2
+
+    aggregators:
+      # Aggregate curves by averaging them
+      - name: output.aggregators.CurveAverageAggregator
+        events:
+          - name: onUnmaskingFinished
+          - name: onPairGenerated
+
+      # Visualize aggregated curves
+      - name: output.aggregators.AggregatedCurvePlotter
+        rc_file: plot_rc.yml
+        parameters:
+          display: false
+        events:
+          - name: onJobFinished
