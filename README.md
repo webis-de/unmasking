@@ -19,11 +19,11 @@ environment or `Agg` otherwise. The graphical backend can be changed by editing 
 ## Usage
 
 Unmasking experiments are defined in YAML configuration files. The configuration defaults
-can be found in `etc/defaults.yml` (for unmasking) and `etc/defaults_meta.yml` (for the
-meta classifier). Specific job configurations can override all or part of these default
-configurations. An commented example configuration with a small test corpus can be found in
-`examples/gutenberg_test`. The default configuration files are also commented, so
-please have a look at their contents as well.
+can be found in `authorship_unmaking/etc/defaults.yml` (for unmasking) and
+`authorship_unmaking/etc/defaults_meta.yml` (for the meta classifier). Specific job configurations
+can override all or part of these default configurations. An commented example configuration with a
+small test corpus can be found in `examples/gutenberg_test`. The default configuration files are also
+commented, so please have a look at their contents as well.
 
 ### Unmasking
 
@@ -61,7 +61,7 @@ of a series of pre-trained models.
 
 The `classify` tool also takes a YAML job configuration via the `--config` flag, although
 in most cases it shouldn't be necessary to write a custom configuration. If no configuration
-is given, the defaults from `etc/defaults_meta.yml` will be used.
+is given, the defaults from `authorship_unmaking/etc/defaults_meta.yml` will be used.
 
 **Examples:**
 
