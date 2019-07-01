@@ -124,7 +124,7 @@ class JobExecutor(metaclass=ABCMeta):
                 continue
 
             if type(val) is str and obj.is_path_property(p):
-                val = self._config.resolve_relative_path(val)
+                val = self._config.resolve_relative_path(os.path.join('..', val))
             elif obj.is_instance_property(p):
                 is_list = obj.is_instance_list_property(p)
                 if is_list and obj.delegate_args:
