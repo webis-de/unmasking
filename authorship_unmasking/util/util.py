@@ -99,18 +99,13 @@ def run_in_event_loop(coroutine):
     :param coroutine: coroutine to run in the event loop
     """
     try:
-        stop_when_done = False
         loop = asyncio.get_event_loop()
     except RuntimeError:
-        stop_when_done = True
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
     loop.set_default_executor(ThreadPoolExecutor(max_workers=os.cpu_count()))
     try:
-        future = asyncio.ensure_future(base_coroutine(coroutine))
-        loop.run_until_complete(future)
+        loop.run_until_complete(asyncio.ensure_future(base_coroutine(coroutine)))
     finally:
-        loop.run_until_complete(base_coroutine(loop.shutdown_asyncgens()))
-        if stop_when_done:
-            loop.stop()
+        loop.run_until_complete(asyncio.ensure_future(base_coroutine(loop.shutdown_asyncgens())))
