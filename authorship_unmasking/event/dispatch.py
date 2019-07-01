@@ -19,6 +19,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from multiprocessing import current_process, Event as MPEvent, JoinableQueue, Lock
+import os
 from threading import current_thread
 from typing import Set
 
@@ -34,10 +35,12 @@ class EventBroadcaster:
 
     def __new__(cls, instance=None):
         """
-        :param instance: instance identifier (defaults to current thread name)
+        :param instance: instance identifier (defaults to a combination of the worker's PID and thread name)
         """
         if instance is None:
-            instance = current_process().name + "_" + current_thread().name
+            instance = str(os.getppid()) + "_" + current_thread().name
+            if instance not in cls._instances:
+                instance = str(os.getpid()) + "_" + current_thread().name
 
         with cls._lock:
             if instance not in cls._instances:
@@ -52,11 +55,13 @@ class EventBroadcaster:
         Tear down event handling for this thread or another specific instance.
         This method is thread-safe.
 
-        :param instance: instance name to tear down (defaults to current thread)
+        :param instance: instance name to tear down (defaults to a combination of the worker's PID and thread name)
         """
 
         if instance is None:
-            instance = current_process().name + "_" + current_thread().name
+            instance = str(os.getppid()) + "_" + current_thread().name
+            if instance not in cls._instances:
+                instance = str(os.getpid()) + "_" + current_thread().name
 
         with EventBroadcaster._lock:
             if instance in EventBroadcaster._instances:
@@ -159,10 +164,12 @@ class MultiProcessEventContext:
 
     def __new__(cls, instance=None):
         """
-        :param instance: instance identifier (defaults to current thread name)
+        :param instance: instance identifier (defaults to a combination of the worker's PID and thread name)
         """
         if instance is None:
-            instance = current_thread().name
+            instance = str(os.getppid()) + "_" + current_thread().name
+            if instance not in cls._instances:
+                instance = str(os.getpid()) + "_" + current_thread().name
 
         with cls._lock:
             if instance not in cls._instances:
