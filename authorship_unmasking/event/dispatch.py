@@ -37,7 +37,7 @@ class EventBroadcaster:
         :param instance: instance identifier (defaults to current thread name)
         """
         if instance is None:
-            instance = current_thread().name
+            instance = current_process().name + "_" + current_thread().name
 
         with cls._lock:
             if instance not in cls._instances:
@@ -56,7 +56,7 @@ class EventBroadcaster:
         """
 
         if instance is None:
-            instance = current_thread().name
+            instance = current_process().name + "_" + current_thread().name
 
         with EventBroadcaster._lock:
             if instance in EventBroadcaster._instances:
