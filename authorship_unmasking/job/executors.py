@@ -280,7 +280,6 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
                 event = JobFinishedEvent(job_id, 0, [])
                 await EventBroadcaster().publish("onJobFinished", event, self.__class__)
 
-                print(self.outputs)
                 for output in self.outputs:
                     await output.save(output_dir)
                     output.reset()
