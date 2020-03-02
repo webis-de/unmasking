@@ -240,9 +240,10 @@ class AggregateExecutor(JobExecutor):
                     except NotImplementedError:
                         pass
 
-        await asyncio.sleep(0)
-        event = JobFinishedEvent(job_id, 0, self.aggregators)
-        await EventBroadcaster().publish("onJobFinished", event, self.__class__)
+        async with MultiProcessEventContext():
+            await asyncio.sleep(0)
+            event = JobFinishedEvent(job_id, 0, self.aggregators)
+            await EventBroadcaster().publish("onJobFinished", event, self.__class__)
 
         for aggregator in self.aggregators:
             await aggregator.save(output_dir)
@@ -273,17 +274,19 @@ class MetaClassificationExecutor(JobExecutor, metaclass=ABCMeta):
         self._load_outputs(conf.get("job.outputs"))
 
         start_time = time()
-        try:
-            await self._exec(job_id, output_dir)
-            event = JobFinishedEvent(job_id, 0, [])
-            await EventBroadcaster().publish("onJobFinished", event, self.__class__)
+        async with MultiProcessEventContext():
+            try:
+                await self._exec(job_id, output_dir)
+                event = JobFinishedEvent(job_id, 0, [])
+                await EventBroadcaster().publish("onJobFinished", event, self.__class__)
 
-            for output in self.outputs:
-                await output.save(output_dir)
-                output.reset()
+                print(self.outputs)
+                for output in self.outputs:
+                    await output.save(output_dir)
+                    output.reset()
 
-        finally:
-            print("Time taken: {:.03f} seconds.".format(time() - start_time))
+            finally:
+                print("Time taken: {:.03f} seconds.".format(time() - start_time))
 
     @abstractmethod
     async def _exec(self, job_id: str, output_dir):
