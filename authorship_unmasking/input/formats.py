@@ -17,6 +17,7 @@ from authorship_unmasking.event.events import PairBuildingProgressEvent, PairChu
 from authorship_unmasking.input.interfaces import Chunker, SamplePair, SamplePairClass, Tokenizer
 from authorship_unmasking.input.interfaces import CorpusParser
 
+import json
 import math
 import hashlib
 import os
@@ -781,3 +782,53 @@ class PanParser(CorpusParser):
 
             yield pair
             pair_num += 1
+
+
+class Pan20Parser(PanParser):
+    """
+    Corpus parser for the newer 2020 PAN-style authorship verification corpora.
+
+    * `onPairGenerated`: [type PairBuildingProgressEvent]
+                         fired when a pair has been generated
+    """
+
+    async def __aiter__(self) -> AsyncGenerator[SamplePair, None]:
+        input_files = glob(os.path.join(self.corpus_path, "*.jsonl"))
+        if not 1 <= len(input_files) <= 2:
+            raise RuntimeError("Corpus must contain one or two .jsonl files, found {}".format(len(input_files)))
+
+        if len(input_files) > 1:
+            input_files = sorted(input_files, key=lambda x: x.endswith("-truth.jsonl"))
+            if not input_files[1].endswith("-truth.jsonl"):
+                raise RuntimeError("One of the input files must end with -truth.jsonl")
+
+        pair_file = open(input_files[0], "r")
+        truth_file = open(input_files[1], "r") if len(input_files) > 1 else None
+
+        try:
+            for pair_num, pair_line in enumerate(pair_file):
+                truth_line = next(truth_file) if truth_file is not None else None
+
+                pair_json = json.loads(pair_line)
+                truth_json = json.loads(truth_line) if truth_line is not None else None
+
+                if truth_json and truth_json["id"] != pair_json["id"]:
+                    raise ValueError("IDs of pair and truth must match, found: {} and {}".format(
+                        truth_json["id"], pair_json["id"]))
+
+                cls = self.Class.UNSPECIFIED
+                if truth_json:
+                    cls = self.Class.SAME_AUTHOR if truth_json["same"] else self.Class.DIFFERENT_AUTHORS
+
+                pair = SamplePairImpl(cls, self.chunk_tokenizer)
+                await pair.chunk([pair_json["pair"][0]], [pair_json["pair"][1]])
+                await EventBroadcaster().publish(
+                    "onPairGenerated", PairBuildingProgressEvent(
+                        pair_json["id"], pair_num, None, pair, [pair_json["id"]]), self.__class__)
+
+                yield pair
+
+        finally:
+            pair_file.close()
+            if truth_file is not None:
+                truth_file.close()
