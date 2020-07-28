@@ -143,7 +143,7 @@ class JobConfigLoader(YamlLoader):
         self._config.update(self._resolve_inheritance(self._parse_dot_notation(cfg), self))
 
     def _resolve_inheritance(self, d: Dict[str, Any], default: ConfigLoader, path: str = ""):
-        for k in d:
+        for k in d.copy():
             if k.endswith("%"):
                 t = type(d[k])
                 p = path + "." + k[0:-1] if path != "" else k[0:-1]
