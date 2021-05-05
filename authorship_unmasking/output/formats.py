@@ -356,7 +356,18 @@ class UnmaskingStatAccumulator(EventHandler, Output):
 
         output = UnmaskingResult()
         for c in self._curves:
-            output.add_curve(c, **self._curves[c])
+
+            # Wait until all individual curve events have been processed.
+            wait_counter = 0
+            while "values" not in self._curves[c]:
+                await asyncio.sleep(0.01)
+                wait_counter += 1
+                if wait_counter >= 4000:
+                    print("WARNING: Aborting curve aggregation which blocked for more than 40 seconds. " +
+                          "This is probably a bug.\n", file=sys.stderr)
+                    break
+            else:
+                output.add_curve(c, **self._curves[c])
 
         for m in self._meta:
             output.add_meta(m, self._meta[m])

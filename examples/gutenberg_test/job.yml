@@ -1,6 +1,8 @@
 # Example Job configuration for parsing Gutenberg test corpus
-# You can append % to the names of objects or lists to inherit
-# from the default configuration.
+# You can append % to the names of objects or lists to inherit from the default configuration.
+#
+# WARNING: This config enables live plotting for demonstration purposes.
+# For production use, enable the `buffer_curves` and disable the `display` parameters to improve performance!
 
 ---
 job%:
@@ -33,6 +35,7 @@ job%:
       iterations: 24
 
       # Update plot after each iteration
+      # WARNING: For performance reasons, this should be removed or set to true in production!
       buffer_curves: false
 
   # Specify outputs. Since we are overriding the settings for the
@@ -47,6 +50,7 @@ job%:
       rc_file: etc/plot_rc.yml
       parameters:
         # Show live plot
+        # WARNING: For performance reasons, this should be removed or set to false in production!
         display: true
 
         # Set fixed xlim values since we know how many curve points we'll be getting
