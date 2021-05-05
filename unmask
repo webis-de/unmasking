@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright (C) 2017-2019 Janek Bevendorff, Webis Group
+# Copyright (C) 2017-2021 Janek Bevendorff, Webis Group
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,12 +15,4 @@
 # limitations under the License.
 
 export PYTHONPATH="$(dirname $0):${PYTHONPATH}"
-
-if command -v python3 > /dev/null && [[ $(python3 --version) > "Python 3.5.99" ]]; then
-    exec python3 "$(dirname $0)/app/$(basename $0).py" "$@"
-elif command -v python3.6 > /dev/null; then
-    exec python3.6 "$(dirname $0)/app/$(basename $0).py" "$@"
-else
-    echo "Minimum required Python version not satisfied. Need at least Python 3.6." >&2
-    exit 1
-fi
+exec python3 "$(dirname $0)/app/$(basename $0).py" "$@"
