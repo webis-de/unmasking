@@ -22,6 +22,7 @@ from sklearn.svm import LinearSVC
 import numpy
 
 from abc import ABCMeta, abstractmethod
+import sys
 from typing import List
 import warnings
 
@@ -120,6 +121,9 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
     @buffer_curves.setter
     def buffer_curves(self, buffer: bool):
         """Set whether to buffer curves. Set to False to send update events after each round."""
+        if not buffer:
+            print('WARNING: Curve buffering is turned off.', file=sys.stderr),
+            print('         Set "buffer_curves" to true in your job config for better performance.\n', file=sys.stderr)
         self._buffer_curves = buffer
 
     # noinspection PyPep8Naming
