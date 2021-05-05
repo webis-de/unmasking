@@ -37,7 +37,7 @@ if sys.platform == "linux" and os.environ.get("DISPLAY") is None:
 try:
     import matplotlib.pyplot as pyplot
 except (ModuleNotFoundError, ImportError):
-    matplotlib.use("Agg", warn=False, force=True)
+    matplotlib.use("Agg", force=True)
     import matplotlib.pyplot as pyplot
 
 
