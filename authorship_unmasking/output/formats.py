@@ -483,6 +483,11 @@ class UnmaskingCurvePlotter(EventHandler, Output):
         """Set whether the plot will be displayed on screen"""
         if matplotlib.get_backend().lower() != "agg":
             self._display = display
+
+            if display:
+                print('WARNING: Live plotting is enabled, which is meant only for demonstration purposes.',
+                      file=sys.stderr)
+                print('         Set "display" to false in your job config for better performance.\n', file=sys.stderr)
         else:
             self._display = False
 
