@@ -46,6 +46,16 @@ class ProgressEvent(Event):
         return "Progress: {}/{} ({:.2f}%)".format(self.serial + 1, self.events_total, self.percent_done)
 
     @property
+    def generic_text(self) -> Optional[str]:
+        """Generic progress description."""
+        return None
+
+    @property
+    def unit(self) -> Optional[str]:
+        """Progress item unit name."""
+        return None
+
+    @property
     def events_total(self) -> Optional[int]:
         """Get total number of events that will be sent in this event group."""
         return self._events_total
@@ -73,9 +83,19 @@ class PairChunkingProgressEvent(ProgressEvent):
     def text(self) -> str:
         """Get user-readable textural representation of this event."""
         if self.percent_done is not None:
-            return "Chunking current pair: ({:.2f}%)".format(self.percent_done)
+            return "Chunking pair: ({:.2f}%)".format(self.percent_done)
 
-        return "Chunking current pair..."
+        return "Chunking pair..."
+
+    @property
+    def generic_text(self) -> Optional[str]:
+        """Generic progress description."""
+        return "Chunking pair"
+
+    @property
+    def unit(self) -> Optional[str]:
+        """Progress item unit name."""
+        return "pair(s)"
 
 
 class PairBuildingProgressEvent(ProgressEvent):
@@ -124,6 +144,16 @@ class PairBuildingProgressEvent(ProgressEvent):
             return "Generated pair {}.".format(self.serial)
 
         return "Generated pair {} of {}.".format(self.serial + 1, self.events_total)
+
+    @property
+    def generic_text(self) -> Optional[str]:
+        """Generic progress description."""
+        return "Generating pairs"
+
+    @property
+    def unit(self) -> Optional[str]:
+        """Progress item unit name."""
+        return "pair(s)"
 
 
 class ConfigurationFinishedEvent(Event):

@@ -58,9 +58,8 @@ job%:
       events:
         - name: onUnmaskingRoundFinished
 
-    - name: output.formats.ProgressPrinter
+    - name: output.formats.ProgressBar
       events:
-        - name: onChunkingProgress
         - name: onPairGenerated
 
   experiment%:

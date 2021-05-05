@@ -29,6 +29,7 @@ import matplotlib.ticker
 import numpy as np
 import os
 import sys
+from tqdm import tqdm
 
 # don't use default Qt backend if we are operating without a display server
 if sys.platform == "linux" and os.environ.get("DISPLAY") is None:
@@ -278,6 +279,57 @@ class ProgressPrinter(EventHandler, Output):
             total = event.events_total if event.events_total is not None else "unknown"
             percent_done = event.percent_done if event.percent_done is not None else "unknown"
             print(self._text.format(event.serial, total, percent_done))
+
+    async def save(self, output_dir: str, file_name: Optional[str] = None):
+        pass
+
+    def reset(self):
+        pass
+
+
+class ProgressBar(ProgressPrinter):
+    """
+    Print progress as a progress bar to the console.
+    """
+
+    def __init__(self, text: str = None, unit: str = None):
+        super().__init__(text)
+        self._unit = unit
+        self._bars = dict()
+
+    @property
+    def unit(self) -> str:
+        """Get custom item unit"""
+        return self._unit
+
+    @unit.setter
+    def unit(self, unit: str):
+        """
+        Set custom item unit.
+        """
+        self._unit = unit
+
+    async def handle(self, name: str, event: Event, sender: type):
+        """
+        Accepts events:
+            - ProgressEvent
+        """
+        if not isinstance(event, ProgressEvent):
+            raise RuntimeError("event must be of type ProgressEvent")
+
+        if name not in self._bars:
+            self._bars[name] = tqdm(leave=False,
+                                    unit=self.unit if self.unit else event.unit,
+                                    desc=self._text if self._text else event.generic_text)
+
+        if event.events_total:
+            self._bars[name].total = event.events_total
+
+        if event.serial:
+            self._bars[name].n = event.serial
+            self._bars[name].update(0)
+        else:
+            self._bars[name].update(1)
 
     async def save(self, output_dir: str, file_name: Optional[str] = None):
         pass

@@ -803,11 +803,15 @@ class Pan20Parser(PanParser):
                 raise RuntimeError("One of the input files must end with -truth.jsonl")
 
         pair_file = open(input_files[0], "r")
-        truth_file = open(input_files[1], "r") if len(input_files) > 1 else None
+        truths = None
+        if len(input_files) > 1:
+            with open(input_files[1], "r") as truth_file:
+                truths = truth_file.readlines()
 
         try:
+            truth_it = iter(truths)
             for pair_num, pair_line in enumerate(pair_file):
-                truth_line = next(truth_file) if truth_file is not None else None
+                truth_line = next(truth_it) if truths is not None else None
 
                 pair_json = json.loads(pair_line)
                 truth_json = json.loads(truth_line) if truth_line is not None else None
@@ -824,11 +828,9 @@ class Pan20Parser(PanParser):
                 await pair.chunk([pair_json["pair"][0]], [pair_json["pair"][1]])
                 await EventBroadcaster().publish(
                     "onPairGenerated", PairBuildingProgressEvent(
-                        pair_json["id"], pair_num, None, pair, [pair_json["id"]]), self.__class__)
+                        pair_json["id"], pair_num, len(truths), pair, [pair_json["id"]]), self.__class__)
 
                 yield pair
 
         finally:
             pair_file.close()
-            if truth_file is not None:
-                truth_file.close()
