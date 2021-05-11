@@ -160,9 +160,7 @@ class UnmaskingStrategy(Strategy, metaclass=ABCMeta):
                 return
 
             try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    cv = cross_validate(clf, X, y, cv=self._folds, return_estimator=True, return_train_score=False)
+                cv = cross_validate(clf, X, y, cv=self._folds, return_estimator=True, return_train_score=False)
                 score = max(0.0, (cv['test_score'].mean() - .5) * 2)
                 cv_models = cv["estimator"]
 

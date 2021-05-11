@@ -15,4 +15,5 @@
 # limitations under the License.
 
 export PYTHONPATH="$(dirname $0):${PYTHONPATH}"
+export PYTHONWARNINGS="ignore"
 exec python3 "$(dirname $0)/app/$(basename $0).py" "$@"
